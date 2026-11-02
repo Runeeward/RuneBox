@@ -5,7 +5,7 @@ These settings live in GitHub rather than the repository, so a maintainer must a
 ## About panel
 
 - Description: `Rune Box: an environment where your AI agent can roam freely but with receipts. Open-source governance harness for AI agents.`
-- Website: `https://runeeward.github.io/runeward/`
+- Website: `https://runeeward.github.io/RuneBox/`
 - Topics: `ai-agents`, `agent-security`, `sandbox`, `policy-engine`, `human-in-the-loop`,
   `agent-harness`, `multi-agent`, `audit-log`, `mcp`, `docker`, `kubernetes`, `rego`, `cel`, `rust`
 - Social preview: upload `docs/assets/rune-box-banner.png` (a still of the animated `rune-box-banner.svg`). Check the crop in GitHub's preview
@@ -22,7 +22,7 @@ These settings live in GitHub rather than the repository, so a maintainer must a
   release workflow pushes the Homebrew formula; without it the formula is rendered but not pushed.
 - Confirm the tagged CLI contains `quickstart`, `doctor`, `evidence`, and `policy learn` before
   removing the `main`/release distinction from the README.
-- Confirm the Homebrew tap contains the current formula and `brew install Runeeward/tap/runeward`
+- Confirm the Homebrew tap contains the current formula and `brew install Runeeward/tap/runebox`
   still succeeds before updating public install docs.
 - Publish and verify the current Python/npm versions before updating registry install docs.
 - Run `scripts/set-release-version.py <version>` to update the SDKs, `dist/mcp/server.json`, the

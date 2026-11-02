@@ -1,7 +1,7 @@
 # Security and dashboard review
 
 This page records the security and dashboard review performed on 10 September
-2026. It covers the `Runeeward/runeward` application and the
+2026. It covers the `Runeeward/RuneBox` application and the
 `Runeeward/homebrew-tap` distribution repository.
 
 > Rune Box has since moved from Go to Rust. The Go dependency findings below describe the earlier

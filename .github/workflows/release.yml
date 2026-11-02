@@ -293,7 +293,7 @@ jobs:
       #
       # - checksums.txt.sigstore.json: a Sigstore bundle (current cosign):
       #     cosign verify-blob --bundle checksums.txt.sigstore.json \
-      #       --certificate-identity-regexp '^https://github.com/Runeeward/runeward/\.github/workflows/release\.yml@refs/tags/.*$' \
+      #       --certificate-identity-regexp '^https://github\.com/Runeeward/(runeward|RuneBox)/\.github/workflows/release\.yml@refs/tags/.*$' \
       #       --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
       #       checksums.txt
       # - checksums.txt.sig + checksums.txt.pem: the detached signature and
@@ -338,7 +338,9 @@ jobs:
           fail_on_unmatched_files: true
           files: dist-release/*
 
-  # Homebrew formula -> brew install Runeeward/tap/runeward
+  # Homebrew formula -> brew install Runeeward/tap/runebox (the command is
+  # still runeward). The tap's formula_renames.json maps the old formula name
+  # runeward to runebox, so existing installs move over on upgrade.
   #
   # Needs a repo secret HOMEBREW_TAP_TOKEN (a token with write access to
   # Runeeward/homebrew-tap). Without it the formula is rendered but not
@@ -357,18 +359,17 @@ jobs:
           merge-multiple: true
       - name: Render formula
         run: |
-          version="${RELEASE_REF#v}"
+          # Homebrew reads the version from the release URL.
           base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_REF}"
           sum() { sha256sum "dist-release/$1" | awk '{print $1}'; }
-          cat > runeward.rb <<EOF
+          cat > runebox.rb <<EOF
           # typed: false
           # frozen_string_literal: true
 
           # Rendered by the Rune Box release workflow; do not edit by hand.
-          class Runeward < Formula
-            desc "Rune Box: an environment where your agent can roam freely but with receipts"
-            homepage "https://github.com/Runeeward/runeward"
-            version "${version}"
+          class Runebox < Formula
+            desc "Environment where your agent can roam freely but with receipts"
+            homepage "https://github.com/Runeeward/RuneBox"
             license "Apache-2.0"
 
             on_macos do
@@ -402,7 +403,7 @@ jobs:
             end
           end
           EOF
-          cat runeward.rb
+          cat runebox.rb
       - name: Push formula to the tap
         if: ${{ !contains(env.RELEASE_REF, '-') }}
         env:
@@ -414,16 +415,18 @@ jobs:
           fi
           git clone --depth 1 "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/Runeeward/homebrew-tap.git" tap
           mkdir -p tap/Formula
-          cp runeward.rb tap/Formula/runeward.rb
+          cp runebox.rb tap/Formula/runebox.rb
           cd tap
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Formula/runeward.rb
+          git add Formula/runebox.rb
+          # The formula under its old name would shadow the rename.
+          git rm -q --ignore-unmatch Formula/runeward.rb
           if git diff --cached --quiet; then
             echo "formula unchanged"
             exit 0
           fi
-          git commit -m "runeward ${RELEASE_REF}"
+          git commit -m "runebox ${RELEASE_REF}"
           git push origin HEAD
 
   # Multi-arch images, built natively per architecture (no QEMU: the Rust
@@ -453,9 +456,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.SOURCE_REF }}
-      # GHCR only accepts lowercase repository paths; the org name is mixed-case.
+      # Images keep the runeward name after the repository rename to RuneBox.
+      # GHCR only accepts lowercase paths; the org name is mixed-case.
       - name: Compute lowercase image name
-        run: echo "IMAGE=${GITHUB_REPOSITORY,,}${{ matrix.image.suffix }}" >> "$GITHUB_ENV"
+        run: echo "IMAGE=${GITHUB_REPOSITORY_OWNER,,}/runeward${{ matrix.image.suffix }}" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
         with:
@@ -495,7 +499,7 @@ jobs:
   # Keyless (Fulcio/Rekor) signature over each manifest list by digest.
   # Signing the digest covers every tag that points at it. Verify with:
   #   cosign verify ghcr.io/runeeward/runeward:<tag> \
-  #     --certificate-identity-regexp 'https://github.com/Runeeward/runeward' \
+  #     --certificate-identity-regexp '^https://github\.com/Runeeward/(runeward|RuneBox)/\.github/workflows/release\.yml@refs/.*$' \
   #     --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
   images-merge:
     name: manifest ${{ matrix.image.name }}
@@ -513,7 +517,7 @@ jobs:
     steps:
       - name: Compute image name and tag
         run: |
-          echo "IMAGE=${GITHUB_REPOSITORY,,}${{ matrix.image.suffix }}" >> "$GITHUB_ENV"
+          echo "IMAGE=${GITHUB_REPOSITORY_OWNER,,}/runeward${{ matrix.image.suffix }}" >> "$GITHUB_ENV"
           # Image-only modes publish a branch build, never a version tag.
           if [ "${MODE}" = sandbox-image ] || [ "${MODE}" = runtime-images ]; then
             echo "TAG=sha-${GITHUB_SHA::7}" >> "$GITHUB_ENV"

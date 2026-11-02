@@ -4,7 +4,7 @@
 
 | Install with | What it installs | Command |
 | --- | --- | --- |
-| [Homebrew](https://github.com/Runeeward/homebrew-tap) | Rune Box CLI for macOS or Linux | `brew install Runeeward/tap/runeward` |
+| [Homebrew](https://github.com/Runeeward/homebrew-tap) | Rune Box CLI for macOS or Linux | `brew install Runeeward/tap/runebox` |
 | [PyPI](https://pypi.org/project/runeward/) | Python client and agent-framework adapters | `python -m pip install runeward` |
 | [npm](https://www.npmjs.com/package/@runeward/sdk) | TypeScript client and agent-framework tools | `npm install @runeward/sdk` |
 
@@ -17,10 +17,13 @@ replace the CLI/runtime.
 Homebrew installs the current signed CLI release on macOS or Linux:
 
 ```bash
-brew install Runeeward/tap/runeward
+brew install Runeeward/tap/runebox
 runeward version
 runeward quickstart
 ```
+
+The formula was named `runeward` before v0.4.2. `brew upgrade` moves an existing install to
+`runebox`, and the command is still `runeward`.
 
 Local sandboxes also require a running Docker, OrbStack, or Podman engine.
 
@@ -51,18 +54,18 @@ The installer requires `curl` or `wget`, `tar`, a SHA-256 utility, and
 signed checksum manifest is verified before the archive checksum and install.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Runeeward/runeward/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Runeeward/RuneBox/main/install.sh | sh
 ```
 
 Pin a release or location:
 
 ```bash
 RUNEWARD_VERSION=v0.4.1 RUNEWARD_BIN_DIR="$HOME/.local/bin" \
-  sh -c "$(curl -fsSL https://raw.githubusercontent.com/Runeeward/runeward/main/install.sh)"
+  sh -c "$(curl -fsSL https://raw.githubusercontent.com/Runeeward/RuneBox/main/install.sh)"
 ```
 
 The shell installer supports macOS and Linux. Windows CLI archives are available from
-[GitHub Releases](https://github.com/Runeeward/runeward/releases); the in-sandbox helpers are Linux
+[GitHub Releases](https://github.com/Runeeward/RuneBox/releases); the in-sandbox helpers are Linux
 binaries because they run inside Docker or Kubernetes.
 
 ## From source
@@ -71,8 +74,8 @@ The documentation follows `main`. Build from source with **Rust 1.95** or newer 
 changes:
 
 ```bash
-git clone https://github.com/Runeeward/runeward
-cd runeward
+git clone https://github.com/Runeeward/RuneBox
+cd RuneBox
 cargo build --release --locked -p runeward-cli --bin runeward
 ./target/release/runeward version
 ```
@@ -93,8 +96,26 @@ docker pull ghcr.io/runeeward/runeward-ide:latest
 docker pull ghcr.io/runeeward/runeward-ide-agents:latest
 ```
 
-Images and release checksums are signed by the release workflow. Verification examples are in
-[SECURITY.md](https://github.com/Runeeward/runeward/blob/main/SECURITY.md).
+Images and release checksums are signed keylessly by the release workflow. The repository was
+renamed from `Runeeward/runeward` to `Runeeward/RuneBox`, so the identity accepts both names.
+Verify `checksums.txt` from a release:
+
+```bash
+cosign verify-blob --bundle checksums.txt.sigstore.json \
+  --certificate-identity-regexp '^https://github\.com/Runeeward/(runeward|RuneBox)/\.github/workflows/release\.yml@refs/tags/.*$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  checksums.txt
+```
+
+Verify an image:
+
+```bash
+cosign verify ghcr.io/runeeward/runeward:<tag> \
+  --certificate-identity-regexp '^https://github\.com/Runeeward/(runeward|RuneBox)/\.github/workflows/release\.yml@refs/.*$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+See [SECURITY.md](https://github.com/Runeeward/RuneBox/blob/main/SECURITY.md) for more.
 
 ## Runtime prerequisites
 

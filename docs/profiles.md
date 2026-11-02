@@ -206,5 +206,5 @@ ref        = "oci://ghcr.io/acme/runeward-policies:v3"
 verify_key = "<base64 ed25519 public key>"   # when set, a valid signature is REQUIRED
 ```
 
-See the [`examples/`](https://github.com/Runeeward/runeward/tree/main/examples)
+See the [`examples/`](https://github.com/Runeeward/RuneBox/tree/main/examples)
 directory for complete, runnable Charters.

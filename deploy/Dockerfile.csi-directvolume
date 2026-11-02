@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 # mkfs, debugfs, blkid, fsck and mount for formatting and staging disks.
 FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
-LABEL org.opencontainers.image.source="https://github.com/Runeeward/runeward"
+LABEL org.opencontainers.image.source="https://github.com/Runeeward/RuneBox"
 LABEL org.opencontainers.image.description="Rune Box build of Kata's direct-volume CSI driver"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 RUN apk upgrade --no-cache \
