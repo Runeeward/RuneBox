@@ -70,6 +70,7 @@ and the Charter's egress policy.
 | `runeward policy scaffold [template] [--list]` | Print a ready-made policy template for a common control. |
 | `runeward policy learn <evidence-or-chronicle.json>` | Print exact, reviewable proposals from a verified audit trail. |
 | `runeward evidence export <charter> [-o file]` | Package the resolved policy and signed Chronicle events. |
+| `runeward evidence efficiency <evidence-or-chronicle.json> [--top N] [--json]` | Report calls a recorded run made more than once per session, those repeated after a refusal or an identical failure, and the time spent in repeats. Reads only verified recorded events. |
 | `runeward evidence verify <file>` | Verify the policy digest, event chain, and every signature. |
 | `runeward charter sign\|verify <file>` | Produce/verify a detached ed25519 signature over a Charter. |
 | `runeward runtime check\|guide\|install <gvisor\|kata>` | Inspect, explain, or install hardened runtimes (gVisor/Kata). |
@@ -203,6 +204,7 @@ runeward policy scaffold package-approval >> mycharter.toml
 runeward --config-dir examples evidence export ns-auto -o evidence.json
 runeward evidence verify evidence.json
 runeward policy learn evidence.json > proposed-policy.toml
+runeward evidence efficiency evidence.json --top 10
 
 # Persistent workspaces, forks and resumable turns
 runeward citadel status cit-1234

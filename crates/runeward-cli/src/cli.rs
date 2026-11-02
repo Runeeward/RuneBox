@@ -422,6 +422,24 @@ pub enum EvidenceCmd {
         /// The evidence package
         evidence: String,
     },
+    /// Report repeated and avoidable calls in a recorded run
+    #[command(
+        long_about = "Read a verified evidence package or signed Chronicle bundle and report
+calls made more than once in a session: how often, how many repeated a
+call policy had already refused, how many repeated an identical failure,
+and the time spent in repeats. Only recorded events are read; nothing is
+run again."
+    )]
+    Efficiency {
+        /// Evidence package or Chronicle bundle
+        input: String,
+        /// list at most this many repeated calls
+        #[arg(long, default_value_t = 20)]
+        top: usize,
+        /// print JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// `policy` subcommands.
@@ -1077,6 +1095,9 @@ async fn dispatch(cli: Cli) -> Result<()> {
                 force,
             } => crate::audit::evidence_export(&charter, &session, &output, force, cfg).await,
             EvidenceCmd::Verify { evidence } => crate::audit::evidence_verify(&evidence),
+            EvidenceCmd::Efficiency { input, top, json } => {
+                crate::efficiency::efficiency(&input, top, json)
+            }
         },
         Command::Export {
             citadel_id,
