@@ -18,6 +18,7 @@ runeward-vmagent.workspace = true
 async-trait.workspace = true
 cap-std.workspace = true
 chrono.workspace = true
+bzip2.workspace = true
 flate2.workspace = true
 # AsyncBufReadExt for following the egress sidecar's log.
 futures-util = { workspace = true, features = ["io"] }

@@ -30,6 +30,7 @@
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
+use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
@@ -340,6 +341,14 @@ pub enum Verify {
 /// One step of a plan.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Step {
+    /// Stage a gVisor release. Current releases use a verified archive;
+    /// older releases fall back to the two verified standalone binaries.
+    DownloadGvisor {
+        /// Release directory (`.../<version>/<arch>`).
+        base: String,
+        /// Optional sha256 pin for the extracted or standalone `runsc`.
+        runsc_sha256: String,
+    },
     /// Download `url` into the staging directory as `name`, verified.
     Download {
         /// Source URL.
@@ -354,6 +363,15 @@ pub enum Step {
         /// Staged file name.
         name: String,
         /// Destination path.
+        dest: PathBuf,
+    },
+    /// Install a staged directory recursively when it is present. The
+    /// gVisor archive carries `gvisor-bin/`; legacy per-binary releases do
+    /// not.
+    InstallDirectory {
+        /// Staged directory name.
+        name: String,
+        /// Destination directory.
         dest: PathBuf,
     },
     /// Symlink `link` to `target` (a containerd shim onto dockerd's PATH).
@@ -427,6 +445,17 @@ impl Plan {
         for (i, s) in self.steps.iter().enumerate() {
             let n = i + 1;
             match s {
+                Step::DownloadGvisor { base, runsc_sha256 } => {
+                    let pin = if runsc_sha256.is_empty() {
+                        String::new()
+                    } else {
+                        format!("; runsc sha256 pin {}", short_hex(runsc_sha256))
+                    };
+                    let _ = writeln!(
+                        w,
+                        "  {n}. Download + checksum-verify {base}/gvisor.tar.bz2 (+ .sha512{pin}); fall back to verified standalone binaries for an older release"
+                    );
+                }
                 Step::Download { url, verify, .. } => {
                     let how = match verify {
                         Verify::Sha256(h) => format!("sha256 pin {}", short_hex(h)),
@@ -438,6 +467,13 @@ impl Plan {
                     let _ = writeln!(
                         w,
                         "  {n}. chmod 0755 and install {name} at {}",
+                        dest.display()
+                    );
+                }
+                Step::InstallDirectory { name, dest } => {
+                    let _ = writeln!(
+                        w,
+                        "  {n}. Install {name}/ at {} when the release archive provides it",
                         dest.display()
                     );
                 }
@@ -510,7 +546,7 @@ fn short_hex(h: &str) -> String {
 pub fn gvisor_arch(arch: &str) -> std::result::Result<&'static str, String> {
     match arch {
         "x86_64" | "amd64" => Ok("x86_64"),
-        "aarch64" | "arm64" => Ok("arm64"),
+        "aarch64" | "arm64" => Ok("aarch64"),
         other => Err(format!(
             "unsupported architecture {other:?}: gVisor publishes amd64 (x86_64) and arm64 builds"
         )),
@@ -760,26 +796,20 @@ fn plan_gvisor(req: &Request, facts: &HostFacts, p: &mut Plan) {
         req.version()
     );
     let bin = req.bin_dir();
-    for name in ["runsc", "containerd-shim-runsc-v1"] {
-        let url = format!("{base}/{name}");
-        let pin = req.sha256.trim().to_ascii_lowercase();
-        let verify = if name == "runsc" && !pin.is_empty() {
-            Verify::Sha256(pin)
-        } else {
-            Verify::Sha512Sidecar(format!("{url}.sha512"))
-        };
-        p.steps.push(Step::Download {
-            url,
-            name: name.to_owned(),
-            verify,
-        });
-    }
+    p.steps.push(Step::DownloadGvisor {
+        base,
+        runsc_sha256: req.sha256.trim().to_ascii_lowercase(),
+    });
     for name in ["runsc", "containerd-shim-runsc-v1"] {
         p.steps.push(Step::Install {
             name: name.to_owned(),
             dest: bin.join(name),
         });
     }
+    p.steps.push(Step::InstallDirectory {
+        name: "gvisor-bin".into(),
+        dest: bin.join("gvisor-bin"),
+    });
     match req.engine {
         Engine::Docker => {
             let entry = serde_json::json!({ "path": bin.join("runsc").to_string_lossy() });
@@ -1144,7 +1174,7 @@ pub async fn apply(plan: &Plan) -> Result<Vec<String>> {
     let needs_staging = plan
         .steps
         .iter()
-        .any(|s| matches!(s, Step::Download { .. }));
+        .any(|s| matches!(s, Step::Download { .. } | Step::DownloadGvisor { .. }));
     let staging = if needs_staging {
         Some(
             tempfile::Builder::new()
@@ -1161,6 +1191,15 @@ pub async fn apply(plan: &Plan) -> Result<Vec<String>> {
         .map_err(|e| BackendError::msg(format!("http client: {e}")))?;
     for step in &plan.steps {
         match step {
+            Step::DownloadGvisor { base, runsc_sha256 } => {
+                let dir = staging
+                    .as_ref()
+                    .map(tempfile::TempDir::path)
+                    .ok_or_else(|| {
+                        BackendError::msg("no staging directory for gVisor download".to_owned())
+                    })?;
+                log.extend(stage_gvisor_release(base, dir, runsc_sha256).await?);
+            }
             Step::Download { url, name, verify } => {
                 let dir = staging
                     .as_ref()
@@ -1186,6 +1225,29 @@ pub async fn apply(plan: &Plan) -> Result<Vec<String>> {
                 } else {
                     log.push(format!(
                         "sudo install -m 0755 {} {}",
+                        src.display(),
+                        dest.display()
+                    ));
+                }
+            }
+            Step::InstallDirectory { name, dest } => {
+                let dir = staging
+                    .as_ref()
+                    .map(tempfile::TempDir::path)
+                    .ok_or_else(|| {
+                        BackendError::msg("no staging directory for directory install".to_owned())
+                    })?;
+                let src = dir.join(name);
+                if !src.is_dir() {
+                    continue;
+                }
+                if plan.root {
+                    copy_tree(&src, dest)?;
+                    log.push(format!("installed {}/", dest.display()));
+                } else {
+                    log.push(format!("sudo install -d {}", dest.display()));
+                    log.push(format!(
+                        "sudo cp -R {}/. {}/",
                         src.display(),
                         dest.display()
                     ));
@@ -1245,6 +1307,139 @@ pub async fn apply(plan: &Plan) -> Result<Vec<String>> {
     Ok(log)
 }
 
+/// Downloads and verifies one gVisor release into `staging`.
+///
+/// Current release directories contain `gvisor.tar.bz2`; older dated
+/// releases contain `runsc` and `containerd-shim-runsc-v1` directly. The
+/// archive is preferred and a 404 alone selects the legacy layout. Any
+/// other download, checksum, or extraction error fails closed.
+pub async fn stage_gvisor_release(
+    base: &str,
+    staging: &Path,
+    runsc_sha256: &str,
+) -> Result<Vec<String>> {
+    std::fs::create_dir_all(staging)
+        .map_err(|e| BackendError::io("create gVisor staging dir", e))?;
+    let client = reqwest::Client::builder()
+        .timeout(DOWNLOAD_TIMEOUT)
+        .build()
+        .map_err(|e| BackendError::msg(format!("http client: {e}")))?;
+    let archive_url = format!("{base}/gvisor.tar.bz2");
+    let archive = staging.join("gvisor.tar.bz2");
+    let mut log = Vec::new();
+    if try_http_get_to_file(&client, &archive_url, &archive).await? {
+        verify_downloaded(
+            &client,
+            &archive_url,
+            &archive,
+            &Verify::Sha512Sidecar(format!("{archive_url}.sha512")),
+            &mut log,
+        )
+        .await?;
+        extract_gvisor_archive(&archive, staging)?;
+        if !runsc_sha256.is_empty() {
+            verify_digest::<Sha256>(&staging.join("runsc"), runsc_sha256)
+                .map_err(BackendError::msg)?;
+            log.push(format!(
+                "verified runsc (sha256 {})",
+                short_hex(runsc_sha256)
+            ));
+        }
+        log.push("staged gVisor archive layout".to_owned());
+        return Ok(log);
+    }
+
+    log.push("gVisor archive not found; using legacy per-binary layout".to_owned());
+    for name in ["runsc", "containerd-shim-runsc-v1"] {
+        let url = format!("{base}/{name}");
+        let verify = if name == "runsc" && !runsc_sha256.is_empty() {
+            Verify::Sha256(runsc_sha256.to_ascii_lowercase())
+        } else {
+            Verify::Sha512Sidecar(format!("{url}.sha512"))
+        };
+        download_verified(&client, &url, &staging.join(name), &verify, &mut log).await?;
+    }
+    Ok(log)
+}
+
+/// Extracts the verified gVisor archive into `staging`, accepting only the
+/// two runtime binaries and the `gvisor-bin/` directory. Links and unsafe
+/// paths are refused rather than followed.
+pub fn extract_gvisor_archive(archive: &Path, staging: &Path) -> Result<()> {
+    let file = File::open(archive).map_err(|e| BackendError::io("open gVisor archive", e))?;
+    let decoder = bzip2::read::BzDecoder::new(file);
+    let mut tar = tar::Archive::new(decoder);
+    let entries = tar
+        .entries()
+        .map_err(|e| BackendError::io("read gVisor archive", e))?;
+    for entry in entries {
+        let mut entry = entry.map_err(|e| BackendError::io("read gVisor archive entry", e))?;
+        let path = entry
+            .path()
+            .map_err(|e| BackendError::io("read gVisor archive path", e))?;
+        let path = safe_relative_path(&path)?;
+        let wanted = path == Path::new("runsc")
+            || path == Path::new("containerd-shim-runsc-v1")
+            || path.starts_with("gvisor-bin");
+        if !wanted {
+            continue;
+        }
+        let kind = entry.header().entry_type();
+        if !(kind.is_file() || kind.is_dir()) {
+            return Err(BackendError::msg(format!(
+                "refusing link or special entry {} in gVisor archive",
+                path.display()
+            )));
+        }
+        let dst = staging.join(&path);
+        if kind.is_dir() {
+            std::fs::create_dir_all(&dst)
+                .map_err(|e| BackendError::io("create gVisor archive directory", e))?;
+        } else {
+            if let Some(parent) = dst.parent() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| BackendError::io("create gVisor archive directory", e))?;
+            }
+            entry
+                .unpack(&dst)
+                .map_err(|e| BackendError::io("extract gVisor archive entry", e))?;
+        }
+    }
+    for name in ["runsc", "containerd-shim-runsc-v1"] {
+        if !staging.join(name).is_file() {
+            return Err(BackendError::msg(format!(
+                "gVisor archive is missing required binary {name}"
+            )));
+        }
+    }
+    if !staging.join("gvisor-bin").is_dir() {
+        return Err(BackendError::msg(
+            "gVisor archive is missing required gvisor-bin directory".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn safe_relative_path(path: &Path) -> Result<PathBuf> {
+    let mut safe = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::Normal(part) => safe.push(part),
+            std::path::Component::CurDir => {}
+            _ => {
+                return Err(BackendError::msg(format!(
+                    "unsafe path {} in gVisor archive",
+                    path.display()
+                )));
+            }
+        }
+    }
+    if safe.as_os_str().is_empty() {
+        return Err(BackendError::msg("empty path in gVisor archive".to_owned()));
+    }
+    Ok(safe)
+}
+
 async fn apply_manifest(manifest: &str) -> Result<Vec<String>> {
     let Some(kubectl) = crate::factory::look_path("kubectl") else {
         return Ok(vec![format!(
@@ -1291,6 +1486,16 @@ async fn download_verified(
     http_get_to_file(client, url, dst)
         .await
         .map_err(|e| BackendError::msg(format!("download {url}: {e}")))?;
+    verify_downloaded(client, url, dst, verify, log).await
+}
+
+async fn verify_downloaded(
+    client: &reqwest::Client,
+    _url: &str,
+    dst: &Path,
+    verify: &Verify,
+    log: &mut Vec<String>,
+) -> Result<()> {
     let result: std::result::Result<String, String> = async {
         match verify {
             Verify::Sha256(want) => verify_digest::<Sha256>(dst, want)
@@ -1326,6 +1531,41 @@ async fn download_verified(
             Err(BackendError::msg(e))
         }
     }
+}
+
+/// Downloads `url` when it exists. A 404 returns `false`; every other
+/// non-success status or transport error is an error.
+async fn try_http_get_to_file(client: &reqwest::Client, url: &str, dst: &Path) -> Result<bool> {
+    let mut resp = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| BackendError::msg(format!("download {url}: {e}")))?;
+    if resp.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(false);
+    }
+    if resp.status() != reqwest::StatusCode::OK {
+        return Err(BackendError::msg(format!(
+            "download {url}: unexpected status {}",
+            resp.status()
+        )));
+    }
+    let mut f = tokio::fs::File::create(dst)
+        .await
+        .map_err(|e| BackendError::io("create download file", e))?;
+    while let Some(chunk) = resp
+        .chunk()
+        .await
+        .map_err(|e| BackendError::msg(format!("download {url}: {e}")))?
+    {
+        f.write_all(&chunk)
+            .await
+            .map_err(|e| BackendError::io("write download file", e))?;
+    }
+    f.flush()
+        .await
+        .map_err(|e| BackendError::io("flush download file", e))?;
+    Ok(true)
 }
 
 async fn http_get_to_file(
@@ -1414,6 +1654,35 @@ fn install_file(src: &Path, dst: &Path) -> Result<()> {
     std::fs::copy(src, dst).map_err(|e| BackendError::io("install binary", e))?;
     set_executable(dst)?;
     std::fs::remove_file(src).map_err(|e| BackendError::io("remove staged binary", e))
+}
+
+fn copy_tree(src: &Path, dst: &Path) -> Result<()> {
+    std::fs::create_dir_all(dst).map_err(|e| BackendError::io("create install directory", e))?;
+    for item in std::fs::read_dir(src).map_err(|e| BackendError::io("read staged directory", e))? {
+        let item = item.map_err(|e| BackendError::io("read staged directory entry", e))?;
+        let from = item.path();
+        let to = dst.join(item.file_name());
+        let kind = item
+            .file_type()
+            .map_err(|e| BackendError::io("read staged entry type", e))?;
+        if kind.is_dir() {
+            copy_tree(&from, &to)?;
+        } else if kind.is_file() {
+            std::fs::copy(&from, &to)
+                .map_err(|e| BackendError::io("install gVisor support file", e))?;
+            let permissions = std::fs::metadata(&from)
+                .map_err(|e| BackendError::io("read gVisor support file metadata", e))?
+                .permissions();
+            std::fs::set_permissions(&to, permissions)
+                .map_err(|e| BackendError::io("set gVisor support file permissions", e))?;
+        } else {
+            return Err(BackendError::msg(format!(
+                "refusing special staged entry {}",
+                from.display()
+            )));
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
