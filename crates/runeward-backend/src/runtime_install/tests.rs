@@ -65,15 +65,9 @@ fn gvisor_docker_plan_matches_go() {
     assert_eq!(
         p.steps[..4],
         [
-            Step::Download {
-                url: format!("{base}/runsc"),
-                name: "runsc".into(),
-                verify: Verify::Sha512Sidecar(format!("{base}/runsc.sha512")),
-            },
-            Step::Download {
-                url: format!("{base}/containerd-shim-runsc-v1"),
-                name: "containerd-shim-runsc-v1".into(),
-                verify: Verify::Sha512Sidecar(format!("{base}/containerd-shim-runsc-v1.sha512")),
+            Step::DownloadGvisor {
+                base: base.into(),
+                runsc_sha256: String::new(),
             },
             Step::Install {
                 name: "runsc".into(),
@@ -82,6 +76,10 @@ fn gvisor_docker_plan_matches_go() {
             Step::Install {
                 name: "containerd-shim-runsc-v1".into(),
                 dest: "/usr/local/bin/containerd-shim-runsc-v1".into(),
+            },
+            Step::InstallDirectory {
+                name: "gvisor-bin".into(),
+                dest: "/usr/local/bin/gvisor-bin".into(),
             },
         ]
     );
@@ -104,20 +102,12 @@ fn gvisor_sha256_pin_and_arch() {
     facts.arch = "aarch64".into();
     let p = plan(&req, &facts);
     match &p.steps[0] {
-        Step::Download { url, verify, .. } => {
-            assert!(url.ends_with("/20240101/arm64/runsc"), "{url}");
-            assert_eq!(verify, &Verify::Sha256("abcdef0123".into()));
+        Step::DownloadGvisor { base, runsc_sha256 } => {
+            assert!(base.ends_with("/20240101/aarch64"), "{base}");
+            assert_eq!(runsc_sha256, "abcdef0123");
         }
         s => panic!("{s:?}"),
     }
-    // The shim is always sidecar-verified, as in Go.
-    assert!(matches!(
-        &p.steps[1],
-        Step::Download {
-            verify: Verify::Sha512Sidecar(_),
-            ..
-        }
-    ));
     facts.arch = "riscv64".into();
     let p = plan(&req, &facts);
     assert_eq!(status_of(&p, "arch"), Some(CheckStatus::Fail));
@@ -430,6 +420,71 @@ async fn serve(files: HashMap<String, Vec<u8>>) -> String {
     format!("http://{addr}")
 }
 
+fn archive_entry<W: std::io::Write>(tar: &mut tar::Builder<W>, path: &str, body: &[u8]) {
+    let mut header = tar::Header::new_gnu();
+    header.set_size(body.len() as u64);
+    header.set_mode(0o755);
+    header.set_cksum();
+    tar.append_data(&mut header, path, body).expect("tar entry");
+}
+
+fn gvisor_archive(runsc: &[u8], shim: &[u8], helper: &[u8]) -> Vec<u8> {
+    let encoder = bzip2::write::BzEncoder::new(Vec::new(), bzip2::Compression::best());
+    let mut tar = tar::Builder::new(encoder);
+    archive_entry(&mut tar, "runsc", runsc);
+    archive_entry(&mut tar, "containerd-shim-runsc-v1", shim);
+    archive_entry(&mut tar, "gvisor-bin/helper", helper);
+    tar.into_inner()
+        .expect("finish tar")
+        .finish()
+        .expect("finish bzip2")
+}
+
+#[tokio::test]
+async fn apply_uses_verified_archive_layout_on_aarch64() {
+    let runsc = b"#!/bin/sh\necho runsc\n".to_vec();
+    let shim = b"#!/bin/sh\necho shim\n".to_vec();
+    let helper = b"#!/bin/sh\necho helper\n".to_vec();
+    let archive = gvisor_archive(&runsc, &shim, &helper);
+    let checksum = format!(
+        "{}  gvisor.tar.bz2\n",
+        hex::encode(Sha512::digest(&archive))
+    );
+    let base = serve(HashMap::from([
+        ("/latest/aarch64/gvisor.tar.bz2".to_owned(), archive),
+        (
+            "/latest/aarch64/gvisor.tar.bz2.sha512".to_owned(),
+            checksum.into_bytes(),
+        ),
+    ]))
+    .await;
+    let root = tempfile::tempdir().expect("tempdir");
+    let mut req = Request::new(VmRuntime::Gvisor, Engine::Docker);
+    req.release_base = base;
+    req.bin_dir = root.path().join("bin");
+    req.daemon_json = root.path().join("etc/docker/daemon.json");
+    let mut facts = linux_kvm();
+    facts.arch = "aarch64".into();
+    let log = apply(&plan(&req, &facts)).await.expect("apply archive");
+    assert!(
+        log.iter()
+            .any(|line| line == "staged gVisor archive layout"),
+        "{log:?}"
+    );
+    assert_eq!(
+        std::fs::read(root.path().join("bin/runsc")).expect("runsc"),
+        runsc
+    );
+    assert_eq!(
+        std::fs::read(root.path().join("bin/containerd-shim-runsc-v1")).expect("shim"),
+        shim
+    );
+    assert_eq!(
+        std::fs::read(root.path().join("bin/gvisor-bin/helper")).expect("helper"),
+        helper
+    );
+}
+
 #[tokio::test]
 async fn apply_downloads_verifies_installs_and_merges() {
     let runsc = b"#!/bin/sh\necho runsc\n".to_vec();
@@ -460,6 +515,11 @@ async fn apply_downloads_verifies_installs_and_merges() {
     facts.daemon_json = Some(r#"{"debug": true}"#.into());
     let p = plan(&req, &facts);
     let log = apply(&p).await.expect("apply");
+    assert!(
+        log.iter()
+            .any(|line| line == "gVisor archive not found; using legacy per-binary layout"),
+        "{log:?}"
+    );
     assert!(
         log.iter().any(|l| l.starts_with("verified runsc (sha512 ")),
         "{log:?}"

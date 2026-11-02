@@ -328,10 +328,14 @@ gVisor can).
 
 ### gVisor (`runsc`)
 
-Docker/Podman: downloads `runsc` and `containerd-shim-runsc-v1` from the
-gVisor release bucket, verified against a `--sha256` pin or the bucket's
-`.sha512` sidecar (fail closed), installs them into `/usr/local/bin`, and
-for Docker merges into `/etc/docker/daemon.json`:
+Docker/Podman: downloads `gvisor.tar.bz2` from the gVisor release bucket,
+verifies its `.sha512` sidecar (and an optional `--sha256` pin against the
+extracted `runsc`), and installs `runsc`, `containerd-shim-runsc-v1`, and
+`gvisor-bin/` into `/usr/local/bin`. Older dated releases that do not provide
+the archive fall back to their two individually `.sha512`-verified binaries.
+The bucket's ARM64 directory is `aarch64`. Every layout fails closed on a
+missing or mismatched checksum. For Docker the installer then merges into
+`/etc/docker/daemon.json`:
 
 ```json
 { "runtimes": { "runsc": { "path": "/usr/local/bin/runsc" } } }
