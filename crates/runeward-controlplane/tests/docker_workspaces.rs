@@ -35,6 +35,13 @@ fn docker(args: &[&str]) -> String {
     String::from_utf8_lossy(&out.stdout).trim().to_owned()
 }
 
+fn docker_succeeds(args: &[&str]) -> bool {
+    Command::new("docker")
+        .args(args)
+        .output()
+        .is_ok_and(|output| output.status.success())
+}
+
 /// Removes every sandbox the test created on drop.
 #[derive(Default)]
 struct Cleanup(Mutex<Vec<String>>);
@@ -106,6 +113,11 @@ async fn sleep_wake_restart_and_fork_keep_the_workspace() {
         "[host]\ntype = \"container\"\nimage = \"debian:stable-slim\"\n\n[workspace]\npersist = true\nidle_timeout = \"15m\"\n",
     )
     .expect("charter");
+    std::fs::write(
+        dir.path().join("charters/plain.toml"),
+        "[host]\ntype = \"container\"\nimage = \"debian:stable-slim\"\n",
+    )
+    .expect("plain charter");
     let cleanup = Cleanup::default();
 
     let m = manager(dir.path()).await;
@@ -127,11 +139,34 @@ async fn sleep_wake_restart_and_fork_keep_the_workspace() {
     assert_eq!(read(&m, &id, "notes/keep.txt").await, "persisted");
     assert_eq!(running(&id), "true");
 
-    // Restart: rediscovered asleep, rebuilt around the volume on use.
+    // A non-persistent Citadel survives the process exit in Docker, but a
+    // restarted control plane discovers and removes it before returning.
+    let orphan = m
+        .create_sandbox("plain", CreateOptions::default())
+        .await
+        .expect("create ephemeral")
+        .id;
+    cleanup.track(&orphan);
+    assert!(docker_succeeds(&["inspect", &container_name(&orphan)]));
+
+    // Restart: the persistent Citadel is rediscovered asleep and rebuilt
+    // around the volume on use; only the ephemeral one is removed.
     m.sleep_citadel(&id).await.expect("sleep again");
     m.close().await.expect("close");
     drop(m);
     let m = manager(dir.path()).await;
+    assert!(
+        !docker_succeeds(&["inspect", &container_name(&orphan)]),
+        "ephemeral container survived restart reconciliation"
+    );
+    let events = m.ledger().records().expect("ledger records");
+    assert!(events.iter().any(|event| {
+        event.sandbox == orphan
+            && event.tool == "sandbox"
+            && event.action == "orphan-cleanup"
+            && event.verdict == "allow"
+            && event.meta.get("backend").is_some_and(|v| v == "docker")
+    }));
     let listed = m.sandbox(&id).expect("rediscovered");
     assert_eq!(listed.status, "sleeping");
     assert_eq!(read(&m, &id, "notes/keep.txt").await, "persisted");

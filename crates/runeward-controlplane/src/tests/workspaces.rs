@@ -3,6 +3,7 @@
 
 use std::time::Duration;
 
+use runeward_backend::Sandbox;
 use runeward_ledger::Event;
 
 use super::support::{Harness, harness, lock};
@@ -207,6 +208,23 @@ async fn restart_rediscovers_sleeping_workspaces_and_rebuilds_them_on_use() {
         .run_id()
         .to_owned();
     h.mgr.sleep_citadel(&asleep).await.expect("sleep");
+    *lock(&h.fake.listed) = vec![
+        Sandbox {
+            id: asleep.clone(),
+            profile: "ws".into(),
+            ..Sandbox::default()
+        },
+        Sandbox {
+            id: awake.clone(),
+            profile: "ws".into(),
+            ..Sandbox::default()
+        },
+        Sandbox {
+            id: gone.clone(),
+            profile: "plain".into(),
+            ..Sandbox::default()
+        },
+    ];
     let creates = h.fake.creates.load(std::sync::atomic::Ordering::SeqCst);
 
     h.restart().await;
@@ -227,6 +245,9 @@ async fn restart_rediscovers_sleeping_workspaces_and_rebuilds_them_on_use() {
     want.sort();
     assert_eq!(listed, want);
     assert!(h.mgr.sandbox(&gone).is_none());
+    assert!(lock(&h.fake.killed).contains(&gone));
+    assert!(!lock(&h.fake.killed).contains(&asleep));
+    assert!(!lock(&h.fake.killed).contains(&awake));
     assert_eq!(h.mgr.sandbox_owner(&asleep).as_deref(), Some("team"));
     assert_eq!(h.mgr.run(&run_id).expect("run").status, "running");
     let plain_runs: Vec<String> = h
@@ -246,6 +267,20 @@ async fn restart_rediscovers_sleeping_workspaces_and_rebuilds_them_on_use() {
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
     assert!(lock(&h.fake.stopped).contains(&awake));
+
+    let cleanup: Vec<_> = h
+        .records()
+        .await
+        .into_iter()
+        .filter(|event| event.action == "orphan-cleanup")
+        .collect();
+    assert_eq!(cleanup.len(), 1);
+    assert_eq!(cleanup[0].sandbox, gone);
+    assert_eq!(cleanup[0].verdict, "allow");
+    assert_eq!(
+        cleanup[0].meta.get("backend").map(String::as_str),
+        Some("fake")
+    );
 
     // First use rebuilds the governed session around the kept workspace.
     let res = h

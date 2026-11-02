@@ -212,6 +212,7 @@ impl ManagerBuilder {
         mgr.load_runs().await?;
         mgr.load_agent_sessions().await?;
         mgr.load_schedules().await?;
+        mgr.cleanup_untracked_sandboxes().await;
         if !orphaned.is_empty() {
             let weak = Arc::downgrade(&mgr);
             tokio::spawn(async move {
