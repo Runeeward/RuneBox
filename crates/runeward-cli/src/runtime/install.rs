@@ -10,14 +10,11 @@ use std::process::Stdio;
 use std::time::Duration;
 
 use anyhow::{Result, anyhow, bail};
-use futures_util::StreamExt;
-use sha2::{Digest, Sha256, Sha512};
 use tokio::io::AsyncWriteExt;
 
 use super::first_line;
 use crate::common::{go_io_error, go_join, go_quote};
 
-const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(60);
 const APPLY_TIMEOUT: Duration = Duration::from_secs(30);
 const DOCKER_DAEMON_JSON: &str = "/etc/docker/daemon.json";
 const LOCAL_BIN_DIR: &str = "/usr/local/bin";
@@ -133,7 +130,7 @@ fn is_root() -> bool {
 pub fn gvisor_arch(arch: &str) -> Result<&'static str> {
     match arch {
         "x86_64" | "amd64" => Ok("x86_64"),
-        "aarch64" | "arm64" => Ok("arm64"),
+        "aarch64" | "arm64" => Ok("aarch64"),
         other => bail!(
             "unsupported architecture {}: gVisor publishes amd64 (x86_64) and arm64 builds",
             go_quote(other)
@@ -147,20 +144,19 @@ async fn install_gvisor_docker(out: &mut Out, opts: &InstallOpts) -> Result<()> 
         "https://storage.googleapis.com/gvisor/releases/release/{}/{arch}",
         opts.version
     );
-    let runsc_url = format!("{base}/runsc");
-    let shim_url = format!("{base}/containerd-shim-runsc-v1");
+    let archive_url = format!("{base}/gvisor.tar.bz2");
 
     header(out, "gVisor (runsc) -> Docker");
     out.line("Plan:");
     out.line("  1. Download + checksum-verify:");
-    let _ = writeln!(out, "       {runsc_url} (+ .sha512)");
-    let _ = writeln!(out, "       {shim_url} (+ .sha512)");
+    let _ = writeln!(out, "       {archive_url} (+ .sha512)");
+    out.line("     If that archive is absent, use the two verified standalone binaries from an older release.");
     if !opts.sha256hex.is_empty() {
         let _ = writeln!(out, "     runsc pinned to --sha256 {}", opts.sha256hex);
     }
     let _ = writeln!(
         out,
-        "  2. chmod 0755 and install runsc + containerd-shim-runsc-v1 into {LOCAL_BIN_DIR}"
+        "  2. Install runsc + containerd-shim-runsc-v1 and the archive's gvisor-bin/ into {LOCAL_BIN_DIR}"
     );
     let _ = writeln!(
         out,
@@ -190,11 +186,17 @@ async fn install_gvisor_docker(out: &mut Out, opts: &InstallOpts) -> Result<()> 
     let tmp_str = tmp_path.to_string_lossy().into_owned();
     let runsc_path = go_join(&[&tmp_str, "runsc"]);
     let shim_path = go_join(&[&tmp_str, "containerd-shim-runsc-v1"]);
+    let support_path = tmp_path.join("gvisor-bin");
 
     out.line("Downloading and verifying...");
     out.flush();
-    download_verified(out, &runsc_url, &runsc_path, &opts.sha256hex).await?;
-    download_verified(out, &shim_url, &shim_path, "").await?;
+    for line in
+        runeward_backend::runtime_install::stage_gvisor_release(&base, &tmp_path, &opts.sha256hex)
+            .await?
+    {
+        let _ = writeln!(out, "  {line}");
+    }
+    out.flush();
     for p in [&runsc_path, &shim_path] {
         set_mode(p, 0o755).map_err(|e| anyhow!("chmod {p}: {}", go_io_error("chmod", p, &e)))?;
     }
@@ -209,6 +211,14 @@ async fn install_gvisor_docker(out: &mut Out, opts: &InstallOpts) -> Result<()> 
                 "  sudo install -m 0755 {} {}",
                 go_join(&[&tmp_str, name]),
                 go_join(&[LOCAL_BIN_DIR, name])
+            );
+        }
+        if support_path.is_dir() {
+            let _ = writeln!(out, "  sudo install -d {LOCAL_BIN_DIR}/gvisor-bin");
+            let _ = writeln!(
+                out,
+                "  sudo cp -R {}/. {LOCAL_BIN_DIR}/gvisor-bin/",
+                support_path.display()
             );
         }
         let merged = merge_docker_runtime(
@@ -227,6 +237,11 @@ async fn install_gvisor_docker(out: &mut Out, opts: &InstallOpts) -> Result<()> 
         let dst = go_join(&[LOCAL_BIN_DIR, name]);
         move_file(&src, &dst).map_err(|e| anyhow!("install {dst}: {e}"))?;
         let _ = writeln!(out, "  installed {dst}");
+    }
+    if support_path.is_dir() {
+        let dest = Path::new(LOCAL_BIN_DIR).join("gvisor-bin");
+        copy_tree(&support_path, &dest)?;
+        let _ = writeln!(out, "  installed {}/", dest.display());
     }
     let merged = merge_docker_runtime(
         Path::new(DOCKER_DAEMON_JSON),
@@ -360,82 +375,6 @@ pub fn runtime_class_manifest(name: &str, handler: &str) -> String {
     )
 }
 
-/// Fetches `url` into `dst` and verifies it, failing closed: against
-/// `sha256hex` when set, otherwise against the required `<url>.sha512`
-/// sidecar.
-async fn download_verified(out: &mut Out, url: &str, dst: &str, sha256hex: &str) -> Result<()> {
-    http_get_to_file(url, dst)
-        .await
-        .map_err(|e| anyhow!("download {url}: {e}"))?;
-    let base = Path::new(dst)
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    if !sha256hex.is_empty() {
-        verify_checksum_file::<Sha256>(dst, sha256hex)?;
-        let _ = writeln!(out, "  verified {base} (sha256 {})", short_hex(sha256hex));
-        out.flush();
-        return Ok(());
-    }
-    let sidecar = format!("{dst}.sha512");
-    http_get_to_file(&format!("{url}.sha512"), &sidecar)
-        .await
-        .map_err(|e| {
-            anyhow!(
-                "download checksum {url}.sha512: {e} (refusing to install an unverified binary)"
-            )
-        })?;
-    let data = std::fs::read(&sidecar).map_err(|e| anyhow!("read checksum sidecar: {e}"))?;
-    let want = parse_checksum_sidecar(&data)?;
-    verify_checksum_file::<Sha512>(dst, &want)?;
-    let _ = writeln!(out, "  verified {base} (sha512 {})", short_hex(&want));
-    out.flush();
-    Ok(())
-}
-
-/// Streams a GET body to `dst`; any status but 200 is an error.
-async fn http_get_to_file(url: &str, dst: &str) -> Result<()> {
-    let client = reqwest::Client::builder()
-        .timeout(DOWNLOAD_TIMEOUT)
-        .build()?;
-    let resp = client.get(url).send().await?;
-    if resp.status() != reqwest::StatusCode::OK {
-        bail!("unexpected status {}", resp.status());
-    }
-    let mut f = tokio::fs::File::create(dst)
-        .await
-        .map_err(|e| anyhow!(go_io_error("open", dst, &e)))?;
-    let mut body = resp.bytes_stream();
-    while let Some(chunk) = body.next().await {
-        f.write_all(&chunk?).await?;
-    }
-    f.flush().await?;
-    Ok(())
-}
-
-/// Hashes `path` with `D` and compares case-insensitively with `expected`.
-fn verify_checksum_file<D: Digest>(path: &str, expected: &str) -> Result<()> {
-    let data = std::fs::read(path).map_err(|e| anyhow!(go_io_error("open", path, &e)))?;
-    let got = hex::encode(D::digest(&data));
-    if !got.trim().eq_ignore_ascii_case(expected.trim()) {
-        let base = Path::new(path)
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_default();
-        bail!("checksum mismatch for {base}: got {got}, want {expected} (failing closed)");
-    }
-    Ok(())
-}
-
-/// The hex digest of a sha512sum-style sidecar (`<hex>  <filename>`).
-pub fn parse_checksum_sidecar(data: &[u8]) -> Result<String> {
-    String::from_utf8_lossy(data)
-        .split_whitespace()
-        .next()
-        .map(str::to_owned)
-        .ok_or_else(|| anyhow!("empty or malformed checksum sidecar"))
-}
-
 /// Read-merge-writes `daemon.json` in memory: adds or updates one runtime
 /// under `runtimes`, keeping every other key, and returns indented JSON.
 pub fn merge_docker_runtime(daemon_json: &Path, name: &str, path: &str) -> Result<String> {
@@ -508,6 +447,25 @@ fn move_file(src: &str, dst: &str) -> std::io::Result<()> {
     std::fs::remove_file(src)
 }
 
+fn copy_tree(src: &Path, dst: &Path) -> Result<()> {
+    std::fs::create_dir_all(dst).map_err(|e| anyhow!("create {}: {e}", dst.display()))?;
+    for item in std::fs::read_dir(src).map_err(|e| anyhow!("read {}: {e}", src.display()))? {
+        let item = item?;
+        let from = item.path();
+        let to = dst.join(item.file_name());
+        let kind = item.file_type()?;
+        if kind.is_dir() {
+            copy_tree(&from, &to)?;
+        } else if kind.is_file() {
+            std::fs::copy(&from, &to)?;
+            std::fs::set_permissions(&to, std::fs::metadata(&from)?.permissions())?;
+        } else {
+            bail!("refusing special staged entry {}", from.display());
+        }
+    }
+    Ok(())
+}
+
 /// An installed Kata shim/runtime, if any.
 fn detect_kata_binary() -> Option<String> {
     for c in [
@@ -549,14 +507,6 @@ fn next_steps(out: &mut Out, class_name: &str) {
     out.line("  3. Details: docs/security-model.md");
 }
 
-fn short_hex(h: &str) -> String {
-    if h.len() > 12 {
-        format!("{}...", &h[..12])
-    } else {
-        h.to_owned()
-    }
-}
-
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
@@ -582,29 +532,12 @@ mod tests {
     #[test]
     fn arch_and_manifest() {
         assert_eq!(gvisor_arch("x86_64").unwrap(), "x86_64");
-        assert_eq!(gvisor_arch("aarch64").unwrap(), "arm64");
+        assert_eq!(gvisor_arch("aarch64").unwrap(), "aarch64");
         assert!(gvisor_arch("riscv64").is_err());
         assert_eq!(
             runtime_class_manifest("gvisor", "runsc"),
             "apiVersion: node.k8s.io/v1\nkind: RuntimeClass\nmetadata:\n  name: gvisor\nhandler: runsc\n"
         );
-    }
-
-    #[test]
-    fn checksums_fail_closed() {
-        assert_eq!(
-            parse_checksum_sidecar(b"abc123  runsc\n").unwrap(),
-            "abc123"
-        );
-        assert!(parse_checksum_sidecar(b"  \n").is_err());
-        let dir = tempfile::tempdir().unwrap();
-        let f = dir.path().join("bin");
-        std::fs::write(&f, b"hello").unwrap();
-        let p = f.to_string_lossy();
-        let good = hex::encode(Sha256::digest(b"hello"));
-        verify_checksum_file::<Sha256>(&p, &good.to_uppercase()).unwrap();
-        let err = verify_checksum_file::<Sha256>(&p, "00").unwrap_err();
-        assert!(err.to_string().contains("failing closed"));
     }
 
     #[test]

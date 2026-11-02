@@ -140,6 +140,7 @@ otlp-reqwest = { package = "reqwest", version = "0.13", default-features = false
 fs2 = "0.4"
 tempfile = "3"
 tar = { version = "0.4", default-features = false }
+bzip2 = "0.5"
 # Gzip layers of OCI images unpacked by the microvm backend (pure-Rust backend).
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 cap-std = "4"
