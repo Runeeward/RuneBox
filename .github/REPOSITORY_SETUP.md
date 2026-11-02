@@ -36,15 +36,21 @@ tag. Both packages use the same version as the release tag.
 
 1. Create protected GitHub environments named `pypi` and `npm`. Require a maintainer approval and
    restrict deployment to protected release tags.
-2. In PyPI, create a pending trusted publisher for project `runeward` with owner `Runeeward`,
-   repository `runeward`, workflow `publish-sdks.yml`, and environment `pypi`.
+2. In PyPI, configure the trusted publisher for project `runeward` with owner `Runeeward`,
+   repository `RuneBox`, workflow `publish-sdks.yml`, and environment `pypi`.
 3. Create or confirm the `runeward` npm organization. The first `@runeward/sdk` version must be
    bootstrapped by an authenticated npm owner because npm trusted publishing is configured from an
    existing package's settings.
 4. After that bootstrap, configure the npm trusted publisher with owner `Runeeward`, repository
-   `runeward`, workflow `publish-sdks.yml`, environment `npm`, and permission to `npm publish`.
+   `RuneBox`, workflow `publish-sdks.yml`, environment `npm`, and permission to `npm publish`.
 5. Revoke any bootstrap npm token. Future publications use short-lived GitHub OIDC credentials and
    npm provenance rather than a repository secret.
 
-If the GitHub organization is ever renamed, update both trusted publishers and all package
-repository metadata before publishing another version.
+The owner, repository, workflow filename and environment are case-sensitive. npm trusted publisher
+connections cannot be edited: delete a stale connection and add its replacement. After adding an npm
+connection, complete its first successful publish within two days so npm can bind it to the repository's
+immutable identity.
+
+If the GitHub organization or repository is ever renamed, update both trusted publishers and all
+package repository metadata before publishing another version. Run `python scripts/check-sdk-versions.py`
+before tagging; it refuses SDK manifests that do not identify `Runeeward/RuneBox`.
