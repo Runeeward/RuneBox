@@ -87,7 +87,7 @@ Choose the package that matches how you use Rune Box:
 
 | Install with | What it installs | Command |
 | --- | --- | --- |
-| [Homebrew](https://github.com/Runeeward/homebrew-tap) | Rune Box CLI for macOS or Linux | `brew install Runeeward/tap/runeward` |
+| [Homebrew](https://github.com/Runeeward/homebrew-tap) | Rune Box CLI for macOS or Linux | `brew install Runeeward/tap/runebox` |
 | [PyPI](https://pypi.org/project/runeward/) | Python client and agent-framework adapters | `python -m pip install runeward` |
 | [npm](https://www.npmjs.com/package/@runeward/sdk) | TypeScript client and agent-framework tools | `npm install @runeward/sdk` |
 
@@ -100,7 +100,7 @@ replace the CLI/runtime.
 Local sandboxes require a running Docker, OrbStack, or Podman engine.
 
 ```bash
-brew install Runeeward/tap/runeward
+brew install Runeeward/tap/runebox
 runeward version
 runeward quickstart
 ```

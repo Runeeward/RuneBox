@@ -4,7 +4,7 @@
 
 | Install with | What it installs | Command |
 | --- | --- | --- |
-| [Homebrew](https://github.com/Runeeward/homebrew-tap) | Rune Box CLI for macOS or Linux | `brew install Runeeward/tap/runeward` |
+| [Homebrew](https://github.com/Runeeward/homebrew-tap) | Rune Box CLI for macOS or Linux | `brew install Runeeward/tap/runebox` |
 | [PyPI](https://pypi.org/project/runeward/) | Python client and agent-framework adapters | `python -m pip install runeward` |
 | [npm](https://www.npmjs.com/package/@runeward/sdk) | TypeScript client and agent-framework tools | `npm install @runeward/sdk` |
 
@@ -17,10 +17,13 @@ replace the CLI/runtime.
 Homebrew installs the current signed CLI release on macOS or Linux:
 
 ```bash
-brew install Runeeward/tap/runeward
+brew install Runeeward/tap/runebox
 runeward version
 runeward quickstart
 ```
+
+The formula was named `runeward` before v0.4.2. `brew upgrade` moves an existing install to
+`runebox`, and the command is still `runeward`.
 
 Local sandboxes also require a running Docker, OrbStack, or Podman engine.
 
