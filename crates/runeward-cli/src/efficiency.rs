@@ -76,7 +76,7 @@ type CallKey<'a> = (&'a str, &'a str, &'a str, Vec<&'a str>);
 fn is_call(e: &Event) -> bool {
     !e.tool.is_empty()
         && !NOT_CALLS.contains(&e.tool.as_str())
-        && !(e.tool == "egress" && e.action.starts_with("decisions-"))
+        && (e.tool != "egress" || !e.action.starts_with("decisions-"))
 }
 
 fn refused(verdict: &str) -> bool {
