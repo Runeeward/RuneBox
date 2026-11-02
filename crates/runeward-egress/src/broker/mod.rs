@@ -88,6 +88,25 @@ pub const MAX_INSPECT_BODY: usize = 8 << 20;
 /// slowest one starts missing events.
 pub const DECISION_STREAM_CAPACITY: usize = 1024;
 
+/// Buffered [`StreamNotice`]s per subscriber.
+const STREAM_NOTICE_CAPACITY: usize = 64;
+
+/// A change in an egress sidecar's decision stream, as the follower that
+/// reads it sees it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StreamNotice {
+    /// The stream ended or could not be opened. Decisions made from
+    /// `last_seen` on are not recorded until the stream resumes.
+    Detached {
+        reason: String,
+        last_seen: Option<chrono::DateTime<chrono::Utc>>,
+    },
+    /// The follower is reading again, from `since` on.
+    Resumed {
+        since: Option<chrono::DateTime<chrono::Utc>>,
+    },
+}
+
 /// Errors building a [`Broker`].
 #[derive(Debug, thiserror::Error)]
 pub enum BrokerError {
@@ -217,6 +236,8 @@ pub struct Broker {
     pub(crate) ca: SandboxCa,
     budgets: Mutex<HashMap<(usize, Option<usize>), u64>>,
     pub(crate) events: broadcast::Sender<Decision>,
+    /// Changes in how an egress sidecar's decisions reach this broker.
+    stream_notices: broadcast::Sender<StreamNotice>,
     pub(crate) approval: Option<Arc<dyn ApprovalHook>>,
     pub(crate) upstream_tls: Arc<rustls::ClientConfig>,
     /// Extra upstream roots set with [`Broker::with_upstream_roots_pem`],
@@ -387,6 +408,7 @@ impl Broker {
         }
 
         let (events, _) = broadcast::channel(DECISION_STREAM_CAPACITY);
+        let (stream_notices, _) = broadcast::channel(STREAM_NOTICE_CAPACITY);
         Ok(Self {
             ca,
             sandbox_id: sandbox_id.trim().to_string(),
@@ -394,6 +416,7 @@ impl Broker {
             vault: Vault { slots },
             budgets: Mutex::new(HashMap::new()),
             events,
+            stream_notices,
             approval: None,
             upstream_tls: crate::proxy::default_tls(),
             upstream_ca_pem: String::new(),
@@ -532,6 +555,17 @@ impl Broker {
         let d = self.scrub_decision(d);
         let _ = self.events.send(d.clone());
         crate::decision_log::record_decision_entry(&self.sandbox_id, d);
+    }
+
+    /// Reports that the follower reading an egress sidecar's decisions lost
+    /// or regained its stream, so the gap is recorded rather than silent.
+    pub fn report_stream(&self, n: StreamNotice) {
+        let _ = self.stream_notices.send(n);
+    }
+
+    /// Subscribes to [`StreamNotice`]s.
+    pub fn subscribe_stream(&self) -> broadcast::Receiver<StreamNotice> {
+        self.stream_notices.subscribe()
     }
 
     /// Subscribes to the live decision stream (L4 and L7, every front end
