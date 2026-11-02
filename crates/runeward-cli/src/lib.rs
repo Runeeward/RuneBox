@@ -13,6 +13,7 @@ mod auth;
 mod cli;
 mod cohort;
 mod common;
+mod efficiency;
 mod enter;
 mod inspect;
 mod kube;
