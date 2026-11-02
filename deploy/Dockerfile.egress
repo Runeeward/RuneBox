@@ -22,9 +22,10 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 # A small Alpine runtime provides iptables (for the --setup-iptables init
 # container, which runs with NET_ADMIN) without Debian's otherwise-unused
 # Perl runtime, reducing both the attack surface and unfixed package CVEs.
+# iptables-legacy is the fallback where nftables is missing (gVisor).
 FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
 RUN apk upgrade --no-cache \
-    && apk add --no-cache iptables ca-certificates
+    && apk add --no-cache iptables iptables-legacy ca-certificates
 RUN adduser -S -D -H -u 10001 -G root egress
 COPY --from=build /out/runeward-egress /usr/local/bin/runeward-egress
 # Static, so it runs in any sandbox image (see the header).

@@ -349,9 +349,10 @@ supervisor to run, so:
   its log, so they reach the perimeter list and the Chronicle as on Docker.
   Verified on kind with runc (see
   [Endpoint binaries on Kubernetes](isolation.md#endpoint-binaries-on-kubernetes)).
-  Under Kata the whole Pod runs in one VM, so the sidecar and the helper
-  share the guest's network namespace too, but that has not been run yet;
-  gVisor (`runsc`) has not been tested either.
+  Also verified under gVisor (`runsc`, which runs the whole Pod in one
+  sandbox), with runsc's `net-raw` option on for strict egress. Under Kata
+  the whole Pod runs in one VM, so the sidecar and the helper share the
+  guest's network namespace too, but that has not been run yet.
 - **Native microVMs** (`host.type = "microvm"`): not supported. The broker
   runs on the host, outside the VM, so it cannot reach the helper inside the
   guest; `runeward validate` reports an error and the create is refused.

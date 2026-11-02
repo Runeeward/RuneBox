@@ -252,19 +252,43 @@ pub(crate) fn setup_redirect_with<F>(
 where
     F: FnMut(&str, &[String]) -> io::Result<()>,
 {
+    let (v4, v6) = pick_backend(&mut run);
     for a in flush_steps() {
-        let _ = run("iptables", &a);
+        let _ = run(v4, &a);
     }
     for a in redirect_steps(proxy_uid, redirect_port, resolvers) {
-        run("iptables", &a)
-            .map_err(|e| io::Error::new(e.kind(), format!("iptables {}: {e}", a.join(" "))))?;
+        run(v4, &a).map_err(|e| {
+            // gVisor has no nftables, and its legacy nat table exists only
+            // with runsc's net-raw option.
+            let hint = if e.to_string().contains("nft") {
+                " (under gVisor, set net-raw = \"true\" in runsc's configuration)"
+            } else {
+                ""
+            };
+            io::Error::new(e.kind(), format!("{v4} {}: {e}{hint}", a.join(" ")))
+        })?;
     }
     // Some environments lack IPv6/ip6tables entirely, which is fine (nothing
     // to bypass through), so failures here are ignored.
     for a in ipv6_flush_steps().into_iter().chain(ipv6_drop_steps()) {
-        let _ = run("ip6tables", &a);
+        let _ = run(v6, &a);
     }
     Ok(())
+}
+
+/// The iptables programs to use: the default (nftables) ones, or the legacy
+/// ones when only those can read the nat table. gVisor implements the legacy
+/// interface only.
+fn pick_backend<F>(run: &mut F) -> (&'static str, &'static str)
+where
+    F: FnMut(&str, &[String]) -> io::Result<()>,
+{
+    let probe = args(&["-t", "nat", "-S"]);
+    if run("iptables", &probe).is_err() && run("iptables-legacy", &probe).is_ok() {
+        ("iptables-legacy", "ip6tables-legacy")
+    } else {
+        ("iptables", "ip6tables")
+    }
 }
 
 /// Installs the iptables rules redirecting outbound TCP to the transparent
@@ -380,7 +404,7 @@ mod tests {
             &[],
         );
         assert!(res.is_ok());
-        assert_eq!(calls.len(), flush_steps().len() + 13 + 9);
+        assert_eq!(calls.len(), 1 + flush_steps().len() + 13 + 9);
         assert!(
             calls
                 .last()
@@ -409,7 +433,59 @@ mod tests {
             err.to_string()
                 .contains("iptables -t nat -A OUTPUT -p tcp -j RUNEWARD_OUT: boom")
         );
-        assert_eq!(n, flush_steps().len() + 7);
+        assert_eq!(n, 1 + flush_steps().len() + 7);
+    }
+
+    #[test]
+    fn falls_back_to_legacy_iptables_without_nftables() {
+        let mut calls = Vec::new();
+        setup_redirect_with(
+            |prog, a| {
+                calls.push(format!("{prog} {}", a.join(" ")));
+                if prog == "iptables" || prog == "ip6tables" {
+                    Err(io::Error::other(
+                        "Failed to initialize nft: Protocol not supported",
+                    ))
+                } else {
+                    Ok(())
+                }
+            },
+            1337,
+            15001,
+            &[],
+        )
+        .expect("legacy backend");
+        assert_eq!(calls[0], "iptables -t nat -S");
+        assert_eq!(calls[1], "iptables-legacy -t nat -S");
+        assert!(
+            calls[2..]
+                .iter()
+                .all(|c| c.starts_with("iptables-legacy ") || c.starts_with("ip6tables-legacy "))
+        );
+        assert!(
+            calls
+                .iter()
+                .any(|c| c == "iptables-legacy -t nat -A OUTPUT -p tcp -j RUNEWARD_OUT")
+        );
+    }
+
+    #[test]
+    fn keeps_nftables_when_neither_backend_answers() {
+        let mut progs = Vec::new();
+        let err = setup_redirect_with(
+            |prog, _| {
+                progs.push(prog.to_owned());
+                Err(io::Error::other("no"))
+            },
+            1,
+            2,
+            &[],
+        )
+        .expect_err("must fail");
+        assert_eq!(progs[..2], ["iptables", "iptables-legacy"]);
+        assert!(progs[2..].iter().all(|p| p == "iptables"), "{progs:?}");
+        assert!(err.to_string().starts_with("iptables "), "{err}");
+        assert!(!err.to_string().contains("gVisor"), "{err}");
     }
 
     #[cfg(not(target_os = "linux"))]
