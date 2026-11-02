@@ -8,7 +8,7 @@ version = "0.4.2"
 edition = "2024"
 rust-version = "1.95"
 license = "Apache-2.0"
-repository = "https://github.com/Runeeward/runeward"
+repository = "https://github.com/Runeeward/RuneBox"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

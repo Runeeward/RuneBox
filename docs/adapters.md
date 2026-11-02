@@ -114,7 +114,7 @@ tools = make_runeward_tools(client)
 # Strands:       strands.Agent(tools=tools)
 ```
 
-See the [Python adapter README](https://github.com/Runeeward/runeward/tree/main/adapters/python)
+See the [Python adapter README](https://github.com/Runeeward/RuneBox/tree/main/adapters/python)
 for full, per-framework examples.
 
 ## TypeScript (`@runeward/sdk`)
@@ -179,7 +179,7 @@ const agent = new Agent({ tools });
 await agent.invoke("Create a dev sandbox, run `node --version`, then tear it down.");
 ```
 
-See the [TypeScript adapter README](https://github.com/Runeeward/runeward/tree/main/adapters/typescript)
+See the [TypeScript adapter README](https://github.com/Runeeward/RuneBox/tree/main/adapters/typescript)
 for more.
 
 ## Notes

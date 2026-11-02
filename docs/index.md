@@ -70,4 +70,4 @@ in existing API paths, CLI commands, and configuration fields for compatibility.
 
 </div>
 
-Rune Box is open source under the [Apache License 2.0](https://github.com/Runeeward/runeward/blob/main/LICENSE).
+Rune Box is open source under the [Apache License 2.0](https://github.com/Runeeward/RuneBox/blob/main/LICENSE).

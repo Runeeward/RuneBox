@@ -4,7 +4,7 @@
   "description": "Agent governance harness with Docker/Kubernetes Citadels, policy, Conclave approvals, budgets, and signed Chronicles.",
   "version": "0.4.2",
   "repository": {
-    "url": "https://github.com/Runeeward/runeward",
+    "url": "https://github.com/Runeeward/RuneBox",
     "source": "github"
   },
   "packages": [

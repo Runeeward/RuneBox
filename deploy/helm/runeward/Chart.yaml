@@ -4,9 +4,9 @@ description: Rune Box, an environment where your AI agent can roam freely but wi
 type: application
 version: 0.4.2
 appVersion: "0.4.2"
-home: https://github.com/Runeeward/runeward
+home: https://github.com/Runeeward/RuneBox
 sources:
-  - https://github.com/Runeeward/runeward
+  - https://github.com/Runeeward/RuneBox
 keywords:
   - ai
   - agents

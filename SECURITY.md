@@ -19,7 +19,7 @@ infrastructure you cannot afford to lose when evaluating genuinely hostile code.
 **Do not open a public issue, discussion, or pull request for a suspected
 vulnerability.** Use one of these private channels instead:
 
-- GitHub's [private vulnerability reporting](https://github.com/Runeeward/runeward/security/advisories/new)
+- GitHub's [private vulnerability reporting](https://github.com/Runeeward/RuneBox/security/advisories/new)
   is preferred.
 - Email **adefemi171@gmail.com** with the subject `Rune Box security`.
 
@@ -99,7 +99,7 @@ cosign (GitHub OIDC). `install.sh` performs these checks automatically and fails
 
 ```bash
 cosign verify-blob --bundle checksums.txt.sigstore.json \
-  --certificate-identity-regexp '^https://github.com/Runeeward/runeward/\.github/workflows/release\.yml@refs/tags/.*$' \
+  --certificate-identity-regexp '^https://github\.com/Runeeward/(runeward|RuneBox)/\.github/workflows/release\.yml@refs/tags/.*$' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   checksums.txt
 sha256sum --ignore-missing -c checksums.txt
@@ -109,7 +109,7 @@ Container images are signed by digest:
 
 ```bash
 cosign verify ghcr.io/runeeward/runeward:<tag> \
-  --certificate-identity-regexp 'https://github.com/Runeeward/runeward' \
+  --certificate-identity-regexp '^https://github\.com/Runeeward/(runeward|RuneBox)/\.github/workflows/release\.yml@refs/.*$' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 

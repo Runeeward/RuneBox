@@ -494,7 +494,7 @@ with the supervisor and a persistent workspace, fits in five. Use
 `kata-qemu` or `kata-clh` for the refused shapes.
 
 Both limits are tracked in
-[#79](https://github.com/Runeeward/runeward/issues/79).
+[#79](https://github.com/Runeeward/RuneBox/issues/79).
 
 ### libkrun (`krun`): refused
 

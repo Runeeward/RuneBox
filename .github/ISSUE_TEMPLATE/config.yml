@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/Runeeward/runeward/security/advisories/new
+    url: https://github.com/Runeeward/RuneBox/security/advisories/new
     about: Report security issues privately. Please do not open a public issue.
   - name: Questions and discussion
-    url: https://github.com/Runeeward/runeward/discussions
+    url: https://github.com/Runeeward/RuneBox/discussions
     about: Ask questions and share ideas with the community.
