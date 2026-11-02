@@ -3400,7 +3400,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-attribution"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "hex",
  "hmac",
@@ -3415,7 +3415,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-auditsink"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "chrono",
  "opentelemetry",
@@ -3437,7 +3437,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-authz"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -3456,7 +3456,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-backend"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "async-trait",
  "bytes",
@@ -3494,7 +3494,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-browser"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "base64 0.23.1",
  "bytes",
@@ -3517,7 +3517,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-charter"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "base64 0.23.1",
  "ed25519-dalek",
@@ -3533,7 +3533,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-cli"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3577,7 +3577,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-controlplane"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -3614,7 +3614,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-credentials"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "chrono",
  "runeward-ledger",
@@ -3626,7 +3626,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-egress"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "base64 0.23.1",
  "bytes",
@@ -3658,7 +3658,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-fleet"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -3676,7 +3676,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-k8s"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "async-trait",
  "axum",
@@ -3710,7 +3710,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-keys"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "base64 0.23.1",
  "ed25519-dalek",
@@ -3722,7 +3722,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-krun"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "libc",
  "runeward-vmagent",
@@ -3731,7 +3731,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-ledger"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -3750,7 +3750,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-mcp"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "async-trait",
  "axum",
@@ -3787,7 +3787,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-obs"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "chrono",
  "prometheus",
@@ -3802,7 +3802,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-policy"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "cel-interpreter",
  "cel-parser",
@@ -3819,7 +3819,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-policybundle"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -3841,7 +3841,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-secrets"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -3859,7 +3859,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-server"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "async-trait",
  "axum",
@@ -3902,7 +3902,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-supervisor"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "caps",
  "landlock",
@@ -3920,7 +3920,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-termrec"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "chrono",
  "runeward-ledger",
@@ -3932,7 +3932,7 @@ dependencies = [
 
 [[package]]
 name = "runeward-vmagent"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "nix",
  "pty-process",
