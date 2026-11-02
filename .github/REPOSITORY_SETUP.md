@@ -5,7 +5,7 @@ These settings live in GitHub rather than the repository, so a maintainer must a
 ## About panel
 
 - Description: `Rune Box: an environment where your AI agent can roam freely but with receipts. Open-source governance harness for AI agents.`
-- Website: `https://runeeward.github.io/runeward/`
+- Website: `https://runeeward.github.io/RuneBox/`
 - Topics: `ai-agents`, `agent-security`, `sandbox`, `policy-engine`, `human-in-the-loop`,
   `agent-harness`, `multi-agent`, `audit-log`, `mcp`, `docker`, `kubernetes`, `rego`, `cel`, `rust`
 - Social preview: upload `docs/assets/rune-box-banner.png` (a still of the animated `rune-box-banner.svg`). Check the crop in GitHub's preview

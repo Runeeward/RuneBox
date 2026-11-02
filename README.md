@@ -9,9 +9,9 @@
 
 <p align="center">
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
-  <a href="https://github.com/Runeeward/runeward/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Runeeward/runeward/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/Runeeward/RuneBox/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Runeeward/RuneBox/actions/workflows/ci.yml/badge.svg"></a>
   <a href="Cargo.toml"><img alt="Rust MSRV 1.95" src="https://img.shields.io/badge/rust-1.95%2B-orange.svg"></a>
-  <a href="https://github.com/Runeeward/runeward/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Runeeward/runeward?sort=semver"></a>
+  <a href="https://github.com/Runeeward/RuneBox/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Runeeward/RuneBox?sort=semver"></a>
 </p>
 
 Put enforceable policy, human approvals, isolated execution, budgets, and signed evidence around
@@ -131,17 +131,17 @@ Vercel AI SDK, and LangChain.js installation options.
 The signed macOS/Linux installer requires
 [`cosign`](https://docs.sigstore.dev/cosign/system_config/installation/) so it can fail closed while
 verifying the checksum manifest. Windows binaries are available from
-[Releases](https://github.com/Runeeward/runeward/releases).
+[Releases](https://github.com/Runeeward/RuneBox/releases).
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Runeeward/runeward/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Runeeward/RuneBox/main/install.sh | sh
 ```
 
 To build the current `main` branch, use Rust **1.95** or newer (the workspace MSRV):
 
 ```bash
-git clone https://github.com/Runeeward/runeward
-cd runeward
+git clone https://github.com/Runeeward/RuneBox
+cd RuneBox
 cargo build --release --locked -p runeward-cli --bin runeward
 ./target/release/runeward version
 ```
@@ -290,7 +290,7 @@ Release binaries ship for Linux (static musl, amd64/arm64), macOS (amd64/arm64) 
 - [Browser IDE](docs/browser-ide.md) (experimental code-server proxy)
 - [Security model](docs/security-model.md)
 - [End-to-end testing](docs/E2E-TESTING.md)
-- Published site: [runeeward.github.io/runeward](https://runeeward.github.io/runeward/)
+- Published site: [runeeward.github.io/RuneBox](https://runeeward.github.io/RuneBox/)
 
 Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). Licensed under
 [Apache 2.0](LICENSE).
