@@ -114,6 +114,13 @@ pub fn learn(path: &str, include_allowed: bool) -> Result<()> {
 /// Reads the events of a portable evidence package or a signed Chronicle
 /// bundle, refusing input whose signatures do not verify.
 fn read_learning_events(path: &str) -> Result<Vec<Event>> {
+    read_verified_events(path, "learn from")
+}
+
+/// Reads the events of a portable evidence package or a signed Chronicle
+/// bundle for `purpose` (named in the refusal), refusing input whose
+/// signatures do not verify.
+pub(crate) fn read_verified_events(path: &str, purpose: &str) -> Result<Vec<Event>> {
     let b = read_file(path).map_err(|e| anyhow!(e))?;
     let envelope: serde_json::Value =
         serde_json::from_slice(&b).map_err(|e| anyhow!("decode audit input: {e}"))?;
@@ -124,7 +131,7 @@ fn read_learning_events(path: &str) -> Result<Vec<Event>> {
     if !format.is_empty() {
         let doc = evidence::read(b.as_slice())?;
         evidence::verify(&doc)
-            .map_err(|e| anyhow!("refusing to learn from unverified evidence: {e}"))?;
+            .map_err(|e| anyhow!("refusing to {purpose} unverified evidence: {e}"))?;
         return Ok(doc.chronicle.events);
     }
     let bundle: Bundle =
@@ -134,7 +141,7 @@ fn read_learning_events(path: &str) -> Result<Vec<Event>> {
     }
     bundle
         .verify()
-        .map_err(|e| anyhow!("refusing to learn from an unverified Chronicle bundle: {e}"))?;
+        .map_err(|e| anyhow!("refusing to {purpose} an unverified Chronicle bundle: {e}"))?;
     Ok(bundle.events)
 }
 
