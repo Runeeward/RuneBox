@@ -213,7 +213,15 @@ run_as_user = "1500"` and one `tcp` endpoint with `binaries =
 The first run found that the Kubernetes backend never read the sidecar's
 decision lines back: enforcement worked, but the perimeter list and the
 Chronicle stayed empty. The backend now follows the `egress` container's
-log, as Docker follows the sidecar's. Kata (`kata-qemu`) was not run.
+log, as Docker follows the sidecar's.
+
+The same test passed under gVisor (`runsc` release-20261026.0, systrap,
+`net-raw` on) on kind 0.33.0 in OrbStack on an Apple M2 Max (arm64, host
+kernel 7.2.9), with the same results as runc above. gVisor runs every
+container of a Pod in one sandbox, so the helper sees the agent's sockets
+and `/proc`. The egress init container falls back to `iptables-legacy`
+there, since gVisor has no nftables. Kata was not run: neither available
+host has KVM.
 
 ## Tested hosts
 
@@ -341,6 +349,23 @@ kind: RuntimeClass
 metadata:
   name: gvisor
 handler: runsc
+```
+
+Strict egress under gVisor needs runsc's `net-raw` option: without it the
+legacy nat table the egress init container writes does not exist, and the
+Pod fails to start. In containerd:
+
+```toml
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc.options]
+  TypeUrl = "io.containerd.runsc.v1.options"
+  ConfigPath = "/etc/containerd/runsc.toml"
+```
+
+with `/etc/containerd/runsc.toml`:
+
+```toml
+[runsc_config]
+  net-raw = "true"
 ```
 
 ### Kata Containers (`kata`, `kata-qemu`, `kata-clh`)
