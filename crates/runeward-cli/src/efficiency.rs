@@ -42,6 +42,9 @@ pub struct Repeat {
     pub session: String,
     pub tool: String,
     pub action: String,
+    /// Additional arguments that distinguish this call from calls with the
+    /// same tool and primary action.
+    pub args: Vec<String>,
     /// Times the call was made.
     pub count: usize,
     /// Repeats that followed a deny or require-approval of the same call.
@@ -108,6 +111,7 @@ pub fn analyse(events: &[Event], top: usize) -> Report {
                     session: session.to_owned(),
                     tool: e.tool.clone(),
                     action: e.action.clone(),
+                    args: e.args.clone(),
                     count: 0,
                     after_refusal: 0,
                     repeated_failures: 0,
@@ -140,9 +144,10 @@ pub fn analyse(events: &[Event], top: usize) -> Report {
     r.repeated_failures = repeats.iter().map(|x| x.repeated_failures).sum();
     r.repeat_ms = repeats.iter().map(|x| x.repeat_ms).sum();
     repeats.sort_by(|a, b| {
-        b.count
-            .cmp(&a.count)
-            .then_with(|| (&a.session, &a.tool, &a.action).cmp(&(&b.session, &b.tool, &b.action)))
+        b.count.cmp(&a.count).then_with(|| {
+            (&a.session, &a.tool, &a.action, &a.args)
+                .cmp(&(&b.session, &b.tool, &b.action, &b.args))
+        })
     });
     repeats.truncate(top);
     r.top = repeats;
@@ -156,7 +161,11 @@ pub fn render(r: &Report) -> String {
         r.calls, r.repeats, r.after_refusal, r.repeated_failures, r.repeat_ms
     );
     if r.top.is_empty() {
-        out.push_str("No call was repeated.\n");
+        if r.repeats == 0 {
+            out.push_str("No call was repeated.\n");
+        } else {
+            out.push_str("No repeated call details were requested.\n");
+        }
         return out;
     }
     for rep in &r.top {
@@ -172,9 +181,14 @@ pub fn render(r: &Report) -> String {
         } else {
             format!(" ({})", notes.join(", "))
         };
+        let args = if rep.args.is_empty() {
+            String::new()
+        } else {
+            format!(" args={:?}", rep.args)
+        };
         let _ = writeln!(
             out,
-            "  {}x {} {:?} in {}{notes}",
+            "  {}x {} {:?}{args} in {}{notes}",
             rep.count, rep.tool, rep.action, rep.session
         );
     }
@@ -299,11 +313,22 @@ mod tests {
         a.args = vec!["ls".into(), "/a".into()];
         let mut b = a.clone();
         b.args = vec!["ls".into(), "/b".into()];
-        let r = analyse(&[a.clone(), b, a], 10);
+        let r = analyse(&[a.clone(), b, a.clone()], 10);
         assert_eq!(r.repeats, 1);
+        assert_eq!(r.top[0].args, ["ls", "/a"]);
+        assert!(render(&r).contains("args=[\"ls\", \"/a\"]"));
+        assert!(
+            serde_json::to_string(&r)
+                .unwrap()
+                .contains("\"args\":[\"ls\",\"/a\"]")
+        );
         assert_eq!(
             render(&analyse(&[], 10)),
             "0 calls, 0 repeats of an earlier identical call (0 after a refusal, 0 after the same failure), 0 ms spent in repeats\nNo call was repeated.\n"
+        );
+        assert!(
+            render(&analyse(&[a.clone(), a], 0))
+                .ends_with("No repeated call details were requested.\n")
         );
     }
 }
