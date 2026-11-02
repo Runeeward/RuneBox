@@ -26,11 +26,14 @@
 //! that was running when the control plane stopped is put to sleep in the
 //! background, since its broker and proxy died with the old process.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Duration;
 
-use runeward_backend::{IsolationTier, Sandbox, spec_from_charter, verify_runtime_capabilities};
-use runeward_charter::Verdict;
+use runeward_backend::{
+    Backend, IsolationTier, Sandbox, spec_from_charter, verify_runtime_capabilities,
+};
+use runeward_charter::{Charter, HostType, Verdict};
 use runeward_ledger::gotime::{self, Time};
 use runeward_ledger::{Event, Scrubber};
 use runeward_policy::Guard;
@@ -42,6 +45,7 @@ use crate::env::{compile_scrub_patterns, new_engine, resolve_env};
 use crate::error::{Error, Result};
 use crate::governance::supervisor_spec;
 use crate::manager::Manager;
+use crate::manager::append_audit_to;
 use crate::sessions::{Busy, Session, SessionState, lock};
 use crate::statefile::marshal_indent;
 use crate::timefmt::nullable;
@@ -51,6 +55,10 @@ pub(crate) const WORKSPACES_FILE_NAME: &str = "workspaces.json";
 /// How many times a call retries waking a workspace that went back to
 /// sleep under it before giving up.
 const WAKE_ATTEMPTS: usize = 3;
+
+/// Keeps an unavailable local engine or Kubernetes API from delaying the
+/// control plane indefinitely during restart reconciliation.
+const ORPHAN_BACKEND_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// The durable record of one persistent Citadel.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -177,6 +185,114 @@ pub(crate) fn live_sandbox(sess: &Session) -> Sandbox {
 }
 
 impl Manager {
+    /// Removes managed sandboxes that have no durable workspace record.
+    ///
+    /// Ephemeral Citadels normally disappear through their in-process
+    /// session lifecycle. A process crash loses those sessions, however,
+    /// while Docker containers or Kubernetes Pods keep running. Startup
+    /// reconciles both built-in backends before accepting work, preserving
+    /// every id in `workspaces.json` and failing open when a backend is not
+    /// installed or reachable.
+    pub(crate) async fn cleanup_untracked_sandboxes(&self) {
+        let known: HashSet<String> = lock(&self.workspaces).keys().cloned().collect();
+        let mut opened = HashSet::new();
+        for host_type in [HostType::Container, HostType::K8s] {
+            let mut charter = Charter::default();
+            charter.host.host_type = host_type.clone();
+            let opened_backend = tokio::time::timeout(
+                ORPHAN_BACKEND_TIMEOUT,
+                self.registry.open(&charter, &self.backend_config),
+            )
+            .await;
+            let backend = match opened_backend {
+                Ok(Ok(backend)) => backend,
+                Ok(Err(error)) => {
+                    tracing::debug!(backend = %host_type, %error, "runeward: orphan reconciliation backend unavailable");
+                    continue;
+                }
+                Err(_) => {
+                    tracing::warn!(backend = %host_type, "runeward: orphan reconciliation backend open timed out");
+                    continue;
+                }
+            };
+            // A test or extension may register the same backend under more
+            // than one host type. Scan it once, while still scanning real
+            // Docker and Kubernetes backends independently.
+            if !opened.insert(backend.name().to_owned()) {
+                continue;
+            }
+            self.cleanup_untracked_on(backend.as_ref(), &known).await;
+        }
+    }
+
+    async fn cleanup_untracked_on(&self, backend: &dyn Backend, known: &HashSet<String>) {
+        let listed = tokio::time::timeout(ORPHAN_BACKEND_TIMEOUT, backend.list()).await;
+        let sandboxes = match listed {
+            Ok(Ok(sandboxes)) => sandboxes,
+            Ok(Err(error)) => {
+                tracing::debug!(backend = backend.name(), %error, "runeward: orphan reconciliation list failed");
+                return;
+            }
+            Err(_) => {
+                tracing::warn!(
+                    backend = backend.name(),
+                    "runeward: orphan reconciliation list timed out"
+                );
+                return;
+            }
+        };
+        for sandbox in sandboxes {
+            if sandbox.id.is_empty() {
+                tracing::warn!(
+                    backend = backend.name(),
+                    "runeward: managed sandbox has no id; refusing orphan cleanup"
+                );
+                continue;
+            }
+            if known.contains(&sandbox.id) {
+                continue;
+            }
+            let result =
+                tokio::time::timeout(ORPHAN_BACKEND_TIMEOUT, backend.kill(&sandbox.id)).await;
+            let error = match result {
+                Ok(Ok(())) => None,
+                Ok(Err(error)) => Some(error.to_string()),
+                Err(_) => Some(format!(
+                    "cleanup timed out after {} seconds",
+                    ORPHAN_BACKEND_TIMEOUT.as_secs()
+                )),
+            };
+            self.record_orphan_cleanup(&sandbox, backend.name(), error.as_deref())
+                .await;
+            if let Some(error) = error {
+                tracing::warn!(citadel = %sandbox.id, backend = backend.name(), %error, "runeward: remove sandbox left by a previous control plane");
+            }
+        }
+    }
+
+    async fn record_orphan_cleanup(&self, sandbox: &Sandbox, backend: &str, error: Option<&str>) {
+        let mut event = Event {
+            session_id: sandbox.id.clone(),
+            sandbox: sandbox.id.clone(),
+            profile: sandbox.profile.clone(),
+            tool: "sandbox".into(),
+            action: "orphan-cleanup".into(),
+            verdict: if error.is_some() { "error" } else { "allow" }.into(),
+            exit_code: if error.is_some() { -1 } else { 0 },
+            ..Event::default()
+        };
+        event.meta.insert("backend".into(), backend.into());
+        event.meta.insert(
+            "reason".into(),
+            "managed sandbox had no persistent workspace record after control-plane restart".into(),
+        );
+        if let Some(error) = error {
+            event.meta.insert("error".into(), error.into());
+        }
+        runeward_obs::record_action(&event.tool, &event.verdict, 0);
+        append_audit_to(&self.ledger, &self.sink, event).await;
+    }
+
     /// Reports whether `id` is a persistent Citadel the control plane
     /// tracks (live or asleep).
     pub(crate) fn is_workspace(&self, id: &str) -> bool {

@@ -46,6 +46,8 @@ pub(crate) struct FakeBackend {
     pub(crate) stopped: Mutex<Vec<String>>,
     /// Sandboxes woken, in order.
     pub(crate) started: Mutex<Vec<String>>,
+    /// Managed sandboxes returned by backend discovery.
+    pub(crate) listed: Mutex<Vec<Sandbox>>,
     /// Makes the next start fail.
     pub(crate) fail_start: Mutex<bool>,
 }
@@ -66,6 +68,7 @@ impl Default for FakeBackend {
             report: Mutex::new(String::new()),
             stopped: Mutex::new(Vec::new()),
             started: Mutex::new(Vec::new()),
+            listed: Mutex::new(Vec::new()),
             fail_start: Mutex::new(false),
         }
     }
@@ -212,7 +215,7 @@ impl Backend for FakeBackend {
     }
 
     async fn list(&self) -> BResult<Vec<Sandbox>> {
-        Ok(Vec::new())
+        Ok(lock(&self.listed).clone())
     }
 
     fn supports_sleep(&self) -> bool {

@@ -30,10 +30,16 @@ Both settings default off; Charters without `[workspace]` behave as before.
   control-plane state. A restarted control plane lists them as `sleeping`,
   keeps their runs `running`, stops any it finds still running, and on
   first use rebuilds the governed session (Charter, secrets, broker,
-  supervisor, policy) around the kept workspace.
+  supervisor, policy) around the kept workspace. Before accepting new work,
+  startup also reconciles managed Docker/Podman containers and Kubernetes
+  Pods: anything without a persistent workspace record is stopped and
+  removed, so an ephemeral Citadel cannot keep running after a control-plane
+  crash or restart. Cleanup is best effort when a backend is unavailable and
+  is retried on the next restart.
 - **Audit.** Every sleep and wake is a Chronicle event (tool `workspace`,
   action `sleep`/`wake`, with the reason: `idle`, `manual`, `activity` or a
-  restart recovery).
+  restart recovery). Removing an untracked ephemeral Citadel records tool
+  `sandbox`, action `orphan-cleanup`, including its backend and outcome.
 
 **Anything that must survive a sleep must be on disk in the workspace.**
 Processes, open browser sessions, in-memory state and `/tmp` on a read-only
