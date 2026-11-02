@@ -437,5 +437,12 @@ Docker/Podman when credentials must stay on the control-plane host. Approval
 routing is not available in the sidecar yet: a `require-approval` request
 there is refused. Strict-mode decisions are read back from the sidecar's log
 stream into the perimeter list and the Chronicle, on Docker/Podman and on
-Kubernetes. If the control plane restarts while a Citadel runs, its later
-decisions are recorded again only once the Citadel is woken.
+Kubernetes. When that stream ends while the sidecar exists (a dropped API
+server or kubelet connection, a restarted Docker sidecar), the control plane reopens it
+with backoff from the last log timestamp it read, so decisions the runtime
+still holds are recorded once. The Chronicle gets `egress decisions-detached`
+when the stream is lost and `egress decisions-resumed` when it is read again.
+Decisions the follower cannot read back, such as those an egress container
+on Kubernetes logged before it restarted, are lost; the two events bound that
+gap. A control-plane restart stops running persistent Citadels; each
+one gets a new sidecar and stream when it is woken.

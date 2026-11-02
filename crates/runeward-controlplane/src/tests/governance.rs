@@ -3,7 +3,9 @@
 
 use std::time::Duration;
 
-use runeward_egress::{ApprovalHook, ApprovalOutcome, ApprovalRequest, Decision, ReasonCode};
+use runeward_egress::{
+    ApprovalHook, ApprovalOutcome, ApprovalRequest, Decision, ReasonCode, StreamNotice,
+};
 
 use super::support::{TEST_TOKEN, harness, lock};
 use crate::{CreateOptions, Error};
@@ -57,6 +59,54 @@ async fn wait_for<F: Fn() -> bool>(f: F) {
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
     panic!("condition not reached");
+}
+
+#[tokio::test]
+async fn a_lost_decision_stream_is_chronicled() {
+    let h = harness(None).await;
+    h.write_charter("brokered", BROKERED);
+    let sb = h
+        .mgr
+        .create_sandbox("brokered", CreateOptions::default())
+        .await
+        .expect("create");
+    let broker = lock(&h.fake.last_spec)
+        .clone()
+        .expect("spec")
+        .broker
+        .expect("broker")
+        .0;
+    let seen = chrono::DateTime::parse_from_rfc3339("2026-11-02T10:00:02.000000002Z")
+        .expect("ts")
+        .with_timezone(&chrono::Utc);
+    broker.report_stream(StreamNotice::Detached {
+        reason: "the egress sidecar's log stream ended".into(),
+        last_seen: Some(seen),
+    });
+    broker.report_stream(StreamNotice::Resumed { since: Some(seen) });
+    let mut events = Vec::new();
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    while std::time::Instant::now() < deadline && events.len() < 2 {
+        events = h
+            .records()
+            .await
+            .into_iter()
+            .filter(|e| e.tool == "egress")
+            .collect();
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert_eq!(events.len(), 2, "{events:?}");
+    assert_eq!(events[0].action, "decisions-detached");
+    assert_eq!(events[0].verdict, "error");
+    assert!(events[0].meta["reason"].contains("log stream ended"));
+    assert_eq!(
+        events[0].meta["last_seen"],
+        "2026-11-02T10:00:02.000000002Z"
+    );
+    assert_eq!(events[1].action, "decisions-resumed");
+    assert_eq!(events[1].verdict, "allow");
+    assert_eq!(events[1].meta["since"], "2026-11-02T10:00:02.000000002Z");
+    h.mgr.kill_sandbox(&sb.id).await.expect("kill");
 }
 
 #[tokio::test]

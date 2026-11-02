@@ -44,6 +44,7 @@
 mod backend;
 mod capabilities;
 pub mod config;
+mod decision_follow;
 mod docker;
 mod egress;
 mod error;

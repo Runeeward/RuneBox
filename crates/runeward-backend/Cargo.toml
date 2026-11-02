@@ -47,4 +47,5 @@ pty-process.workspace = true
 [dev-dependencies]
 bytes.workspace = true
 http-body-util.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
 tower.workspace = true

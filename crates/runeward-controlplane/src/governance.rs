@@ -53,7 +53,7 @@ use runeward_auditsink::Sink;
 use runeward_backend::{Backend, BrokerHandle, Sandbox, Spec, SupervisorSpec};
 use runeward_charter::{Charter, Verdict};
 use runeward_egress::{
-    ApprovalFuture, ApprovalHook, ApprovalOutcome, ApprovalRequest, Broker, Decision,
+    ApprovalFuture, ApprovalHook, ApprovalOutcome, ApprovalRequest, Broker, Decision, StreamNotice,
 };
 use runeward_ledger::{Event, Ledger};
 use runeward_supervisor::config::LandlockMode;
@@ -151,6 +151,8 @@ pub(crate) struct Governance {
     pub(crate) approvals: Option<Arc<BrokerApprovals>>,
     /// Subscribed before create so no early decision is missed.
     decisions: Option<broadcast::Receiver<Decision>>,
+    /// Gaps in an egress sidecar's decision stream, subscribed with it.
+    stream_notices: Option<broadcast::Receiver<StreamNotice>>,
     pub(crate) supervisor: Option<SupervisorSpec>,
 }
 
@@ -252,6 +254,7 @@ impl Manager {
             broker: None,
             approvals: None,
             decisions: None,
+            stream_notices: None,
             supervisor: None,
         };
         if !c.endpoints.is_empty() || !c.credentials.is_empty() {
@@ -321,6 +324,7 @@ impl Manager {
             let hook: Arc<dyn ApprovalHook> = approvals.clone();
             let broker = Arc::new(broker.with_approval_hook(hook));
             gov.decisions = Some(broker.subscribe());
+            gov.stream_notices = Some(broker.subscribe_stream());
             gov.broker = Some(broker);
             gov.approvals = Some(approvals);
         }
@@ -396,6 +400,15 @@ impl Manager {
         }
         if let Some(rx) = gov.decisions {
             let task = tokio::spawn(pump_decisions(
+                Arc::clone(&self.ledger),
+                Arc::clone(&self.sink),
+                Arc::downgrade(sess),
+                rx,
+            ));
+            lock(&sess.tasks).push(task);
+        }
+        if let Some(rx) = gov.stream_notices {
+            let task = tokio::spawn(pump_stream_notices(
                 Arc::clone(&self.ledger),
                 Arc::clone(&self.sink),
                 Arc::downgrade(sess),
@@ -618,6 +631,68 @@ async fn pump_decisions(
             Err(broadcast::error::RecvError::Closed) => return,
         };
         append_audit_to(&ledger, &sink, ev).await;
+    }
+}
+
+/// Records when an egress sidecar's decision stream was lost and when it
+/// resumed, so a gap in the egress record shows in the Chronicle.
+async fn pump_stream_notices(
+    ledger: Arc<Ledger>,
+    sink: Arc<dyn Sink>,
+    sess: Weak<Session>,
+    mut rx: broadcast::Receiver<StreamNotice>,
+) {
+    loop {
+        let n = match rx.recv().await {
+            Ok(n) => n,
+            Err(broadcast::error::RecvError::Lagged(_)) => continue,
+            Err(broadcast::error::RecvError::Closed) => return,
+        };
+        let Some(s) = sess.upgrade() else { return };
+        let ev = stream_notice_event(&s, &n);
+        drop(s);
+        append_audit_to(&ledger, &sink, ev).await;
+    }
+}
+
+/// The Chronicle event for a decision-stream notice: `egress
+/// decisions-detached` (an error: decisions may be going unrecorded) or
+/// `egress decisions-resumed`, with the last timestamp read.
+fn stream_notice_event(sess: &Session, n: &StreamNotice) -> Event {
+    let ts = |t: &Option<chrono::DateTime<chrono::Utc>>| {
+        t.map(|t| t.to_rfc3339_opts(chrono::SecondsFormat::Nanos, true))
+    };
+    match n {
+        StreamNotice::Detached { reason, last_seen } => session_event(
+            sess,
+            "egress",
+            "decisions-detached",
+            &[],
+            "error",
+            -1,
+            0,
+            &format!("egress decisions are not being recorded: {reason}"),
+            |m| {
+                if let Some(t) = ts(last_seen) {
+                    m.insert("last_seen".into(), t);
+                }
+            },
+        ),
+        StreamNotice::Resumed { since } => session_event(
+            sess,
+            "egress",
+            "decisions-resumed",
+            &[],
+            Verdict::Allow.as_str(),
+            0,
+            0,
+            "egress decisions are recorded again from the last one read",
+            |m| {
+                if let Some(t) = ts(since) {
+                    m.insert("since".into(), t);
+                }
+            },
+        ),
     }
 }
 

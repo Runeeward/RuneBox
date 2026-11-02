@@ -40,7 +40,6 @@ use kube::api::{Api, AttachParams, DeleteParams, ListParams, LogParams, PostPara
 use kube::config::KubeConfigOptions;
 use kube::{Client, Config};
 use runeward_charter::{FIRECRACKER_NO_SHARED_FS, File, KRUN_NO_EXEC, RuntimeFamily};
-use runeward_egress::broker::DecisionLine;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -231,32 +230,17 @@ impl K8s {
 
     /// Follows the egress sidecar's log and republishes its decision lines
     /// on the control plane's `broker`, so the perimeter list and the
-    /// Chronicle see what the sidecar decided (as on Docker). Anything else
-    /// in the log is ignored.
+    /// Chronicle see what the sidecar decided (as on Docker). A stream that
+    /// ends while the Pod exists is reopened (see
+    /// [`crate::decision_follow`]). Anything else in the log is ignored.
     fn tail_decisions(&self, id: &str, broker: Arc<runeward_egress::Broker>) {
         let pods = self.pods();
         let pod = container_name(id);
-        let sandbox = id.to_owned();
-        let task = tokio::spawn(async move {
-            let lp = LogParams {
-                container: Some(EGRESS_CONTAINER.into()),
-                follow: true,
-                ..LogParams::default()
-            };
-            let stream = match pods.log_stream(&pod, &lp).await {
-                Ok(s) => s,
-                Err(e) => {
-                    tracing::warn!(target: "runeward_backend", "egress sidecar decision stream for {sandbox} could not start: {e}");
-                    return;
-                }
-            };
-            let mut lines = pin!(stream.lines());
-            while let Some(Ok(line)) = lines.next().await {
-                if let Some(d) = sidecar_decision(&line, &sandbox) {
-                    broker.publish(d);
-                }
-            }
-        });
+        let task = tokio::spawn(crate::decision_follow::follow(
+            id.to_owned(),
+            broker,
+            move |since| open_egress_log(pods.clone(), pod.clone(), since),
+        ));
         let old = self
             .tails
             .lock()
@@ -1533,10 +1517,35 @@ fn needs_egress(spec: &Spec) -> bool {
 
 /// The decision in one line of an egress sidecar's log, when it is a
 /// decision line about `sandbox`.
+#[cfg(test)]
 fn sidecar_decision(line: &str, sandbox: &str) -> Option<runeward_egress::Decision> {
-    DecisionLine::parse(line)
+    runeward_egress::broker::DecisionLine::parse(line)
         .filter(|l| l.sandbox_id == sandbox)
         .map(|l| l.decision)
+}
+
+/// One attempt to follow the egress container's log in `pod` from `since`:
+/// gone once the Pod no longer exists.
+async fn open_egress_log(
+    pods: Api<Pod>,
+    pod: String,
+    since: Option<chrono::DateTime<chrono::Utc>>,
+) -> crate::decision_follow::Attach {
+    use crate::decision_follow::Attach;
+    let lp = LogParams {
+        container: Some(EGRESS_CONTAINER.into()),
+        follow: true,
+        timestamps: true,
+        // Whole seconds only; the follower skips the lines it already read.
+        since_time: since
+            .and_then(|t| k8s_openapi::jiff::Timestamp::from_second(t.timestamp()).ok()),
+        ..LogParams::default()
+    };
+    match pods.log_stream(&pod, &lp).await {
+        Ok(s) => Attach::Lines(Box::pin(s.lines().filter_map(|l| async { l.ok() }))),
+        Err(e) if is_status(&e, 404) => Attach::Gone,
+        Err(e) => Attach::Failed(format!("follow the egress container log: {e}")),
+    }
 }
 
 /// Names the per-sandbox Secret holding the broker document.
@@ -2495,7 +2504,7 @@ mod tests {
             reason_code: Some(runeward_egress::ReasonCode::Binary),
             ..runeward_egress::Decision::default()
         };
-        let line = DecisionLine::new(id, &d).to_line();
+        let line = runeward_egress::broker::DecisionLine::new(id, &d).to_line();
         let got = sidecar_decision(&line, id).expect("decision");
         assert_eq!(got.binary.as_deref(), Some("/usr/bin/python3.11"));
         assert_eq!(got.binary_enforced, Some(true));
