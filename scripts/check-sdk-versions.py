@@ -10,6 +10,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+GITHUB_REPOSITORY = "Runeeward/RuneBox"
+GITHUB_URL = f"https://github.com/{GITHUB_REPOSITORY}"
 
 
 def python_project_version() -> str:
@@ -32,15 +34,36 @@ def python_project_version() -> str:
     return version.group(1)
 
 
+def python_project_repository() -> str:
+    """Read the canonical repository URL from the PEP 621 project URLs."""
+    pyproject = (ROOT / "adapters/python/pyproject.toml").read_text(encoding="utf-8")
+    urls = re.search(
+        r"^\[project\.urls\]\s*$\n(?P<body>.*?)(?=^\[|\Z)",
+        pyproject,
+        re.MULTILINE | re.DOTALL,
+    )
+    if urls is None:
+        raise SystemExit("could not find [project.urls] in Python pyproject.toml")
+    repository = re.search(
+        r'^Repository\s*=\s*["\']([^"\']+)["\']\s*(?:#.*)?$',
+        urls.group("body"),
+        re.MULTILINE,
+    )
+    if repository is None:
+        raise SystemExit("could not find Python project Repository URL")
+    return repository.group(1)
+
+
 def main() -> int:
     expected = sys.argv[1].strip() if len(sys.argv) > 1 else ""
     expected = expected.removeprefix("v")
 
     python_version = python_project_version()
 
-    npm_version = json.loads(
+    npm_package = json.loads(
         (ROOT / "adapters/typescript/package.json").read_text(encoding="utf-8")
-    )["version"]
+    )
+    npm_version = npm_package["version"]
     npm_lock = json.loads(
         (ROOT / "adapters/typescript/package-lock.json").read_text(encoding="utf-8")
     )
@@ -106,6 +129,19 @@ def main() -> int:
         raise SystemExit(f"unsupported stable/RC release version {actual!r}")
     if expected and actual != expected:
         raise SystemExit(f"SDK version {actual} does not match release version {expected}")
+
+    python_repository = python_project_repository()
+    if python_repository != GITHUB_URL:
+        raise SystemExit(
+            f"Python Repository URL {python_repository!r} must be {GITHUB_URL!r}"
+        )
+    npm_repository = npm_package.get("repository", {}).get("url")
+    expected_npm_repository = f"git+{GITHUB_URL}.git"
+    if npm_repository != expected_npm_repository:
+        raise SystemExit(
+            f"npm repository URL {npm_repository!r} must be "
+            f"{expected_npm_repository!r}"
+        )
 
     image = manifest["packages"][0]["identifier"]
     if not image.endswith(f":v{actual}"):
