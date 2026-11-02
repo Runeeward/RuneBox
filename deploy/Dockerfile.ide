@@ -22,7 +22,7 @@ zod@4.6.7:lib/vscode/node_modules/@github/copilot-sdk/node_modules \
 zod@4.6.7:lib/vscode/node_modules/@vscode/sandbox-runtime/node_modules \
 basic-ftp@6.2.1:node_modules \
 body-parser@2.4.0:node_modules \
-follow-redirects@1.16.1:node_modules"
+follow-redirects@1.16.2:node_modules"
 
 FROM codercom/code-server:4.143.1-noble@sha256:d176e5ea60e7f226686eb1658f2bdf9c1564b1292706b385ef2e497700c82955 AS code-server-security-patches
 
