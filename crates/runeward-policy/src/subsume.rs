@@ -163,6 +163,87 @@ pub fn check_subsumption(
     Ok(Proof::Subsumed(steps))
 }
 
+/// Every dimension in which `child` may grant more than `parent`, for a
+/// review of a Charter change. Unlike [`check_subsumption`], which stops at
+/// the first dimension, this checks them all; each entry names the first
+/// rule found in its dimension. Empty when `child` is proven no broader.
+pub fn broadening(
+    parent: &Charter,
+    child: &Charter,
+    operator_default: Option<&str>,
+) -> Vec<Refusal> {
+    if parent.name == child.name && charters_equivalent(parent, child) {
+        return Vec::new();
+    }
+    [
+        check_policy(parent, child, operator_default),
+        check_network(parent, child),
+        check_isolation(parent, child),
+        check_host(parent, child),
+        check_filesystem(parent, child),
+        check_process(parent, child),
+        check_features(parent, child),
+        check_rationing(parent, child),
+        check_secrets(parent, child),
+        check_chronicle(parent, child),
+    ]
+    .into_iter()
+    .filter_map(Result::err)
+    .collect()
+}
+
+/// A place a credential reaches in a changed Charter that it did not reach
+/// before.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CredentialReach {
+    /// The `[[endpoint]]` name (or its host when unnamed).
+    pub endpoint: String,
+    /// Host and port the credential is injected for.
+    pub host: String,
+    pub port: u16,
+    /// The `[[credential]]` name.
+    pub credential: String,
+}
+
+impl fmt::Display for CredentialReach {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "credential {:?} is sent to {}:{} (endpoint {:?})",
+            self.credential, self.host, self.port, self.endpoint
+        )
+    }
+}
+
+/// The endpoints of `child` that inject a credential where `parent` did not
+/// inject that credential (same host, port and credential name), such as a
+/// new host reachable with a credential.
+pub fn new_credential_reach(parent: &Charter, child: &Charter) -> Vec<CredentialReach> {
+    let port = |p: u16| if p == 0 { 443 } else { p };
+    child
+        .endpoints
+        .iter()
+        .filter(|e| !e.credential.trim().is_empty())
+        .filter(|e| {
+            !parent.endpoints.iter().any(|pe| {
+                norm_host(&pe.host) == norm_host(&e.host)
+                    && port(pe.port) == port(e.port)
+                    && pe.credential == e.credential
+            })
+        })
+        .map(|e| CredentialReach {
+            endpoint: if e.name.is_empty() {
+                e.host.clone()
+            } else {
+                e.name.clone()
+            },
+            host: norm_host(&e.host),
+            port: port(e.port),
+            credential: e.credential.clone(),
+        })
+        .collect()
+}
+
 // ---------------------------------------------------------------------------
 // Authority policy
 // ---------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 //! `runeward policy`: offline simulation (`test`), ready-made templates
-//! (`scaffold`) and rule suggestions from a verified audit trail (`learn`).
+//! (`scaffold`), rule suggestions from a verified audit trail (`learn`) and
+//! a review of the access a Charter change adds (`diff`).
 
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
@@ -14,6 +15,90 @@ use runeward_policy::{Action, Evaluator};
 use serde::Deserialize;
 
 use crate::common::{expand_home, go_quote, load_profile, read_file};
+
+// ---------------------------------------------------------------------------
+// policy diff
+
+/// What a changed Charter grants beyond the current one.
+#[derive(Debug, Default)]
+pub struct DiffReport {
+    /// One entry per wider dimension (`dimension: reason`).
+    pub broader: Vec<String>,
+    /// Places a credential is now sent to.
+    pub credential_reach: Vec<String>,
+}
+
+impl DiffReport {
+    /// Whether the change adds no access.
+    pub fn is_empty(&self) -> bool {
+        self.broader.is_empty() && self.credential_reach.is_empty()
+    }
+}
+
+/// Compares `old` and `new` for review before a change is approved.
+pub fn diff_charters(old: &Charter, new: &Charter) -> DiffReport {
+    DiffReport {
+        broader: runeward_policy::broadening(old, new, None)
+            .iter()
+            .map(ToString::to_string)
+            .collect(),
+        credential_reach: runeward_policy::new_credential_reach(old, new)
+            .iter()
+            .map(ToString::to_string)
+            .collect(),
+    }
+}
+
+/// Renders a [`DiffReport`] as text (`json = false`) or JSON.
+pub fn render_diff(old: &str, new: &str, r: &DiffReport, json: bool) -> String {
+    if json {
+        let doc = serde_json::json!({
+            "old": old,
+            "new": new,
+            "adds_access": !r.is_empty(),
+            "broader": r.broader,
+            "credential_reach": r.credential_reach,
+        });
+        return format!("{doc:#}\n");
+    }
+    if r.is_empty() {
+        return format!("{new} grants nothing {old} does not.\n");
+    }
+    let mut out = format!("{new} grants access {old} does not:\n");
+    for line in r.credential_reach.iter().chain(&r.broader) {
+        let _ = writeln!(out, "  - {line}");
+    }
+    out
+}
+
+/// A Charter by name, or from a file path (a proposed change usually is
+/// one), named after the file's stem.
+fn load_charter_arg(arg: &str, config_dir: &str) -> Result<Charter> {
+    let path = std::path::Path::new(arg);
+    if path.is_file() {
+        let name = path
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let opts = crate::common::charter_options(config_dir);
+        return Ok(runeward_charter::parse_file(path, &name, &opts.signed)?);
+    }
+    Ok(load_profile(arg, config_dir)?)
+}
+
+/// `runeward policy diff <old> <new>`: exits non-zero when `new` adds
+/// access, so a change can be held for review in CI.
+pub fn diff(old: &str, new: &str, json: bool, config_dir: &str) -> Result<()> {
+    let a = load_charter_arg(old, config_dir)?;
+    let b = load_charter_arg(new, config_dir)?;
+    let r = diff_charters(&a, &b);
+    print!("{}", render_diff(old, new, &r, json));
+    std::io::stdout().flush()?;
+    if !r.is_empty() {
+        bail!("{} adds access; review it before approving", go_quote(new));
+    }
+    Ok(())
+}
 
 // ---------------------------------------------------------------------------
 // policy learn
@@ -336,6 +421,67 @@ mod tests {
             redacted,
             ..Event::default()
         }
+    }
+
+    fn charter(toml: &str) -> Charter {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("c.toml");
+        std::fs::write(&path, toml).unwrap();
+        load_charter_arg(path.to_str().unwrap(), "").unwrap()
+    }
+
+    const OLD: &str = r#"
+[network]
+default = "deny"
+
+[[credential]]
+name = "gh"
+source = "env://GH_TOKEN"
+placeholder_env = "GITHUB_TOKEN"
+
+[[endpoint]]
+name = "github"
+host = "api.github.com"
+protocol = "rest"
+credential = "gh"
+  [[endpoint.allow]]
+  method = "GET"
+  path = "/repos/**"
+"#;
+
+    #[test]
+    fn diff_flags_a_new_host_reachable_with_a_credential() {
+        let old = charter(OLD);
+        assert!(diff_charters(&old, &charter(OLD)).is_empty());
+        let new = charter(&format!(
+            "{OLD}\n[[endpoint]]\nname = \"uploads\"\nhost = \"uploads.example.test\"\nprotocol = \"rest\"\ncredential = \"gh\"\n  [[endpoint.allow]]\n  method = \"POST\"\n  path = \"/**\"\n"
+        ));
+        let r = diff_charters(&old, &new);
+        assert_eq!(
+            r.credential_reach,
+            ["credential \"gh\" is sent to uploads.example.test:443 (endpoint \"uploads\")"]
+        );
+        assert!(
+            r.broader.iter().any(|b| b.starts_with("network: ")),
+            "{:?}",
+            r.broader
+        );
+        let text = render_diff("old.toml", "new.toml", &r, false);
+        assert!(
+            text.starts_with("new.toml grants access old.toml does not:\n  - credential"),
+            "{text}"
+        );
+        let json: serde_json::Value =
+            serde_json::from_str(&render_diff("old.toml", "new.toml", &r, true)).unwrap();
+        assert_eq!(json["adds_access"], true);
+        assert_eq!(json["credential_reach"][0], r.credential_reach[0]);
+        // The reverse change only removes access.
+        let back = diff_charters(&new, &old);
+        assert!(back.is_empty(), "{back:?}");
+        assert_eq!(
+            render_diff("new.toml", "old.toml", &back, false),
+            "old.toml grants nothing new.toml does not.\n"
+        );
     }
 
     #[test]

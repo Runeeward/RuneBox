@@ -471,6 +471,24 @@ output into a Charter:
         #[arg(long)]
         list: bool,
     },
+    /// Show the access a changed Charter adds, before approving it
+    #[command(
+        long_about = "Compare a Charter with a proposed change and list everything the change
+grants that the current one does not: each wider dimension (authority
+policy, network, filesystem, process, rationing, secrets, ...) and every
+host and port a credential is newly sent to. Exits non-zero when the change
+adds access, so CI can hold it for review. Identical or narrower changes
+exit zero."
+    )]
+    Diff {
+        /// The current Charter (name or path)
+        old: String,
+        /// The proposed Charter (name or path)
+        new: String,
+        /// print JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Suggest exact policy rules from a prior audit trail
     #[command(
         long_about = "Read a portable evidence package or signed Chronicle bundle and print a
@@ -1107,6 +1125,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
                 input,
                 include_allowed,
             } => crate::policy::learn(&input, include_allowed),
+            PolicyCmd::Diff { old, new, json } => crate::policy::diff(&old, &new, json, cfg),
         },
         Command::Print { charter } => crate::inspect::print(&charter, cfg),
         Command::Quickstart {

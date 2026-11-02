@@ -69,6 +69,7 @@ and the Charter's egress policy.
 | `runeward policy test <charter> [--cases <file>] [--case <spec>]...` | Simulate a Charter's policy against sample actions from a TOML file (`--cases`) and/or inline `--case tool=...,action=...,expect=...` flags, exiting non-zero on mismatch. |
 | `runeward policy scaffold [template] [--list]` | Print a ready-made policy template for a common control. |
 | `runeward policy learn <evidence-or-chronicle.json>` | Print exact, reviewable proposals from a verified audit trail. |
+| `runeward policy diff <old> <new> [--json]` | List the access a Charter change adds: each wider dimension and every host and port a credential is newly sent to. Exits non-zero when it adds any. Takes names or file paths. |
 | `runeward evidence export <charter> [-o file]` | Package the resolved policy and signed Chronicle events. |
 | `runeward evidence verify <file>` | Verify the policy digest, event chain, and every signature. |
 | `runeward charter sign\|verify <file>` | Produce/verify a detached ed25519 signature over a Charter. |
@@ -203,6 +204,9 @@ runeward policy scaffold package-approval >> mycharter.toml
 runeward --config-dir examples evidence export ns-auto -o evidence.json
 runeward evidence verify evidence.json
 runeward policy learn evidence.json > proposed-policy.toml
+
+# Review a Charter change before approving it (non-zero exit when it adds access)
+runeward policy diff charters/agent.toml proposed/agent.toml
 
 # Persistent workspaces, forks and resumable turns
 runeward citadel status cit-1234

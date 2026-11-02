@@ -47,4 +47,7 @@ pub use decision::{Action, Decision, EngineKind, Evaluator, ReasonCode};
 pub use guard::{Clock, Guard, GuardError};
 pub use rego::{DEFAULT_REGO_QUERY, RegoEngine, RegoError};
 pub use rules::{RuleEngine, match_glob};
-pub use subsume::{Proof, Refusal, charters_equivalent, check_subsumption};
+pub use subsume::{
+    CredentialReach, Proof, Refusal, broadening, charters_equivalent, check_subsumption,
+    new_credential_reach,
+};
