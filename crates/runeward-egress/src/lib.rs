@@ -57,6 +57,7 @@ pub mod transparent;
 
 pub use broker::{
     ApprovalFuture, ApprovalHook, ApprovalOutcome, ApprovalRequest, Broker, BrokerError,
+    StreamNotice,
 };
 pub use decision_log::{
     Decision, MAX_DECISIONS_PER_SANDBOX, ReasonCode, Verdict, list_decisions, record_decision,

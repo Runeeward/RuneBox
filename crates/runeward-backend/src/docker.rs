@@ -24,13 +24,13 @@ use async_trait::async_trait;
 use chrono::Utc;
 use runeward_charter::{File, KRUN_NO_EXEC, Network, RuntimeFamily};
 use runeward_egress::Broker;
-use runeward_egress::broker::DecisionLine;
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::process::Command;
 use tokio::task::JoinHandle;
 
 use crate::backend::{Backend, Reachable};
 use crate::config::BackendConfig;
+use crate::decision_follow;
 use crate::egress::{HostProxy, policy_from_network, policy_json, proxy_env};
 use crate::error::{BackendError, Result};
 use crate::evidence::{self, Assessment};
@@ -537,29 +537,17 @@ impl Docker {
     }
 
     /// Follows the sidecar's stdout and republishes its decision lines on
-    /// the control plane's broker. Anything else on stdout is ignored.
+    /// the control plane's broker, reopening the log when it ends while the
+    /// sidecar exists (see [`crate::decision_follow`]). Anything else on
+    /// stdout is ignored.
     fn tail_decisions(&self, name: &str, id: &str, broker: Arc<Broker>) -> JoinHandle<()> {
-        let mut cmd = self.command(&["logs", "-f", name]);
-        cmd.stdout(Stdio::piped()).stderr(Stdio::null());
-        let id = id.to_owned();
-        tokio::spawn(async move {
-            let Ok(mut child) = cmd.spawn() else {
-                tracing::warn!(target: "runeward_backend", "egress sidecar decision stream for {id} could not start");
-                return;
-            };
-            let Some(out) = child.stdout.take() else {
-                return;
-            };
-            let mut lines = tokio::io::BufReader::new(out).lines();
-            while let Ok(Some(line)) = lines.next_line().await {
-                if let Some(l) = DecisionLine::parse(&line)
-                    && l.sandbox_id == id
-                {
-                    broker.publish(l.decision);
-                }
-            }
-            let _ = child.wait().await;
-        })
+        let bin = self.bin.clone();
+        let name = name.to_owned();
+        tokio::spawn(decision_follow::follow(
+            id.to_owned(),
+            broker,
+            move |since| open_sidecar_log(bin.clone(), name.clone(), since),
+        ))
     }
 
     /// Extracts a tar into `dest` inside a (possibly stopped) container.
@@ -2104,6 +2092,65 @@ async fn pty_attach(bin: &Path, args: Vec<String>, s: PtyStream) -> Result<()> {
     } else {
         Err(BackendError::msg(exit_string(status)))
     }
+}
+
+/// One attempt to follow `name`'s log from `since` (`docker logs -f
+/// --timestamps`): gone when the container no longer exists, failed while it
+/// is not running.
+async fn open_sidecar_log(
+    bin: PathBuf,
+    name: String,
+    since: Option<chrono::DateTime<Utc>>,
+) -> decision_follow::Attach {
+    use decision_follow::Attach;
+    let state = Command::new(&bin)
+        .args(["inspect", "-f", "{{.State.Running}}", &name])
+        .stdin(Stdio::null())
+        .stderr(Stdio::piped())
+        .stdout(Stdio::piped())
+        .kill_on_drop(true)
+        .output()
+        .await;
+    match state {
+        Err(e) => return Attach::Failed(format!("run {}: {e}", bin.display())),
+        Ok(o) if !o.status.success() => {
+            let err = String::from_utf8_lossy(&o.stderr).to_lowercase();
+            return if err.contains("no such") {
+                Attach::Gone
+            } else {
+                Attach::Failed(format!("inspect the egress sidecar: {}", err.trim()))
+            };
+        }
+        Ok(o) if String::from_utf8_lossy(&o.stdout).trim() != "true" => {
+            return Attach::Failed("the egress sidecar is not running".into());
+        }
+        Ok(_) => {}
+    }
+    let mut cmd = Command::new(&bin);
+    cmd.args(["logs", "-f", "--timestamps"]);
+    if let Some(ts) = since {
+        cmd.args(["--since", &decision_follow::since_arg(ts)]);
+    }
+    cmd.arg(&name)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .kill_on_drop(true);
+    let mut child = match cmd.spawn() {
+        Ok(c) => c,
+        Err(e) => return Attach::Failed(format!("follow the egress sidecar log: {e}")),
+    };
+    let Some(out) = child.stdout.take() else {
+        return Attach::Failed("follow the egress sidecar log: no stdout".into());
+    };
+    let lines = tokio::io::BufReader::new(out).lines();
+    let stream = futures_util::stream::unfold((lines, child), |(mut lines, child)| async move {
+        match lines.next_line().await {
+            Ok(Some(l)) => Some((l, (lines, child))),
+            _ => None,
+        }
+    });
+    Attach::Lines(Box::pin(stream))
 }
 
 #[cfg(test)]

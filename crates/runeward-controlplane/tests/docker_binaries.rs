@@ -19,7 +19,10 @@
 //!   anything, as is `curl` copied to another path;
 //! - the perimeter list and the signed ledger record the attributed binary,
 //!   `binary_enforced`, and reason code `binary` for the refusals;
-//! - the supervisor reported binary attribution `enforced`.
+//! - the supervisor reported binary attribution `enforced`;
+//! - when the follower of the sidecar's log is stopped, the gap is
+//!   chronicled (`decisions-detached`, `decisions-resumed`) and a decision
+//!   made meanwhile is still recorded, once.
 //!
 //! Everything the test creates (containers with their anonymous volumes,
 //! the workspace volume, the sidecar, the image tags it built) is removed on
@@ -32,7 +35,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use runeward_backend::{BackendConfig, container_name, volume_name};
+use runeward_backend::{BackendConfig, container_name, egress_container_name, volume_name};
 use runeward_charter::SignedCharters;
 use runeward_controlplane::{CreateOptions, Manager, ManagerConfig};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -408,6 +411,56 @@ async fn run(image: &str, egress_image: &str) {
         .find(|e| e.tool == "supervisor" && e.action == "report")
         .expect("supervisor report chronicled");
     assert_eq!(report.meta["binary_attribution"], "enforced");
+
+    // A lost decision stream is chronicled and resumed without a gap: stop
+    // the follower's `docker logs`, make a request while it is down, and
+    // the decision still arrives once the follower reopens the log.
+    let follower = format!("logs -f --timestamps.*{}", egress_container_name(&sb.id));
+    let killed = Command::new("pkill")
+        .args(["-f", &follower])
+        .status()
+        .expect("pkill");
+    assert!(killed.success(), "no follower process matched {follower}");
+    let r = sh(format!("curl -sS --max-time 20 {url}?during-gap")).await;
+    assert_eq!(r.exit_code, 0, "curl: {}", r.stderr);
+    assert_eq!(hits.load(Ordering::SeqCst), 2);
+    let deadline = std::time::Instant::now() + Duration::from_secs(60);
+    let records = loop {
+        let ledger = Arc::clone(mgr.ledger());
+        let records = tokio::task::spawn_blocking(move || ledger.records().expect("records"))
+            .await
+            .expect("join");
+        let resumed = records
+            .iter()
+            .any(|e| e.tool == "egress" && e.action == "decisions-resumed");
+        if resumed || std::time::Instant::now() > deadline {
+            break records;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    };
+    let detached = records
+        .iter()
+        .find(|e| e.tool == "egress" && e.action == "decisions-detached")
+        .expect("lost stream chronicled");
+    println!("detached: {:?}", detached.meta);
+    assert_eq!(detached.verdict, "error");
+    assert!(detached.meta.contains_key("last_seen"));
+    assert!(
+        records
+            .iter()
+            .any(|e| e.tool == "egress" && e.action == "decisions-resumed"),
+        "resume chronicled"
+    );
+    let allowed = mgr
+        .perimeter(&sb.id)
+        .expect("perimeter")
+        .into_iter()
+        .filter(|d| d.allow && d.endpoint.as_deref() == Some("upstream"))
+        .count();
+    assert_eq!(
+        allowed, 2,
+        "the decision made while detached is recorded once"
+    );
     mgr.verify_ledger().await.expect("signed ledger verifies");
 
     mgr.kill_sandbox(&sb.id).await.expect("kill");
