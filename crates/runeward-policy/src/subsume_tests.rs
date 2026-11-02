@@ -1049,3 +1049,82 @@ fn proof_names_every_dimension() {
         );
     }
 }
+
+#[test]
+fn broadening_lists_every_wider_dimension() {
+    let p = brokered("p", vec![endpoint("api.github.com")], vec![cred()]);
+    assert!(broadening(&p, &p.clone(), None).is_empty());
+
+    // A wider authority policy and a dropped filesystem confinement are two
+    // dimensions; check_subsumption stops at the first.
+    let mut c = p.clone();
+    c.name = "c".into();
+    c.policy_default = Verdict::Allow;
+    c.policy = vec![rule("shell", "*", "", Verdict::Allow)];
+    let mut parent = p.clone();
+    parent.policy_default = Verdict::Deny;
+    parent.filesystem = Some(Filesystem {
+        read_only: vec!["/usr".into()],
+        ..Filesystem::default()
+    });
+    let found = broadening(&parent, &c, None);
+    let dims: Vec<&str> = found.iter().map(|r| r.dimension).collect();
+    assert!(dims.contains(&"policy"), "{found:?}");
+    assert!(dims.contains(&"filesystem"), "{found:?}");
+    assert_eq!(
+        check_subsumption(&parent, &c, None)
+            .expect_err("refused")
+            .dimension,
+        found[0].dimension
+    );
+    // A narrower child has nothing to report.
+    let mut narrower = parent.clone();
+    narrower.name = "n".into();
+    narrower.endpoints.clear();
+    assert!(
+        broadening(&parent, &narrower, None).is_empty(),
+        "{:?}",
+        broadening(&parent, &narrower, None)
+    );
+}
+
+#[test]
+fn new_credential_reach_names_new_hosts_and_ports() {
+    let plain = |host: &str| Endpoint {
+        credential: String::new(),
+        ..endpoint(host)
+    };
+    let p = brokered(
+        "p",
+        vec![endpoint("api.github.com"), plain("docs.example.test")],
+        vec![cred()],
+    );
+    // The same endpoint, with the host in another case and the default port
+    // spelled out, reaches nothing new.
+    let mut same = p.clone();
+    same.endpoints[0].host = "API.GitHub.com".into();
+    same.endpoints[0].port = 443;
+    assert!(new_credential_reach(&p, &same).is_empty());
+    // A new host, a new port and a credential added to an endpoint that had
+    // none are each new reach; a new endpoint without a credential is not.
+    let mut c = p.clone();
+    c.endpoints[1].credential = "gh".into();
+    c.endpoints.push(endpoint("uploads.example.test"));
+    c.endpoints.push(Endpoint {
+        port: 8443,
+        ..endpoint("api.github.com")
+    });
+    c.endpoints.push(plain("plain.example.test"));
+    let got: Vec<String> = new_credential_reach(&p, &c)
+        .iter()
+        .map(ToString::to_string)
+        .collect();
+    assert_eq!(
+        got,
+        [
+            "credential \"gh\" is sent to docs.example.test:443 (endpoint \"docs.example.test\")",
+            "credential \"gh\" is sent to uploads.example.test:443 (endpoint \"uploads.example.test\")",
+            "credential \"gh\" is sent to api.github.com:8443 (endpoint \"api.github.com\")",
+        ]
+    );
+}
