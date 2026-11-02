@@ -10,6 +10,8 @@
 //!   `RUNEWARD_EGRESS_PULL_POLICY=Never`);
 //! - `RW_IT_SANDBOX_IMAGE`: a sandbox image with `curl`, `wget` and
 //!   `python3` (no supervisor needed: the Pod gets it from the egress image);
+//! - `RW_IT_RUNTIME_CLASS` (optional): the RuntimeClass the Citadels run
+//!   under;
 //! - `RW_IT_UPSTREAM_IP`: an address of this machine the Pods can reach
 //!   (for kind, run the test in a container on the `kind` Docker network
 //!   and pass that container's address; see docs/E2E-TESTING.md).
@@ -189,12 +191,20 @@ impl Upstream {
 }
 
 fn charter(image: &str, host: &str, mode: &str) -> String {
+    // An optional RuntimeClass (`RW_IT_RUNTIME_CLASS`, for example gvisor or
+    // kata-qemu); unset runs the cluster default (runc on kind).
+    let runtime_class = std::env::var("RW_IT_RUNTIME_CLASS")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .map(|v| format!("runtime_class = {v:?}"))
+        .unwrap_or_default();
     format!(
         r#"
 [host]
 type = "k8s"
 image = "{image}"
 workdir = "/workspace"
+{runtime_class}
 
 [process]
 run_as_user = "{AGENT_UID}"

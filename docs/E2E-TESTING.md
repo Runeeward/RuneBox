@@ -810,6 +810,10 @@ docker run --rm --network kind -v "$PWD":/src -w /src \
 kind delete cluster --name rb-bin
 ```
 
+Set `-e RW_IT_RUNTIME_CLASS=gvisor` (or a Kata class) to run the Citadels
+under that RuntimeClass. gVisor needs runsc's `net-raw` option (see
+[gVisor](isolation.md#gvisor-runsc)).
+
 It checks that `curl` reaches the endpoint; that `python3`, `wget` and a
 copy of curl at another path are refused with reason code `binary`; that
 the perimeter list and the signed ledger record `binary` and
