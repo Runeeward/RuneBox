@@ -1,4 +1,4 @@
-$ runeward chronicle verify missing.json
+$ runebox chronicle verify missing.json
 exit: 1
 --- stdout
 --- stderr

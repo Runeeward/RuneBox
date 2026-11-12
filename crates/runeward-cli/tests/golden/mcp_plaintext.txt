@@ -1,4 +1,4 @@
-$ runeward mcp --http --bind 0.0.0.0 --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+$ runebox mcp --http --bind 0.0.0.0 --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 exit: 1
 --- stdout
 --- stderr

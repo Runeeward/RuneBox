@@ -7,7 +7,7 @@
 #
 #   printf '%s' "$OPENAI_API_KEY" > ~/.runeward-openai.key
 #   # edit copy_from below to point at YOUR project, then:
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   POST /v1/sandboxes {"profile":"codex-local"}
 #   POST /v1/sandboxes/{id}/shell/exec
 #        {"command":["sh","-lc","codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox 'run the tests and fix any failures'"]}

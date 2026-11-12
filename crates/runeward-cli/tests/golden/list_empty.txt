@@ -1,4 +1,4 @@
-$ runeward --config-dir empty list
+$ runebox --config-dir empty list
 exit: 0
 --- stdout
 --- stderr

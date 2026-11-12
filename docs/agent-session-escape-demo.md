@@ -27,7 +27,7 @@ set a gVisor or Kata `runtime_class` as described in the
 
 - Docker or OrbStack is running and reachable from the terminal.
 - `cargo`, `curl`, `jq`, and `asciinema` are installed (the script builds
-  `runeward` with `cargo build --release`).
+  `runebox` with `cargo build --release`).
 - An OpenAI API key is stored in `~/.runeward-openai.key` with mode `0600`.
 - The published `ghcr.io/runeeward/runeward-agent:latest` and
   `ghcr.io/runeeward/runeward-egress:latest` images are reachable.
@@ -124,7 +124,7 @@ Inspect the machine-readable verdicts:
 jq '.probes[] | {probe, verdict, exit_code, stderr}' \
   docs/assets/demos/agent-session-escape/escape-probes.json
 
-./target/release/runeward evidence verify \
+./target/release/runebox evidence verify \
   docs/assets/demos/agent-session-escape/evidence.json
 ```
 

@@ -16,7 +16,7 @@ These settings live in GitHub rather than the repository, so a maintainer must a
 - Run `make ci` (or `cargo test --workspace --locked`), the security workflow, and the documented
   quickstart from a clean machine.
 - Confirm the release builds with Rust 1.95 (the workspace MSRV), uploads the Linux, macOS and
-  Windows archives, `checksums.txt` with its cosign signatures and the SBOM, and publishes all six
+  Windows `runebox_<os>_<arch>` archives, `checksums.txt` with its cosign signatures and the SBOM, and publishes all six
   container images (control plane, egress, agent, sandbox, ide, ide-agents) for amd64 and arm64.
 - Optional: set the `HOMEBREW_TAP_TOKEN` secret (write access to `Runeeward/homebrew-tap`) so the
   release workflow pushes the Homebrew formula; without it the formula is rendered but not pushed.
@@ -27,7 +27,7 @@ These settings live in GitHub rather than the repository, so a maintainer must a
 - Publish and verify the current Python/npm versions before updating registry install docs.
 - Run `scripts/set-release-version.py <version>` to update the SDKs, `dist/mcp/server.json`, the
   MCP crate version, the Codex plugin and the Helm chart together.
-- Generate a short terminal recording of `runeward quickstart` for the release notes and docs.
+- Generate a short terminal recording of `runebox quickstart` for the release notes and docs.
 
 ## SDK registry publishing
 

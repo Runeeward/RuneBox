@@ -5,7 +5,7 @@
 # via --proxy-server automatically).
 #
 #   docker pull zenika/alpine-chrome
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   POST /v1/sandboxes {"profile":"browser"}
 #   POST /v1/citadels/{id}/browser {"url":"https://example.com","mode":"text"}
 

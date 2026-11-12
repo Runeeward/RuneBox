@@ -12,7 +12,7 @@
 # NET_ADMIN (e.g. the default "runeward" namespace labeled privileged). Strict
 # mode is a no-op on the docker backend (single container).
 #
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   POST /v1/sandboxes {"profile":"egress-strict"}
 
 [host]

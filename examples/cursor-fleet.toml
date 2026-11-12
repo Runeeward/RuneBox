@@ -5,7 +5,7 @@
 # operations are audited; inner agent commands remain sandbox/network constrained.
 #
 #   printf '%s' "$CURSOR_API_KEY" > ~/.runeward-cursor.key
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   POST /v1/fleets {"profile":"cursor-fleet"}   # provisions 3 sandboxes + seeds the board
 #   then: claim -> agent -p ... --force --trust -> complete (see the runbook)
 

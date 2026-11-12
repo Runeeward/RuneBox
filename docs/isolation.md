@@ -276,7 +276,7 @@ Kata 4.2.0 runtime-rs, Firecracker 1.12.1, guest memory 512 MiB):
   started in about 8 s and the proxy allowed and denied hosts as written;
   with strict egress (five drives) bypassing the proxy failed too. Strict
   egress, a broker and a persistent workspace (six drives) were refused in
-  25 ms with nothing created, and `runeward validate` reported it. In a
+  25 ms with nothing created, and `runebox validate` reported it. In a
   plain Pod, the drives of exited init containers were never reused, so a
   sixth drive user fails under 4.3.0 as well.
 - Destroy, of a running or a sleeping workspace, removed the Pod, PVC, PV,
@@ -314,7 +314,7 @@ supervisor's seccomp filter. Details in
 
 ## Installing a runtime
 
-`runeward runtime install <gvisor|kata> [--engine docker|k8s] [--runtime-class NAME] [--version V] [--sha256 HEX] [--apply]`
+`runebox runtime install <gvisor|kata> [--engine docker|k8s] [--runtime-class NAME] [--version V] [--sha256 HEX] [--apply]`
 prints the exact plan; nothing changes without `--apply`. Without root it
 verifies downloads into a temporary directory and prints the `sudo` commands
 to finish. It does not check the host for VM support; confirm the
@@ -384,7 +384,7 @@ ln -sf /opt/kata/runtime-rs/bin/containerd-shim-kata-v2 /usr/local/bin/container
 docker run --runtime io.containerd.kata-qemu.v2 ...   # host.runtime_class = "io.containerd.kata-qemu.v2"
 ```
 
-`runeward runtime install kata` takes the other route: it does not install
+`runebox runtime install kata` takes the other route: it does not install
 Kata, but with `--apply` it finds `containerd-shim-kata-v2` (or the older
 `kata-runtime` binary) and registers it in `/etc/docker/daemon.json` as a
 runtime named `kata`, so `runtime_class = "kata"` works. The names differ
@@ -487,7 +487,7 @@ exited init container (4.3.0 resets it to its placeholder but never hands it
 out again; see
 [kata-containers#13565](https://github.com/kata-containers/kata-containers/issues/13565)).
 Rune Box counts the drives a sandbox's Pod needs and refuses it before
-creating anything when they exceed five; `runeward validate` flags the
+creating anything when they exceed five; `runebox validate` flags the
 one Charter shape that does:
 
 | Pod | Drives |
@@ -515,9 +515,9 @@ The supervisor never costs a Charter that does not require it its
 sandbox. A cooperative broker with a persistent workspace (five drives
 without the supervisor) and a best-effort `[filesystem]` starts without
 the supervisor: the agent runs unconfined, the control plane records the
-supervisor as `absent` with that reason, and `runeward validate` warns.
+supervisor as `absent` with that reason, and `runebox validate` warns.
 Only a Charter that requires the supervisor (`[process]` or
-`landlock = "required"`) is refused in that shape, and `runeward validate`
+`landlock = "required"`) is refused in that shape, and `runebox validate`
 reports it as an error. Every other combination, including strict egress
 with the supervisor and a persistent workspace, fits in five. Use
 `kata-qemu` or `kata-clh` for the refused shapes.
@@ -532,7 +532,7 @@ a running guest (`podman exec` fails with "the handler does not support
 exec"; Docker and Kubernetes reach the same handler). Rune Box needs exec
 for every command, file operation and the isolation probe, so `krun` is
 refused by the Charter lint, the Docker/Podman and Kubernetes backends (a
-RuntimeClass whose handler is `krun`), and `runeward runtime install`.
+RuntimeClass whose handler is `krun`), and `runebox runtime install`.
 Use `kata-qemu` or `kata-clh` for a VM boundary on Docker or Podman, or the
 native libkrun driver (`host.type = "microvm"`, `host.runtime = "libkrun"`),
 which drives libkrun directly and has exec.
@@ -649,7 +649,7 @@ This is why deny-by-default cannot be bypassed from inside: there is no
 route to bypass it with, whatever a root process in the guest does, and it
 holds for `enforce = "strict"` and `"cooperative"` alike. The price is that
 only proxy-aware traffic leaves at all: raw TCP, UDP and DNS lookups fail
-even under an open policy (`runeward validate` warns about that), and the
+even under an open policy (`runebox validate` warns about that), and the
 in-cell IDE, which needs a sandbox address, is refused. Broker CAs are
 installed in the guest trust store as on the other backends.
 
@@ -676,7 +676,7 @@ Observed on the KVM test host (Debian 13, kernel `6.12.100+deb13-cloud-amd64`,
 |---------|--------------|
 | `host.seccomp`, `host.apparmor` | Refused: container-engine profiles. The monitor runs under its own seccomp filters (Firecracker's built-in ones); use `[process]` for in-guest seccomp. |
 | `[ide] enabled` | Refused: no sandbox network address. |
-| `[filesystem] landlock = "required"` | Works when the guest kernel has Landlock. libkrunfw is built without it, and the Firecracker CI 6.1 kernel too; `runeward validate` warns for libkrun. |
+| `[filesystem] landlock = "required"` | Works when the guest kernel has Landlock. libkrunfw is built without it, and the Firecracker CI 6.1 kernel too; `runebox validate` warns for libkrun. |
 | `host.user`, `host.command`, `[process]`, broker, `[[file]]`, `copy_from`, snapshots | As on Docker. |
 
 ### Setting up a host
@@ -685,7 +685,7 @@ Observed on the KVM test host (Debian 13, kernel `6.12.100+deb13-cloud-amd64`,
    `cargo build --release --target x86_64-unknown-linux-musl -p runeward-vmagent`
    (`aarch64-unknown-linux-musl` on arm64), then
    `RUNEWARD_MICROVM_AGENT=/path/to/runeward-vmagent` (or put it next to the
-   `runeward` binary).
+   `runebox` binary).
 2. e2fsprogs 1.43 or later (`mkfs.ext4` and `debugfs`; Debian's `e2fsprogs`,
    or `RUNEWARD_MICROVM_MKFS`).
 3. Access to `/dev/kvm` for the user running Rune Box (the `kvm` group).

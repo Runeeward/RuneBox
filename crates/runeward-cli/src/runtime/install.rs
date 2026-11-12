@@ -1,4 +1,4 @@
-//! `runeward runtime install <gvisor|kata>`: a turnkey installer for the
+//! `runebox runtime install <gvisor|kata>`: a turnkey installer for the
 //! hardened runtimes. Dry-run by default (prints the exact plan and mutates
 //! nothing); every download is checksum-verified and fails closed; every
 //! shell-out is timeout-bounded; missing tooling becomes guidance.
@@ -503,7 +503,7 @@ fn next_steps(out: &mut Out, class_name: &str) {
         "  1. Set runtime_class = {} under [host] in your Charter.",
         go_quote(class_name)
     );
-    out.line("  2. Verify with: runeward runtime check");
+    out.line("  2. Verify with: runebox runtime check");
     out.line("  3. Details: docs/security-model.md");
 }
 

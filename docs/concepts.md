@@ -21,14 +21,14 @@ another fictional universe:
 - **Archive** — signed policy bundles and approved Charter templates.
 
 These names are the canonical identifiers across the product: the CLI commands
-(`runeward cohort`, `runeward chronicle`, `runeward charter`, `runeward
+(`runebox cohort`, `runebox chronicle`, `runebox charter`, `runebox
 archive`), the REST paths (`/v1/citadels`, `/v1/cohorts`, `/v1/conclave`,
 `/v1/chronicle`, `/v1/charters`, and the per-Citadel `/perimeter`), the MCP tool
 names (`runeward_create_citadel`, `runeward_create_cohort`,
 `runeward_list_conclave`, …), the Kubernetes CRD kinds (`Citadel`, `Cohort`),
 and the Charter TOML tables (`[cohort]`, `[chronicle]`, `[rationing]`) all use
 this vocabulary. Two things deliberately keep their historical spellings for
-stability: the product/binary name `runeward` itself, and the JSON wire field
+stability: the `runeward` crate, package and tool names, and the JSON wire field
 keys inside request/response bodies (e.g. `{"profile": "…"}`, the `sandbox`
 argument to an MCP tool) along with the language SDK method names. `policy` (the
 concept and its `[[policy]]` table) and `snapshot` are unchanged.
@@ -114,9 +114,9 @@ denied and logged.
 ## Developer gotchas
 
 - A Citadel is never a mount of your project. `copy_from` makes a one-time
-  copy; use `runeward export` to retrieve results.
+  copy; use `runebox export` to retrieve results.
 - These names are the real identifiers, not display-only aliases: scripts call
-  `/v1/citadels`, `runeward cohort`, and the `runeward_create_citadel` MCP tool.
+  `/v1/citadels`, `runebox cohort`, and the `runeward_create_citadel` MCP tool.
   Only the JSON body field keys (e.g. `profile`, `sandbox`) and SDK method names
   keep their historical spellings; `[[policy]]` is unchanged.
 - An Oracle result is advisory. It evaluates the supplied action against a
@@ -132,11 +132,11 @@ denied and logged.
 
 The same governed core is reachable through:
 
-- **CLI** — `runeward` ([reference](cli.md)).
+- **CLI** — `runebox` ([reference](cli.md)).
 - **REST API** — the control plane ([reference](rest-api.md)).
 - **MCP server** — expose governed tools to an IDE/agent (Cursor, Claude Desktop,
   VS Code).
-- **Web dashboard** — served by `runeward serve`.
+- **Web dashboard** — served by `runebox serve`.
 - **Browser IDE (experimental)** — optional code-server inside the environment via ticketed
   proxy ([Browser IDE](browser-ide.md)); not a replacement for host MCP or
   desktop Cursor/Claude GUIs.

@@ -8,7 +8,7 @@
 #   docker build -f deploy/Dockerfile.egress  -t runeward-egress:latest .
 #   printf '%s' "$CURSOR_API_KEY" > ~/.runeward-cursor.key
 #   export RUNEWARD_KUBE_CONTEXT=orbstack RUNEWARD_K8S_NAMESPACE=runeward
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   POST /v1/fleets {"profile":"cursor-fleet-k8s"}
 
 [host]

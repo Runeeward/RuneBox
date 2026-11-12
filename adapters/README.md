@@ -3,8 +3,8 @@
 Client libraries and agent-framework integrations for
 [Rune Box](https://github.com/Runeeward/RuneBox) — the open-source
 **governance harness** for AI agents (formerly Runeward Sandbox). The package
-names, import paths, CLI (`runeward`) and MCP tool names keep the `runeward`
-spelling.
+names, import paths and MCP tool names keep the `runeward` spelling. The CLI
+is `runebox`.
 
 ## Why governed tools matter for agents
 
@@ -50,7 +50,7 @@ The single behavioral contract every adapter preserves:
 ## Choosing an adapter
 
 - **Using an MCP client** (Claude Desktop, Cursor, …)? You don't need these
-  adapters — point the client at the Rune Box MCP server (`runeward mcp`). See
+  adapters — point the client at the Rune Box MCP server (`runebox mcp`). See
   [`../dist/mcp/README.md`](../dist/mcp/README.md).
 - **Building a LangChain, CrewAI, LlamaIndex, OpenAI Agents SDK, or Strands
   agent in Python?** Use [`python/`](./python/).
@@ -60,7 +60,7 @@ The single behavioral contract every adapter preserves:
   REST control plane and are usable standalone with zero third-party runtime
   dependencies.
 
-All adapters target the same control plane started with `runeward serve`
+All adapters target the same control plane started with `runebox serve`
 (default `http://localhost:8080`) and expose the same method surface, mirroring
 the governed tool set: `create_sandbox`, `shell`, `python`, `node`,
 `read_file`/`write_file`/`list_files`/`search_files`, `list_approvals`/`approve`/
@@ -69,5 +69,5 @@ context surface: `fork_citadel`/`sleep_citadel`/`wake_citadel`/
 `workspace_status`, resumable agent turns (`agent_turn`, `cancel_agent_turn`),
 schedules, Cohort shared memory, and task notes, briefs, children and context
 (camelCase in TypeScript). (The client method names
-keep their original spellings; the `runeward mcp` server's tools are now
+keep their original spellings; the `runebox mcp` server's tools are now
 `runeward_create_citadel`, `runeward_kill_citadel`, and `runeward_list_conclave`.)

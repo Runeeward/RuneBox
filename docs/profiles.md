@@ -9,7 +9,7 @@ supports **TOML, YAML, and JSON** — pick per file by extension (`.toml`,
 Inspect the resolved, secret-redacted result before use:
 
 ```bash
-runeward --config-dir examples print <charter>
+runebox --config-dir examples print <charter>
 ```
 
 ## Anatomy
@@ -118,29 +118,29 @@ The `op` key takes a scheme reference resolved fresh at Citadel creation:
 Secret Manager — `GOOGLE_CLOUD_PROJECT` plus `GOOGLE_OAUTH_ACCESS_TOKEN` or the
 GCE metadata server), or `op://<vault>/<item>/[<section>/]<field>`
 (1Password — see below). Resolution is fail-closed: an unresolvable reference
-aborts Citadel creation rather than starting without the secret. `runeward doctor` and
+aborts Citadel creation rather than starting without the secret. `runebox doctor` and
 `GET /v1/readiness?profile=...` perform the same prerequisite check without
 returning secret values. The same references work as a `[[credential]]`
 `source` for the egress credential broker.
 
-`runeward enter` resolves the same sources on the operator's machine but is
+`runebox enter` resolves the same sources on the operator's machine but is
 deliberately lenient, as it always has been for `file`: an entry it cannot
 resolve is skipped with a `warning: env NAME: …; skipped` line (naming the
 reason, never a value) and the interactive session starts without that
-variable. Everything that provisions through the control plane (`runeward
+variable. Everything that provisions through the control plane (`runebox
 serve`, the REST API, MCP, Cohorts, forks and snapshots) fails closed.
 
 ### 1Password (`op://`)
 
 `op://` references are read with the official 1Password CLI, `op read
 --no-newline -- <reference>`, run by whichever process resolves the Charter:
-the control plane (`runeward serve`) for Citadels, or the operator's shell for
-`runeward enter`. Support is built in, but it drives the `op` CLI rather than bundling a 1Password client; install
+the control plane (`runebox serve`) for Citadels, or the operator's shell for
+`runebox enter`. Support is built in, but it drives the `op` CLI rather than bundling a 1Password client; install
 [`op`](https://developer.1password.com/docs/cli) on that host and
 authenticate it one of these ways:
 
 - **Service account** (servers, CI, the control plane): export
-  `OP_SERVICE_ACCOUNT_TOKEN` in the environment of `runeward serve`. Grant the
+  `OP_SERVICE_ACCOUNT_TOKEN` in the environment of `runebox serve`. Grant the
   service account read access to only the vaults your Charters reference.
 - **Desktop app integration** (a workstation): enable *Settings → Developer →
   Integrate with 1Password CLI* in the 1Password app. The first read prompts
@@ -186,7 +186,7 @@ Rune Box never mounts your host directory. `copy_from` takes a one-time copy int
 stay in the Citadel. Pull results back out with:
 
 ```bash
-runeward export <citadel-id> ./out
+runebox export <citadel-id> ./out
 ```
 
 ## Policy engines

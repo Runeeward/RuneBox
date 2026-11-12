@@ -69,8 +69,8 @@ chmod 600 "$work/authz.json"
 
 binary=${RUNEWARD_E2E_BINARY:-$repo_root/runeward-e2e}
 if [[ ! -x "$binary" ]]; then
-  (cd "$repo_root" && cargo build --release --locked -p runeward-cli --bin runeward \
-    && cp target/release/runeward "$binary")
+  (cd "$repo_root" && cargo build --release --locked -p runeward-cli --bin runebox \
+    && cp target/release/runebox "$binary")
 fi
 
 RUNEWARD_AUTHZ_FILE="$work/authz.json" RUNEWARD_STATE_DIR="$work/state" \

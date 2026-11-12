@@ -1,4 +1,4 @@
-$ runeward runtime install gvisor --engine podman
+$ runebox runtime install gvisor --engine podman
 exit: 1
 --- stdout
 --- stderr

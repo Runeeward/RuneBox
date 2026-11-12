@@ -1,4 +1,4 @@
-$ runeward charter verify charter.toml --verify-key charter.pub
+$ runebox charter verify charter.toml --verify-key charter.pub
 exit: 1
 --- stdout
 --- stderr

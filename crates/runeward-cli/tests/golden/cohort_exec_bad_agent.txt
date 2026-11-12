@@ -1,4 +1,4 @@
-$ runeward cohort --cohort c1 --agent vim exec hi --citadel sb
+$ runebox cohort --cohort c1 --agent vim exec hi --citadel sb
 exit: 1
 --- stdout
 --- stderr

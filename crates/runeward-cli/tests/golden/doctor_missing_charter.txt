@@ -1,4 +1,4 @@
-$ runeward -c $EX doctor nope
+$ runebox -c $EX doctor nope
 exit: 1
 --- stdout
 [ok]  version      $VERSION

@@ -21,7 +21,7 @@ body:
       label: Steps to reproduce
       description: Minimal steps (commands, profile snippet) to reproduce.
       placeholder: |
-        1. `runeward --config-dir ... serve`
+        1. `runebox --config-dir ... serve`
         2. `curl -sX POST ...`
         3. ...
     validations:
@@ -29,8 +29,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: runeward version
-      description: Output of `runeward version` (or commit SHA).
+      label: runebox version
+      description: Output of `runebox version` (or commit SHA).
     validations:
       required: true
   - type: dropdown

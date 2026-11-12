@@ -3,7 +3,7 @@
 # Calls made through Runeward's tool APIs are policy-gated and signed; processes
 # already inside the sandbox remain constrained by network and resource controls.
 #
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   POST /v1/sandboxes {"profile":"agent-demo"}
 
 [host]

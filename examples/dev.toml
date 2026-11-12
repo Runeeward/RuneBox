@@ -1,5 +1,5 @@
 # A minimal, open profile for local experimentation on the Docker backend.
-# `runeward --config-dir examples print dev` to read it; `runeward --config-dir
+# `runebox --config-dir examples print dev` to read it; `runebox --config-dir
 # examples dev` to step into a shell.
 
 [host]

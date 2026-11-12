@@ -1,4 +1,4 @@
-//! REST-client commands of a running `runeward serve`: Citadel workspaces
+//! REST-client commands of a running `runebox serve`: Citadel workspaces
 //! (`citadel`), agent turns (`session`), Cohort memory and task context
 //! (`cohort memory|note|brief|handoff|task`) and scheduled runs
 //! (`schedule`).
@@ -277,7 +277,7 @@ fn print_event(w: &mut (dyn Write + Send), json_lines: bool, ev: &AgentEvent) {
             let _ = w.flush();
         }
         "stderr" => eprint!("{}", ev.data),
-        other => eprintln!("runeward: [{other} #{}] {}", ev.seq, ev.data.trim_end()),
+        other => eprintln!("runebox: [{other} #{}] {}", ev.seq, ev.data.trim_end()),
     }
 }
 
@@ -335,11 +335,11 @@ pub async fn session_turn(
         )
         .await?;
     eprintln!(
-        "runeward: session {id} turn {} started ({agent})",
+        "runebox: session {id} turn {} started ({agent})",
         started.turn.max(1)
     );
     let done = follow(c, out, id, current.last_seq).await?;
-    eprintln!("runeward: session {id} turn {} completed", done.turn.max(1));
+    eprintln!("runebox: session {id} turn {} completed", done.turn.max(1));
     Ok(())
 }
 
@@ -353,7 +353,7 @@ pub async fn session_attach(
 ) -> Result<()> {
     let done = follow(c, out, id, after).await?;
     eprintln!(
-        "runeward: session {id} {} (last event #{})",
+        "runebox: session {id} {} (last event #{})",
         done.status, done.last_seq
     );
     Ok(())
@@ -891,7 +891,7 @@ pub async fn schedule_run(c: &FleetClient, out: &mut Out<'_>, id: &str) -> Resul
         let session = s(&v, "session_id");
         if !session.is_empty() {
             t.push_str(&format!(
-                " (agent session {session} in {}; follow it with `runeward session attach {session}`)",
+                " (agent session {session} in {}; follow it with `runebox session attach {session}`)",
                 s(&v, "citadel_id")
             ));
         }

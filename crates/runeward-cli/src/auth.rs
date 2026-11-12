@@ -1,4 +1,4 @@
-//! `runeward auth`: log in with the OIDC device flow (or a token from
+//! `runebox auth`: log in with the OIDC device flow (or a token from
 //! stdin), show the stored login without its token, or remove it.
 
 use std::io::Read;

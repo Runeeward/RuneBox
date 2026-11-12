@@ -530,7 +530,7 @@ impl Plan {
 
 fn next_steps(class: &str) -> String {
     format!(
-        "\nNext steps\n----------\n  1. Set runtime_class = {class:?} under [host] in your Charter.\n  2. Verify with: runeward runtime check (the sandbox's tier comes from in-sandbox evidence)\n  3. Details: docs/isolation.md\n"
+        "\nNext steps\n----------\n  1. Set runtime_class = {class:?} under [host] in your Charter.\n  2. Verify with: runebox runtime check (the sandbox's tier comes from in-sandbox evidence)\n  3. Details: docs/isolation.md\n"
     )
 }
 

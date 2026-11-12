@@ -16,14 +16,14 @@ fn open(path: &str) -> Result<File> {
     File::open(path).map_err(|e| anyhow!(go_io_error("open", path, &e)))
 }
 
-/// `runeward chronicle verify <bundle.json>`.
+/// `runebox chronicle verify <bundle.json>`.
 pub fn chronicle_verify(path: &str) -> Result<()> {
     let n = runeward_ledger::verify_bundle(open(path)?)?;
     println!("ok: {n} events verified (hash chain + signatures intact)");
     Ok(())
 }
 
-/// `runeward evidence verify <evidence.json>`.
+/// `runebox evidence verify <evidence.json>`.
 pub fn evidence_verify(path: &str) -> Result<()> {
     let doc = evidence::read(open(path)?)?;
     let count = evidence::verify(&doc)?;
@@ -34,7 +34,7 @@ pub fn evidence_verify(path: &str) -> Result<()> {
     Ok(())
 }
 
-/// `runeward evidence export <charter>`.
+/// `runebox evidence export <charter>`.
 pub async fn evidence_export(
     name: &str,
     session: &str,

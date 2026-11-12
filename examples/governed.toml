@@ -1,7 +1,7 @@
 # A profile that demonstrates the governance layer: a hard deny rule and a
 # human-in-the-loop approval gate, on top of the local Docker backend.
 #
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   POST /v1/sandboxes {"profile":"governed"}
 #
 # Then try a denied command (rm ...) and an approval-gated write (config/...).

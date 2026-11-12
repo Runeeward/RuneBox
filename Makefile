@@ -34,7 +34,7 @@ kind-e2e:
 	./scripts/e2e-kind.sh
 
 profiles:
-	$(CARGO) run --locked -q -p runeward-cli --bin runeward -- --config-dir examples/safe validate --strict
+	$(CARGO) run --locked -q -p runeward-cli --bin runebox -- --config-dir examples/safe validate --strict
 
 sdk-test:
 	PYTHONPATH=adapters/python $(PYTHON) -m unittest discover -s adapters/python/tests

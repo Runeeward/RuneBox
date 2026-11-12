@@ -1,4 +1,4 @@
-$ runeward serve --bind 0.0.0.0
+$ runebox serve --bind 0.0.0.0
 exit: 1
 --- stdout
 --- stderr

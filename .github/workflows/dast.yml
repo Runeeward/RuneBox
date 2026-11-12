@@ -1,4 +1,4 @@
-# Lightweight DAST: build runeward, run it locally with auth enabled, and run
+# Lightweight DAST: build runebox, run it locally with auth enabled, and run
 # the OWASP ZAP baseline scan against the live server.
 #
 # The baseline gate fails on ZAP FAIL-level findings. Warning-only findings are
@@ -34,32 +34,32 @@ jobs:
           rustup default "${RUST_TOOLCHAIN}"
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
-      - name: Build runeward
+      - name: Build runebox
         run: |
-          cargo build --release --locked -p runeward-cli --bin runeward
-          cp target/release/runeward ./runeward
+          cargo build --release --locked -p runeward-cli --bin runebox
+          cp target/release/runebox ./runebox
 
-      - name: Start runeward
+      - name: Start runebox
         env:
           RUNEWARD_API_TOKEN: ci-dast-token
         run: |
           # Bind to loopback on 8080; the token is set so the API is exercised
           # in an authenticated posture (ZAP itself crawls unauthenticated).
-          ./runeward serve --bind 127.0.0.1 --port 8080 >runeward.log 2>&1 &
-          echo $! > runeward.pid
+          ./runebox serve --bind 127.0.0.1 --port 8080 >runebox.log 2>&1 &
+          echo $! > runebox.pid
 
       - name: Wait for /healthz
         run: |
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
-              echo "runeward is up"
+              echo "runebox is up"
               exit 0
             fi
             sleep 1
           done
-          echo "::error::runeward did not become healthy within 30s"
-          echo "----- runeward.log -----"
-          cat runeward.log || true
+          echo "::error::runebox did not become healthy within 30s"
+          echo "----- runebox.log -----"
+          cat runebox.log || true
           exit 1
 
       - name: ZAP baseline scan
@@ -73,17 +73,17 @@ jobs:
           # Preserve warnings in the report without failing the gate on them.
           cmd_options: "-I"
 
-      - name: Stop runeward
+      - name: Stop runebox
         if: always()
         run: |
-          if [ -f runeward.pid ]; then
-            kill "$(cat runeward.pid)" 2>/dev/null || true
+          if [ -f runebox.pid ]; then
+            kill "$(cat runebox.pid)" 2>/dev/null || true
           fi
 
-      - name: Upload runeward log
+      - name: Upload runebox log
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: runeward-dast-log
-          path: runeward.log
+          name: runebox-dast-log
+          path: runebox.log
           if-no-files-found: ignore

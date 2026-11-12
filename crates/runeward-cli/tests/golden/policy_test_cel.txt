@@ -1,4 +1,4 @@
-$ runeward -c $EX policy test cel-policy --cases cases.toml
+$ runebox -c $EX policy test cel-policy --cases cases.toml
 exit: 1
 --- stdout
 policy test: charter "cel-policy", 4 case(s)

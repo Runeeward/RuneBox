@@ -1,4 +1,4 @@
-$ runeward -c $EX validate
+$ runebox -c $EX validate
 exit: 0
 --- stdout
 agent-demo

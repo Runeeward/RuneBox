@@ -268,7 +268,7 @@ async function refreshReadiness() {
 		state.readiness = null;
 		if (note) {
 			note.className = "setup-note blocked";
-			note.textContent = "No policy selected. Run `runeward quickstart` on the server host.";
+			note.textContent = "No policy selected. Run `runebox quickstart` on the server host.";
 		}
 		applyCreateAvailability();
 		return;
@@ -281,7 +281,7 @@ async function refreshReadiness() {
 			note.className = "setup-note " + (data.ready ? "ready" : "blocked");
 			note.textContent = data.ready
 				? `${name} is ready: policy valid and sandbox runtime reachable.`
-				: (failed[0] && failed[0].message) || `Run runeward doctor ${name} on the server host.`;
+				: (failed[0] && failed[0].message) || `Run runebox doctor ${name} on the server host.`;
 		}
 		const badge = $("#health-badge");
 		const dot = $("#health-dot");
@@ -294,7 +294,7 @@ async function refreshReadiness() {
 		state.readiness = null;
 		if (note) {
 			note.className = "setup-note blocked";
-			note.textContent = "Readiness check unavailable. Run `runeward doctor` on the server host.";
+			note.textContent = "Readiness check unavailable. Run `runebox doctor` on the server host.";
 		}
 	}
 	applyCreateAvailability();
@@ -473,7 +473,7 @@ async function createSandbox() {
     if (data.id) selectSandbox(data.id);
   } catch (e) {
     progress.textContent = "Provisioning failed.";
-    toast(`Could not create the sandbox: ${e.message}. Check setup status or run "runeward doctor ${profile}" on the server host.`, "error", undefined, e);
+    toast(`Could not create the sandbox: ${e.message}. Check setup status or run "runebox doctor ${profile}" on the server host.`, "error", undefined, e);
   } finally {
     btn.disabled = false;
   }

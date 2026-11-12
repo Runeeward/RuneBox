@@ -1,4 +1,4 @@
-$ runeward archive push localhost:5000/p:1 --engine wasm
+$ runebox archive push localhost:5000/p:1 --engine wasm
 exit: 1
 --- stdout
 --- stderr

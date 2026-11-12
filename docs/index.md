@@ -16,7 +16,7 @@ any AI agent or subagent without replacing its model or orchestration framework.
 With Docker, OrbStack, or Podman running:
 
 ```bash
-runeward quickstart
+runebox quickstart
 ```
 
 This creates a starter policy, validates the local runtime, proves one allow and one pre-execution
@@ -24,7 +24,7 @@ denial, and verifies the signed audit trail. Continue with the [Quickstart](quic
 the dashboard:
 
 ```bash
-runeward --config-dir .runeward serve
+runebox --config-dir .runeward serve
 ```
 
 ## The control loop

@@ -1,4 +1,4 @@
-$ runeward -c empty doctor --json
+$ runebox -c empty doctor --json
 exit: 1
 --- stdout
 {
@@ -11,7 +11,7 @@ exit: 1
     {
       "name": "policies",
       "status": "fail",
-      "message": "no policies found; run `runeward init`"
+      "message": "no policies found; run `runebox init`"
     }
   ],
   "ready": false

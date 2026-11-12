@@ -1,4 +1,4 @@
-//! `runeward cohort`: drives a governed Cohort on a running `runeward serve`
+//! `runebox cohort`: drives a governed Cohort on a running `runebox serve`
 //! over REST — create it, push prompts, and run an agent (Cursor, Codex or
 //! Claude) on each, all governed.
 
@@ -16,7 +16,7 @@ use crate::common::{expand_home, go_abs, go_join, go_quote};
 pub const FLEET_STATE_FILE: &str = ".runeward-cohort";
 
 const NO_ACTIVE_COHORT: &str =
-    "no active cohort; run `runeward cohort up` first or pass --cohort <id>";
+    "no active cohort; run `runebox cohort up` first or pass --cohort <id>";
 
 /// Exit code of a refusal by policy, an approval gate, missing permission
 /// or an unmet isolation floor.
@@ -99,7 +99,7 @@ pub struct CohortOptions {
     pub token: String,
 }
 
-/// A REST client of `runeward serve`.
+/// A REST client of `runebox serve`.
 #[derive(Debug)]
 pub struct FleetClient {
     base: String,
@@ -218,7 +218,7 @@ impl FleetClient {
         }
         req.send().await.map_err(|e| {
             anyhow!(
-                "cannot reach control plane at {} (is `runeward serve` running?): {e}",
+                "cannot reach control plane at {} (is `runebox serve` running?): {e}",
                 self.base
             )
         })
@@ -741,7 +741,7 @@ pub async fn up(opts: &CohortOptions, charter: Option<&str>) -> Result<()> {
         .await?;
     crate::signing::write_file(FLEET_STATE_FILE, fv.id.as_bytes(), 0o644)?;
     eprintln!(
-        "runeward: cohort {} up (charter={profile}, {} citadels)",
+        "runebox: cohort {} up (charter={profile}, {} citadels)",
         fv.id,
         fv.sandboxes.len()
     );
@@ -761,7 +761,7 @@ pub async fn add(opts: &CohortOptions, prompt: &str) -> Result<()> {
             json!({ "payload": prompt }),
         )
         .await?;
-    eprintln!("runeward: added task {}", t.id);
+    eprintln!("runebox: added task {}", t.id);
     Ok(())
 }
 
@@ -823,7 +823,7 @@ pub async fn exec(opts: &CohortOptions, citadel: &str, prompt: &str) -> Result<(
         |c| prompt_with_context(prompt, &c.context),
     );
     let cmd = agent_command(&opts.agent, &opts.model, &full_prompt)?;
-    eprintln!("runeward: [{sb}] {prompt}");
+    eprintln!("runebox: [{sb}] {prompt}");
     let output = OutputTail::default();
     let on_event = |ev: &AgentEvent| match ev.stream.as_str() {
         "stdout" => {
@@ -882,13 +882,13 @@ pub async fn exec(opts: &CohortOptions, citadel: &str, prompt: &str) -> Result<(
         };
         if let Err(e) = done {
             eprintln!(
-                "runeward: could not record the result of task {}: {e}",
+                "runebox: could not record the result of task {}: {e}",
                 c.task.id
             );
         }
     }
     let session = res?;
-    eprintln!("runeward: agent session {} completed", session.id);
+    eprintln!("runebox: agent session {} completed", session.id);
     Ok(())
 }
 
@@ -901,7 +901,7 @@ async fn exec_claim(client: &FleetClient, id: &str, prompt: &str) -> Result<Opti
     let board: TasksResp = client.get(&format!("/v1/cohorts/{id}/tasks")).await?;
     if board.tasks.iter().any(|t| t.state == "pending") {
         eprintln!(
-            "runeward: the Command Board has pending tasks; running without task context (use `cohort run` to drain them)"
+            "runebox: the Command Board has pending tasks; running without task context (use `cohort run` to drain them)"
         );
         return Ok(None);
     }
@@ -931,7 +931,7 @@ async fn exec_claim(client: &FleetClient, id: &str, prompt: &str) -> Result<Opti
                 }),
             )
             .await;
-        eprintln!("runeward: another task was queued first; running without task context");
+        eprintln!("runebox: another task was queued first; running without task context");
         return Ok(None);
     }
     Ok(Some(ExecClaim {
@@ -964,7 +964,7 @@ pub async fn export(opts: &CohortOptions, dest: Option<&str>) -> Result<()> {
         runeward_backend::export(sb, std::path::Path::new(&out))
             .await
             .map_err(|e| anyhow!("export {sb}: {e}"))?;
-        eprintln!("runeward: exported {sb} -> {out}");
+        eprintln!("runebox: exported {sb} -> {out}");
     }
     Ok(())
 }
@@ -976,7 +976,7 @@ pub async fn down(opts: &CohortOptions) -> Result<()> {
         .call(reqwest::Method::DELETE, &format!("/v1/cohorts/{id}"), None)
         .await?;
     let _ = std::fs::remove_file(FLEET_STATE_FILE);
-    eprintln!("runeward: cohort {id} down");
+    eprintln!("runebox: cohort {id} down");
     Ok(())
 }
 

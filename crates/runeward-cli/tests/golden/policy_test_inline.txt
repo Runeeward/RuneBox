@@ -1,4 +1,4 @@
-$ runeward -c $EX policy test rego --case tool=shell,action=rm -rf /,expect=deny --case name=ok,tool=shell,arg=ls,expect=allow
+$ runebox -c $EX policy test rego --case tool=shell,action=rm -rf /,expect=deny --case name=ok,tool=shell,arg=ls,expect=allow
 exit: 0
 --- stdout
 policy test: charter "rego", 2 case(s)

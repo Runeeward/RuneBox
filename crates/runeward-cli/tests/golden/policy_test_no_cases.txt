@@ -1,4 +1,4 @@
-$ runeward -c $EX policy test governed
+$ runebox -c $EX policy test governed
 exit: 1
 --- stdout
 --- stderr

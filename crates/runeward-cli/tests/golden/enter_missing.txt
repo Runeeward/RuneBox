@@ -1,4 +1,4 @@
-$ runeward -c $EX enter nope -- true
+$ runebox -c $EX enter nope -- true
 exit: 1
 --- stdout
 --- stderr

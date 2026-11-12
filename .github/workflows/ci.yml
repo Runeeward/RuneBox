@@ -40,7 +40,7 @@ jobs:
         run: cargo build --workspace --release --locked
 
       - name: strict production Charter examples
-        run: ./target/release/runeward --config-dir examples/safe validate --strict
+        run: ./target/release/runebox --config-dir examples/safe validate --strict
 
   portability:
     name: build CLI (${{ matrix.os }})
@@ -59,11 +59,11 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       # runeward-supervisor and runeward-egress are Linux-only binaries; the
       # CLI (control plane, MCP server, Kubernetes client) is cross-platform.
-      - name: build runeward
-        run: cargo build --locked -p runeward-cli --bin runeward
+      - name: build runebox
+        run: cargo build --locked -p runeward-cli --bin runebox
       - name: strict production Charter examples
         shell: bash
-        run: ./target/debug/runeward --config-dir examples/safe validate --strict
+        run: ./target/debug/runebox --config-dir examples/safe validate --strict
 
   authenticated-e2e:
     name: authenticated API + six-role E2E
@@ -77,8 +77,8 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - name: Build release binary
         run: |
-          cargo build --release --locked -p runeward-cli --bin runeward
-          cp target/release/runeward runeward-e2e
+          cargo build --release --locked -p runeward-cli --bin runebox
+          cp target/release/runebox runeward-e2e
       - name: Run authenticated role and automation suite
         env:
           RUNEWARD_E2E_BINARY: ${{ github.workspace }}/runeward-e2e

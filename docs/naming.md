@@ -20,7 +20,8 @@ Supporting explanation:
 | Rune Box | The product, in prose, titles, and UI copy | Formerly "Runeward Sandbox" and "Runeward". |
 | Runeward | The company | Copyright, organization, and maintainer references. |
 | environment | What the agent runs in, in user-facing copy | Prefer it over "box" or "cell". "Sandbox" stays the familiar term for a Citadel. |
-| `runeward`, `runeward-egress`, `runeward-supervisor`, `runeward-browser` | Binaries and commands | Unchanged. |
+| `runebox` | The CLI command | Called `runeward` before v0.4.4. |
+| `runeward-egress`, `runeward-supervisor`, `runeward-browser` | Sandbox binaries | Unchanged. |
 | `RUNEWARD_*` | Environment variables | Unchanged. |
 | `runeward.dev` | Kubernetes CRD group | Unchanged. |
 | `runeward-*` crates, `runeward` (PyPI), `@runeward/sdk` (npm), `ghcr.io/runeeward/runeward*` | Packages and images | Unchanged. |
@@ -42,7 +43,7 @@ documentation to an existing API path, configuration field, or Kubernetes kind.
 | network controls | Perimeter | `/perimeter`, egress implementation |
 | budgets and limits | Rationing | `[rationing]` |
 | agent group or fleet | Cohort | `/v1/cohorts`, `[cohort]` |
-| signed policy bundle | Archive | `runeward archive` |
+| signed policy bundle | Archive | `runebox archive` |
 
 “Agent governance harness” is the product category, not a replacement name for an existing
 Rune Box concept. Likewise, a Cohort remains a group of peer workers; do not use “subagent” as a

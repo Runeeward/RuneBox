@@ -113,7 +113,7 @@ case "${1:-}" in
     ;;
   export)
     dir="${2:-./out}"
-    for sb in $(sandboxes); do echo "export $sb -> $dir/$sb"; runeward export "$sb" "$dir/$sb"; done
+    for sb in $(sandboxes); do echo "export $sb -> $dir/$sb"; runebox export "$sb" "$dir/$sb"; done
     ;;
   down)
     api -sf -X DELETE "$BASE/v1/cohorts/$(fid)" >/dev/null && echo "fleet down"

@@ -8,8 +8,8 @@ missing-secret readiness, governed execution, capability errors, authoritative
 Cohort ownership, and task completion. Run the same gate locally with:
 
 ```bash
-cargo build --release --locked -p runeward-cli --bin runeward
-cp target/release/runeward runeward-e2e
+cargo build --release --locked -p runeward-cli --bin runebox
+cp target/release/runebox runeward-e2e
 RUNEWARD_E2E_BINARY="$PWD/runeward-e2e" ./scripts/e2e-rbac.sh
 ```
 
@@ -72,11 +72,11 @@ docker pull curlimages/curl:8.11.0                    # egress-strict (k8s)
 
 ```bash
 cd /path/to/runeward
-cargo build --release --locked -p runeward-cli --bin runeward
-mkdir -p bin && cp target/release/runeward bin/runeward
+cargo build --release --locked -p runeward-cli --bin runebox
+mkdir -p bin && cp target/release/runebox bin/runebox
 # The k8s egress image builds runeward-egress itself: docker build -f deploy/Dockerfile.egress .
 
-./bin/runeward version
+./bin/runebox version
 ```
 
 ### Handy environment variables
@@ -131,16 +131,16 @@ The example profiles live in `[examples/](https://github.com/Runeeward/RuneBox/t
 
 ```bash
 # Inspect a profile's resolved, secret-redacted contract
-./bin/runeward --config-dir examples print ns-auto
+./bin/runebox --config-dir examples print ns-auto
 
 # List discoverable profiles
-./bin/runeward --config-dir examples list
+./bin/runebox --config-dir examples list
 
 # Run a one-off command in a throwaway sandbox, then tear it down
-./bin/runeward --config-dir examples dev -- uname -a
+./bin/runebox --config-dir examples dev -- uname -a
 
 # Drop into an interactive shell (Ctrl-D to exit + clean up)
-./bin/runeward --config-dir examples dev
+./bin/runebox --config-dir examples dev
 ```
 
 Expected: `uname -a` prints a Linux kernel string (the container's), and the
@@ -157,7 +157,7 @@ Start the governed control plane (REST API + web dashboard on `:8080`). Pick
 **Without auth** (default local dev; `serve` logs a warning, no dashboard login):
 
 ```bash
-./bin/runeward --config-dir examples serve
+./bin/runebox --config-dir examples serve
 # => auth=false in the startup log
 ```
 
@@ -165,7 +165,7 @@ Start the governed control plane (REST API + web dashboard on `:8080`). Pick
 
 ```bash
 export RUNEWARD_API_TOKEN=dev-local   # pick any secret; reuse it in the dashboard
-./bin/runeward --config-dir examples serve --token "$RUNEWARD_API_TOKEN"
+./bin/runebox --config-dir examples serve --token "$RUNEWARD_API_TOKEN"
 # => auth=true — paste the same token into the dashboard sign-in form
 ```
 
@@ -400,7 +400,7 @@ the profile's `[policy_bundle]` block for the test.
 ```bash
 # 1. Local registry + signing key (host 5001 -> registry 5000; avoids AirPlay)
 docker run -d --rm -p 5001:5000 --name rw-registry registry:2
-./bin/runeward archive keygen --out /tmp/rw-keys      # writes bundle.key + bundle.pub
+./bin/runebox archive keygen --out /tmp/rw-keys      # writes bundle.key + bundle.pub
 
 # 2. Author a policy and push it (rego here; --engine cel also works)
 cat > /tmp/prod.rego <<'EOF'
@@ -412,11 +412,11 @@ decision := {"verdict": "deny", "reason": "destructive command blocked by bundle
   contains(input.arg, "rm ")
 }
 EOF
-./bin/runeward archive push oci://localhost:5001/policies:v1 \
+./bin/runebox archive push oci://localhost:5001/policies:v1 \
   --policy /tmp/prod.rego --engine rego --key /tmp/rw-keys/bundle.key --plain-http
 
 # 3. Verify the pull independently (tamper the tag or key to see it fail closed)
-./bin/runeward archive pull oci://localhost:5001/policies:v1 \
+./bin/runebox archive pull oci://localhost:5001/policies:v1 \
   --verify-key /tmp/rw-keys/bundle.pub --plain-http
 
 # 4. A profile that consumes it (examples/policy-bundle.toml as a template):
@@ -490,7 +490,7 @@ and cleanup, run:
 RUNEWARD_KUBE_CONTEXT=kind-logjedi ./scripts/e2e-kind.sh
 ```
 
-The dashboard exercises the same backend. Start `runeward serve` with
+The dashboard exercises the same backend. Start `runebox serve` with
 `RUNEWARD_KUBE_CONTEXT` set, open **Agent groups**, and select `fleet-k8s`.
 The selected Charter's readiness result appears beside the picker and disables
 **New** when the cluster is unavailable, so a Docker readiness result cannot be
@@ -522,7 +522,7 @@ max_execs = 100
 Then:
 
 ```bash
-./bin/runeward --config-dir examples serve      # same control plane, now k8s-capable
+./bin/runebox --config-dir examples serve      # same control plane, now k8s-capable
 KID=$(curl -s "${AUTH[@]}" $BASE/v1/citadels -d '{"profile":"k8s"}' | jq -r .id)
 
 # Watch the pod come up
@@ -573,7 +573,7 @@ kubectl -n runeward logs -l runeward.profile=egress-strict -c egress
 > the transparent proxy runs as uid `1337` and iptables exempts it, so the
 > sandbox container must run as any other uid (the stock images do).
 
-### 6c. Declarative CRDs + controller (`runeward up`)
+### 6c. Declarative CRDs + controller (`runebox up`)
 
 Instead of the imperative REST API, you can manage sandboxes and fleets as
 Kubernetes custom resources reconciled by the Rune Box controller.
@@ -585,7 +585,7 @@ Install the CRDs and controller in one command (idempotent, server-side apply):
 docker build -f deploy/Dockerfile -t runeward:latest .
 
 # Install CRDs + namespace + RBAC + controller Deployment
-./bin/runeward up
+./bin/runebox up
 
 # Give the controller profiles to resolve
 kubectl -n runeward create configmap runeward-profiles --from-file=examples/
@@ -595,8 +595,8 @@ kubectl -n runeward rollout restart deploy/runeward-controller
 Or install just the CRDs and run the controller locally (handy for iterating):
 
 ```bash
-./bin/runeward up --crds-only
-RUNEWARD_K8S_NAMESPACE=runeward ./bin/runeward --config-dir examples controller
+./bin/runebox up --crds-only
+RUNEWARD_K8S_NAMESPACE=runeward ./bin/runebox --config-dir examples controller
 ```
 
 Then drive it declaratively (create `examples/k8s.toml` per 6a first):
@@ -628,8 +628,8 @@ kubectl -n runeward get cohorts
 kubectl -n runeward delete citadel demo
 ```
 
-Via Helm instead of `runeward up` (use **one** installer — they manage the same
-objects, so `helm install` into a namespace that already ran `runeward up` fails
+Via Helm instead of `runebox up` (use **one** installer — they manage the same
+objects, so `helm install` into a namespace that already ran `runebox up` fails
 on ownership; tear the other down first):
 
 ```bash
@@ -638,13 +638,13 @@ helm install runeward deploy/helm/runeward -n runeward --create-namespace \
 helm lint deploy/helm/runeward   # what CI runs
 
 # The chart mounts profiles from a Secret named "runeward-profiles" (the
-# `runeward up` path uses a ConfigMap); without it the controller reports
+# `runebox up` path uses a ConfigMap); without it the controller reports
 # `profile not found`. Create it and restart:
 kubectl -n runeward create secret generic runeward-profiles --from-file=examples/
 kubectl -n runeward rollout restart deploy/runeward-controller
 ```
 
-Uninstall: `helm uninstall runeward -n runeward` (Helm), or for `runeward up`:
+Uninstall: `helm uninstall runeward -n runeward` (Helm), or for `runebox up`:
 
 ```bash
 kubectl delete namespace runeward
@@ -658,7 +658,7 @@ Install the third CRD and enable the webhook via Helm (it self-registers its
 validating/mutating configs and mints its own serving cert on startup):
 
 ```bash
-./bin/runeward up --crds-only        # installs clusterpolicies.runeward.dev too
+./bin/runebox up --crds-only        # installs clusterpolicies.runeward.dev too
 helm upgrade --install runeward deploy/helm/runeward -n runeward --create-namespace \
   --set image.tag=latest --set webhook.enabled=true
 kubectl -n runeward rollout status deploy/runeward-webhook
@@ -708,7 +708,7 @@ EOF
 
 For org-shared environments that shouldn't belong to any single team namespace, the
 controller also reconciles the cluster-scoped `ClusterCitadel` / `ClusterCohort`.
-`runeward up` installs all five CRDs; the controller watches the cluster-scoped
+`runebox up` installs all five CRDs; the controller watches the cluster-scoped
 ones cluster-wide (via a `ClusterRole`) regardless of `--all-namespaces`:
 
 > The examples carry an `owner` label to satisfy the `requiredLabels: ["owner"]`
@@ -855,7 +855,7 @@ claim/complete/fail controls.
 
 Rune Box speaks the Model Context Protocol over **stdio** (for editor/desktop
 clients) or **streamable HTTP** (mounted at `/mcp` on `serve`, or standalone via
-`runeward mcp --http`). Tools exposed:
+`runebox mcp --http`). Tools exposed:
 
 - Citadels: `runeward_create_citadel`, `runeward_shell`, `runeward_python`,
 `runeward_node`, `runeward_browser`, `runeward_read_file`, `runeward_write_file`,
@@ -869,7 +869,7 @@ clients) or **streamable HTTP** (mounted at `/mcp` on `serve`, or standalone via
 Use an **absolute path** to the binary and profiles in client configs. Get them:
 
 ```bash
-echo "$(pwd)/bin/runeward"
+echo "$(pwd)/bin/runebox"
 echo "$(pwd)/examples"
 ```
 
@@ -884,7 +884,7 @@ other call, and replies as Server-Sent Events. The handshake returns an
 `Mcp-Session-Id` header you must echo on subsequent requests:
 
 ```bash
-./bin/runeward --config-dir examples mcp --http --port 8081 &
+./bin/runebox --config-dir examples mcp --http --port 8081 &
 # runeward: MCP (streamable HTTP) at http://localhost:8081/mcp
 
 H=(-H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream')
@@ -915,7 +915,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 {
   "mcpServers": {
     "runeward": {
-      "command": "/ABSOLUTE/PATH/sandbox/bin/runeward",
+      "command": "/ABSOLUTE/PATH/sandbox/bin/runebox",
       "args": ["--config-dir", "/ABSOLUTE/PATH/sandbox/examples", "mcp"],
       "env": { "RUNEWARD_STATE_DIR": "/ABSOLUTE/PATH/runeward-state" }
     }
@@ -934,7 +934,7 @@ Create `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (per-project):
 {
   "mcpServers": {
     "runeward": {
-      "command": "/ABSOLUTE/PATH/sandbox/bin/runeward",
+      "command": "/ABSOLUTE/PATH/sandbox/bin/runebox",
       "args": ["--config-dir", "/ABSOLUTE/PATH/sandbox/examples", "mcp"],
       "env": { "RUNEWARD_STATE_DIR": "/ABSOLUTE/PATH/runeward-state" }
     }
@@ -954,7 +954,7 @@ Create `.vscode/mcp.json` in the workspace:
   "servers": {
     "runeward": {
       "type": "stdio",
-      "command": "/ABSOLUTE/PATH/sandbox/bin/runeward",
+      "command": "/ABSOLUTE/PATH/sandbox/bin/runebox",
       "args": ["--config-dir", "/ABSOLUTE/PATH/sandbox/examples", "mcp"],
       "env": { "RUNEWARD_STATE_DIR": "/ABSOLUTE/PATH/runeward-state" }
     }
@@ -1089,10 +1089,10 @@ anywhere and are ideal in CI.
 
 ```bash
 # Lint every resolvable profile; exits non-zero on any error-severity finding.
-./bin/runeward --config-dir examples validate
+./bin/runebox --config-dir examples validate
 
 # Lint specific profiles; --strict also fails on warnings.
-./bin/runeward --config-dir examples validate dev governed --strict
+./bin/runebox --config-dir examples validate dev governed --strict
 ```
 
 Each profile prints `ok` or a table of `[error]`/`[warn]` findings (missing
@@ -1102,8 +1102,8 @@ image, unresolved secret refs, dead egress/policy rules).
 
 ```bash
 # List ready-made policy templates, then print one (paste into a profile).
-./bin/runeward policy scaffold --list
-./bin/runeward policy scaffold package-approval
+./bin/runebox policy scaffold --list
+./bin/runebox policy scaffold package-approval
 
 # Assert a profile's policy against a table of cases (great for CI).
 cat > /tmp/cases.toml <<'EOF'
@@ -1119,11 +1119,11 @@ tool   = "shell"
 action = "echo hi"
 expect = "allow"
 EOF
-./bin/runeward --config-dir examples policy test governed --cases /tmp/cases.toml
+./bin/runebox --config-dir examples policy test governed --cases /tmp/cases.toml
 # => PASS lines + "2 passed, 0 failed"; exit non-zero if any case fails.
 
 # Inline cases also work (repeatable --case):
-./bin/runeward --config-dir examples policy test governed \
+./bin/runebox --config-dir examples policy test governed \
   --case 'tool=shell,action=rm -rf /,expect=deny'
 ```
 
@@ -1133,11 +1133,11 @@ EOF
 ### 10c. Sign & verify a profile (provenance)
 
 ```bash
-./bin/runeward archive keygen --out /tmp/rw-keys           # ed25519 keypair
-./bin/runeward charter sign examples/governed.toml --key /tmp/rw-keys/bundle.key
+./bin/runebox archive keygen --out /tmp/rw-keys           # ed25519 keypair
+./bin/runebox charter sign examples/governed.toml --key /tmp/rw-keys/bundle.key
 # writes examples/governed.toml.sig
 
-./bin/runeward charter verify examples/governed.toml --verify-key /tmp/rw-keys/bundle.pub
+./bin/runebox charter verify examples/governed.toml --verify-key /tmp/rw-keys/bundle.pub
 # => verified: <key-id>
 
 # Tamper check: edit the profile, re-verify -> non-zero "signature mismatch".
@@ -1146,9 +1146,9 @@ EOF
 ### 10d. Hardened-runtime doctor (gVisor / Kata)
 
 ```bash
-./bin/runeward runtime check          # reports what's registered with Docker/k8s
-./bin/runeward runtime guide          # full gVisor/Kata setup walkthrough
-./bin/runeward runtime install gvisor # DRY-RUN by default — prints the plan, mutates nothing
+./bin/runebox runtime check          # reports what's registered with Docker/k8s
+./bin/runebox runtime guide          # full gVisor/Kata setup walkthrough
+./bin/runebox runtime install gvisor # DRY-RUN by default — prints the plan, mutates nothing
 ```
 
 `runtime check` is a read-only diagnostic (exit 0 unless `--strict` and nothing
@@ -1161,8 +1161,8 @@ recording is opt-in — enable it on `serve`, then drive a terminal to produce o
 
 ```bash
 # 1) (Re)start serve with recording on (only one serve can hold the ledger/:8080).
-pkill -f 'runeward.*serve'
-RUNEWARD_RECORD_TERMINALS=1 ./bin/runeward --config-dir examples serve &
+pkill -f 'runebox.*serve'
+RUNEWARD_RECORD_TERMINALS=1 ./bin/runebox --config-dir examples serve &
 
 # 2) Open a terminal so a session is recorded: dashboard → pick a sandbox →
 #    Terminal, run a few commands, close the drawer.
@@ -1173,8 +1173,8 @@ RECDIR="${RUNEWARD_STATE_DIR:-$HOME/Library/Caches/runeward}/recordings"
 CAST="$RECDIR/$(ls -t "$RECDIR" 2>/dev/null | head -1)"
 
 # 4) Replay it instantly or with the original timing:
-./bin/runeward replay "$CAST" --no-timing
-./bin/runeward replay "$CAST"
+./bin/runebox replay "$CAST" --no-timing
+./bin/runebox replay "$CAST"
 ```
 
 > Recording is best-effort and **output-only** (keystrokes are not captured), and
@@ -1196,7 +1196,7 @@ start.
 
 ```bash
 export RUNEWARD_API_TOKEN=s3cret
-./bin/runeward --config-dir examples serve --token "$RUNEWARD_API_TOKEN" --no-ui &
+./bin/runebox --config-dir examples serve --token "$RUNEWARD_API_TOKEN" --no-ui &
 BASE=http://localhost:8080
 AUTH=(-H "Authorization: Bearer $RUNEWARD_API_TOKEN")
 
@@ -1219,7 +1219,7 @@ cat > /tmp/authz.json <<'EOF'
   {"name":"dev","token":"tok-dev","allowed_profiles":["dev"]}
 ]}
 EOF
-RUNEWARD_AUTHZ_FILE=/tmp/authz.json ./bin/runeward --config-dir examples serve --no-ui &
+RUNEWARD_AUTHZ_FILE=/tmp/authz.json ./bin/runebox --config-dir examples serve --no-ui &
 
 curl -s -H "Authorization: Bearer tok-dev" $BASE/v1/whoami | jq .
 # => {"authenticated":true,"rbac":true,"principal":{"name":"dev","can_launch":true,"allowed_profiles":["dev"],...}}
@@ -1386,7 +1386,7 @@ Sinks are configured by env vars (a bad URL/file fails `serve` at startup):
 
 ```bash
 # File sink (JSON Lines, mode 0600):
-RUNEWARD_AUDIT_FILE=/tmp/rw-audit.jsonl ./bin/runeward --config-dir examples serve --no-ui &
+RUNEWARD_AUDIT_FILE=/tmp/rw-audit.jsonl ./bin/runebox --config-dir examples serve --no-ui &
 # ...run any governed action...
 tail -1 /tmp/rw-audit.jsonl | jq '{seq,tool,verdict,hash}'
 
@@ -1400,7 +1400,7 @@ class H(BaseHTTPRequestHandler):
 HTTPServer(('127.0.0.1',9999),H).serve_forever()" &
 RUNEWARD_AUDIT_WEBHOOK_URL=http://127.0.0.1:9999/hook \
 RUNEWARD_AUDIT_WEBHOOK_HEADER="Authorization: Bearer hook-secret" \
-  ./bin/runeward --config-dir examples serve --no-ui
+  ./bin/runebox --config-dir examples serve --no-ui
 ```
 
 Each event is POSTed as JSON (`Content-Type: application/json`, retried 3x).
@@ -1413,7 +1413,7 @@ Both sinks can run at once.
 curl -s "${AUTH[@]}" $BASE/v1/chronicle/export -o /tmp/bundle.json
 
 # Verify with no server running — checks the hash chain AND signatures:
-./bin/runeward chronicle verify /tmp/bundle.json
+./bin/runebox chronicle verify /tmp/bundle.json
 # => ok: N events verified (hash chain + signatures intact)
 ```
 
@@ -1429,7 +1429,7 @@ the `serve` logger (not audit events or API fields), rate-limited to one per
 
 ```bash
 RUNEWARD_ANOMALY_EXEC_BURST=3 RUNEWARD_ANOMALY_WINDOW=1m \
-  ./bin/runeward --config-dir examples serve --no-ui 2>&1 | tee /tmp/serve.log &
+  ./bin/runebox --config-dir examples serve --no-ui 2>&1 | tee /tmp/serve.log &
 
 SB=$(curl -s "${AUTH[@]}" $BASE/v1/citadels -d '{"profile":"dev"}' | jq -r .id)
 for i in 1 2 3 4 5; do curl -s "${AUTH[@]}" $BASE/v1/citadels/$SB/shell/exec -d '{"command":["echo","'$i'"]}' >/dev/null; done
@@ -1492,7 +1492,7 @@ You can also unit-test CEL/Rego/argv rules offline with `policy test` (10b).
 curl -s "${AUTH[@]}" $BASE/metrics | grep -E '^runeward_(actions_total|sandboxes_created_total|build_info)'
 
 # Structured JSON logs to a shipper:
-RUNEWARD_LOG_FORMAT=json RUNEWARD_LOG_LEVEL=debug ./bin/runeward --config-dir examples serve --no-ui
+RUNEWARD_LOG_FORMAT=json RUNEWARD_LOG_LEVEL=debug ./bin/runebox --config-dir examples serve --no-ui
 # => {"time":"...","level":"INFO","msg":"request","method":"POST","path":"/v1/citadels","status":200,...}
 
 # Telemetry is OFF by default; startup logs its state. It only sends when BOTH
@@ -1528,10 +1528,10 @@ curl -s "${AUTH[@]}" $BASE/v1/citadels/$CID/shell/exec -d '{"command":["echo","h
 
 # Operator-wide switch (no profile edit) — flips the fallback for every profile;
 # an explicit profile policy_default still overrides it:
-RUNEWARD_POLICY_DEFAULT=deny ./bin/runeward --config-dir examples serve --no-ui
+RUNEWARD_POLICY_DEFAULT=deny ./bin/runebox --config-dir examples serve --no-ui
 
 # validate warns when a builtin-policy profile relies on the implicit allow:
-./bin/runeward --config-dir examples validate dev --strict   # => [warn] implicit allow-by-default …
+./bin/runebox --config-dir examples validate dev --strict   # => [warn] implicit allow-by-default …
 ```
 
 ---
@@ -1650,15 +1650,15 @@ enforce = "strict"
 verdict  = "allow"
 hostname = "*.debian.org"
 EOF
-./bin/runeward --config-dir examples validate footgun          # => [error] host.user 1337 …
-./bin/runeward --config-dir examples validate footgun --strict # also shows isolation-footgun warnings
+./bin/runebox --config-dir examples validate footgun          # => [error] host.user 1337 …
+./bin/runebox --config-dir examples validate footgun --strict # also shows isolation-footgun warnings
 
 # Signed-profile enforcement at load — tampered on-disk profiles fail closed.
 # (Reuses the keypair + sign flow from 10c.)
-./bin/runeward archive keygen --out /tmp/rw-keys
-./bin/runeward charter sign examples/governed.toml --key /tmp/rw-keys/bundle.key
+./bin/runebox archive keygen --out /tmp/rw-keys
+./bin/runebox charter sign examples/governed.toml --key /tmp/rw-keys/bundle.key
 RUNEWARD_REQUIRE_SIGNED_PROFILES=1 RUNEWARD_PROFILE_VERIFY_KEY=/tmp/rw-keys/bundle.pub \
-  ./bin/runeward --config-dir examples print governed          # loads only if the .sig verifies
+  ./bin/runebox --config-dir examples print governed          # loads only if the .sig verifies
 # now edit examples/governed.toml and re-run -> load fails closed (signature mismatch)
 ```
 
@@ -1780,7 +1780,7 @@ Fan the ledger out to an OpenTelemetry collector alongside the webhook/file sink
 RUNEWARD_AUDIT_OTLP_ENDPOINT=http://localhost:4318 \
 RUNEWARD_AUDIT_OTLP_HEADERS="authorization=Bearer XYZ" \
 RUNEWARD_AUDIT_OTLP_SERVICE_NAME=runeward \
-  ./bin/runeward --config-dir examples serve --no-ui
+  ./bin/runebox --config-dir examples serve --no-ui
 # Each governed action is exported as an OTLP log record with attributes:
 # session/sandbox, profile, tool, action, verdict, exit_code, duration, reason
 # (+ trace context when the event carries one). Emit is non-blocking; on overflow
@@ -1789,7 +1789,7 @@ RUNEWARD_AUDIT_OTLP_SERVICE_NAME=runeward \
 ```
 
 Signature verification also tightened: when a signing key is configured,
-`GET /v1/chronicle/verify` (and `runeward chronicle verify`) require **every** record to
+`GET /v1/chronicle/verify` (and `runebox chronicle verify`) require **every** record to
 be signed — an unsigned record now fails verification instead of passing.
 
 ---
@@ -1798,7 +1798,7 @@ be signed — an unsigned record now fails verification instead of passing.
 
 ```bash
 # Force Podman (auto-detected when the docker CLI is absent but podman is present):
-RUNEWARD_CONTAINER_RUNTIME=podman ./bin/runeward --config-dir examples serve --no-ui
+RUNEWARD_CONTAINER_RUNTIME=podman ./bin/runebox --config-dir examples serve --no-ui
 # Everything in 1–5 works the same; rootless Podman uses host.containers.internal
 # for the cooperative proxy host mapping.
 podman ps -a --filter "label=runeward.profile"   # sandboxes show up under podman
@@ -1816,7 +1816,7 @@ OpenAI-compatible `/v1`) with deny-by-default egress. "OpenAI" here is the wire
 protocol, not the vendor; nothing leaves for a hosted API.
 
 ```bash
-./bin/runeward --config-dir examples validate byo-model-gateway   # => passes (env:// refs warn)
+./bin/runebox --config-dir examples validate byo-model-gateway   # => passes (env:// refs warn)
 # Point at your local runtime (Ollama's default port shown); the key is a
 # placeholder for servers that ignore auth. Injected under OPENAI_BASE_URL,
 # OPENAI_API_BASE, and OPENAI_API_KEY so OpenAI SDK / LangChain / LiteLLM agents
@@ -1900,14 +1900,14 @@ rm -rf "$RUNEWARD_STATE_DIR" /tmp/rw-keys /tmp/cases.toml /tmp/authz.json \
 | Strict egress: init container `CreateContainerError`/denied                 | Namespace PodSecurity blocks `NET_ADMIN` — label it `privileged` (6).                                                                                                              |
 | Strict egress: `runeward-egress` ImagePullBackOff                           | Build the image (`deploy/Dockerfile.egress`) or set `RUNEWARD_EGRESS_IMAGE` to a pushed ref.                                                                                        |
 | Strict egress: allowed host still blocked                                   | The app connected by raw IP with no SNI/Host — add a `cidr` rule, or use a hostname. Check the `egress` sidecar logs.                                                               |
-| MCP client shows no tools                                                   | Use absolute paths in the config; check the client's MCP logs; verify `bin/runeward mcp` runs standalone.                                                                           |
+| MCP client shows no tools                                                   | Use absolute paths in the config; check the client's MCP logs; verify `bin/runebox mcp` runs standalone.                                                                           |
 | Approval call never returns                                                 | Approve/deny it via `GET /v1/conclave` + `POST /v1/conclave/{id}/approve`, or the dashboard drawer.                                                                               |
 | Everything returns `401`                                                    | Auth is on. Use `AUTH=(-H "Authorization: Bearer $RUNEWARD_API_TOKEN")` and `"${AUTH[@]}"` on every `curl` (2a); a bare `$AUTH="-H Authorization:Bearer …"` word-splits the token. |
 | `curl ... \| jq` prints **nothing** (no error)                               | `curl -s` swallows connection errors — usually `$BASE` is unset (2a) or `serve` isn't up. Re-run with `-sS` to see the real error.                                                 |
 | `serve` refuses to start on `--bind 0.0.0.0`                                | Non-loopback binds require a credential — add `--token`, `RUNEWARD_API_TOKEN`, or `RUNEWARD_AUTHZ_FILE`.                                                                            |
 | A tool call denies with `policy: … exceeded` / `budget exhausted`           | Not a bug — a `[rationing]` guardrail fired (12). Raise the limit or start a fresh sandbox.                                                                                           |
 | `POST /v1/citadels` returns `400` mentioning `resolve "…"`                 | A `[[env]]` secret couldn't be resolved (fail-closed, 13). Set the source var/creds, or fix the `op` scheme.                                                                       |
-| New profile not picked up                                                   | `serve` reads profiles at startup — restart it after editing `examples/`. Or run `runeward validate` first (10a).                                                                  |
+| New profile not picked up                                                   | `serve` reads profiles at startup — restart it after editing `examples/`. Or run `runebox validate` first (10a).                                                                  |
 | `policy test` says it can't simulate                                        | The profile sources policy from an OCI bundle; bundle-backed policy is remote and can't be tested offline (10b).                                                                   |
 | `file.*` returns `must be relative to workspace` / `escapes workspace root` | Not a bug — file tools are confined to the sandbox workdir (20). Use a path relative to the workspace.                                                                             |
 | Browser `navigate` returns `scheme … not allowed` / `blocked host`          | The URL-scheme/SSRF allowlist fired (21). Only `http`/`https` public hosts are allowed; set `RUNEWARD_BROWSER_ALLOW_PRIVATE_ADDRS=1` for a trusted internal target.                |
@@ -1915,4 +1915,4 @@ rm -rf "$RUNEWARD_STATE_DIR" /tmp/rw-keys /tmp/cases.toml /tmp/authz.json \
 | OTLP sink: no records arrive                                                | Check `RUNEWARD_AUDIT_OTLP_ENDPOINT`/`_HEADERS` and collector reachability; the sink is non-blocking and drops (and counts) on overflow (28).                                      |
 | `unsupported container runtime "…"` at startup                              | `RUNEWARD_CONTAINER_RUNTIME` must be `docker` or `podman` (29).                                                                                                                    |
 | `ledger: "…/ledger.jsonl" is already in use by another runeward process`    | One writer per audit ledger. Another `serve`/`mcp` holds the default state dir — give this instance its own `RUNEWARD_STATE_DIR` (8), or stop the other process.                    |
-| `runeward mcp --http` → `bind: address already in use`                      | A previous `mcp`/`serve` still owns the port. `pkill -f 'runeward.*mcp'` (or stop `serve`), or start with a different `--port`.                                                     |
+| `runebox mcp --http` → `bind: address already in use`                      | A previous `mcp`/`serve` still owns the port. `pkill -f 'runebox.*mcp'` (or stop `serve`), or start with a different `--port`.                                                     |

@@ -119,14 +119,14 @@ trap cleanup EXIT INT TERM
 echo
 echo "=== 1. Build the current Rune Box control plane ==="
 cd "$REPO_ROOT"
-cargo build --release --locked -p runeward-cli --bin runeward
-cp target/release/runeward "$DEMO_TMP/runeward"
+cargo build --release --locked -p runeward-cli --bin runebox
+cp target/release/runebox "$DEMO_TMP/runebox"
 
 echo
 echo "=== 2. Start Runeward with an isolated state directory ==="
 RUNEWARD_STATE_DIR="$DEMO_TMP/state" \
 RUNEWARD_EGRESS_IMAGE="ghcr.io/runeeward/runeward-egress:latest" \
-  "$DEMO_TMP/runeward" --config-dir "$REPO_ROOT/examples" serve \
+  "$DEMO_TMP/runebox" --config-dir "$REPO_ROOT/examples" serve \
   --port "$DEMO_PORT" >"$ARTIFACT_DIR/server.log" 2>&1 &
 SERVER_PID=$!
 for _ in {1..50}; do
@@ -144,7 +144,7 @@ fi
 echo
 echo "=== 3. Create one hardened Citadel and launch a real Codex agent ==="
 cd "$DEMO_TMP"
-RUNEWARD_BASE="$BASE" "$DEMO_TMP/runeward" cohort --agent codex up "$PROFILE"
+RUNEWARD_BASE="$BASE" "$DEMO_TMP/runebox" cohort --agent codex up "$PROFILE"
 COHORT_ID="$(<.runeward-cohort)"
 COHORT_JSON="$ARTIFACT_DIR/cohort.json"
 curl -fsS "$BASE/v1/cohorts/$COHORT_ID" > "$COHORT_JSON"
@@ -189,7 +189,7 @@ These are non-destructive probes. Do not delete files, change permissions, or at
 EOF
 )
 
-RUNEWARD_BASE="$BASE" "$DEMO_TMP/runeward" cohort --agent codex exec "$PROMPT"
+RUNEWARD_BASE="$BASE" "$DEMO_TMP/runebox" cohort --agent codex exec "$PROMPT"
 
 echo
 echo "=== 4. Run deterministic probes through the governed API ==="
@@ -244,7 +244,7 @@ echo "PASS: root filesystem write was blocked"
 echo "PASS: non-allowlisted egress was blocked"
 echo "PASS: /workspace remained writable"
 
-RUNEWARD_BASE="$BASE" "$DEMO_TMP/runeward" cohort down
+RUNEWARD_BASE="$BASE" "$DEMO_TMP/runebox" cohort down
 COHORT_ID=""
 kill "$SERVER_PID"
 wait "$SERVER_PID" || true

@@ -1,4 +1,4 @@
-$ runeward -c $EX policy test governed --cases cases.toml
+$ runebox -c $EX policy test governed --cases cases.toml
 exit: 1
 --- stdout
 policy test: charter "governed", 4 case(s)

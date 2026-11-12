@@ -1,7 +1,7 @@
 # Browser IDE (experimental)
 
 Opt-in **browser IDE** against a Citadel’s `/workspace`: code-server runs
-inside the environment; `runeward serve` reverse-proxies it behind short-lived tickets
+inside the environment; `runebox serve` reverse-proxies it behind short-lived tickets
 (same family as the interactive terminal). This is additive — it does **not**
 replace host-IDE MCP or in-environment CLI agents.
 
@@ -11,7 +11,7 @@ Enable with `RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1`. Off by default.
 
 | Setup | What you get | Charter / surface |
 | --- | --- | --- |
-| **1. Host IDE → MCP** | Cursor / Claude Desktop / VS Code on your machine call governed tools | `runeward mcp` |
+| **1. Host IDE → MCP** | Cursor / Claude Desktop / VS Code on your machine call governed tools | `runebox mcp` |
 | **2. In-environment CLI agents** | Headless `claude` / `codex` / Cursor `agent` inside the Citadel | `examples/*-agent.toml` |
 | **3. Browser IDE (this page)** | code-server GUI in the browser, optional CLIs in its terminal | `[ide]`, `ide-*.toml` |
 
@@ -40,7 +40,7 @@ docker build --target ide -f deploy/Dockerfile.ide -t runeward-ide:latest .
 
 RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1 \
   RUNEWARD_STATE_DIR=/tmp/rw-ide \
-  ./bin/runeward --config-dir examples serve
+  ./bin/runebox --config-dir examples serve
 
 # Create ide-demo → dashboard Open IDE, or:
 # POST /v1/citadels {"profile":"ide-demo"}
@@ -58,7 +58,7 @@ docker build --target ide-agents -f deploy/Dockerfile.ide -t runeward-ide-agents
 #   ~/.runeward-openai.key     → ide-codex   (terminal: codex; source it from CODEX_API_KEY)
 #   ~/.runeward-cursor.key     → ide-cursor  (terminal: agent; needs Cursor build-args)
 
-RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1 ./bin/runeward --config-dir examples serve
+RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1 ./bin/runebox --config-dir examples serve
 ```
 
 Cursor CLI in the agents image is opt-in (same digest-pinned installer as

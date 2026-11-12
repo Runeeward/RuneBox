@@ -7,7 +7,7 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 fn runeward(dir: &Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_runeward"))
+    Command::new(env!("CARGO_BIN_EXE_runebox"))
         .args(args)
         .current_dir(dir)
         .env_clear()
@@ -144,10 +144,10 @@ fn help_names_the_product_and_usage_errors_exit_1() {
     let help = ok(&runeward(tmp.path(), &["--help"]));
     assert!(help.contains("Rune Box applies policy"), "{help}");
     let bare = ok(&runeward(tmp.path(), &[]));
-    assert!(bare.contains("Usage: runeward"), "{bare}");
+    assert!(bare.contains("Usage: runebox"), "{bare}");
     let usage = runeward(tmp.path(), &["print"]);
     assert_eq!(usage.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&usage.stderr).starts_with("error: "));
     let completion = ok(&runeward(tmp.path(), &["completion", "bash"]));
-    assert!(completion.contains("runeward"));
+    assert!(completion.contains("runebox"));
 }

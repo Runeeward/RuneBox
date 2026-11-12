@@ -1,7 +1,7 @@
 # Run the OpenAI Codex CLI (`codex`) inside an isolated Rune Box environment.
 #
 #   printf '%s' "$OPENAI_API_KEY" > ~/.runeward-openai.key   # no trailing newline needed
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   POST /v1/sandboxes {"profile":"codex-agent"}
 #   POST /v1/sandboxes/{id}/shell/exec
 #        {"command":["sh","-lc","codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox 'write fib.py that prints the first 10 Fibonacci numbers, then run it'"]}
