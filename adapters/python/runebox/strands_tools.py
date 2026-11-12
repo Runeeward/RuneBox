@@ -3,7 +3,7 @@
 The `Strands Agents SDK <https://strandsagents.com>`_ (``pip install
 strands-agents``) is imported *lazily* inside :func:`make_runebox_tools` so the
 base ``runebox`` client keeps working without it. Install the extra with
-``pip install rune-box[strands]``.
+``pip install runee-box[strands]``.
 
 Each returned tool is built with ``@tool``: Strands derives its schema from the
 function's type hints and docstring. Governance outcomes are converted into a
@@ -37,7 +37,7 @@ def make_runebox_tools(client: RuneboxClient) -> List[Any]:
     """Build a list of Strands ``@tool`` functions bound to ``client``.
 
     Pass the result to a ``strands.Agent(tools=...)``. Requires
-    ``strands-agents`` (``pip install rune-box[strands]``).
+    ``strands-agents`` (``pip install runee-box[strands]``).
     """
     # Lazy import so strands-agents stays an optional extra.
     try:
@@ -45,7 +45,7 @@ def make_runebox_tools(client: RuneboxClient) -> List[Any]:
     except ImportError as exc:  # pragma: no cover - depends on optional extra
         raise ImportError(
             "The Strands Agents SDK is required for make_runebox_tools(). "
-            "Install it with: pip install rune-box[strands]"
+            "Install it with: pip install runee-box[strands]"
         ) from exc
 
     def _guard(fn):

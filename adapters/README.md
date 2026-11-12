@@ -3,7 +3,7 @@
 Client libraries and agent-framework integrations for
 [Rune Box](https://github.com/Runeeward/RuneBox) — the open-source
 **governance harness** for AI agents (formerly Runeward Sandbox). The Python package is
-`rune-box` on PyPI (import `runebox`), the npm package is `@runebox/sdk`, and
+`runee-box` on PyPI (import `runebox`), the npm package is `@runebox/sdk`, and
 the CLI is `runebox`.
 
 ## Why governed tools matter for agents
@@ -44,7 +44,7 @@ The single behavioral contract every adapter preserves:
 | --- | --- |
 | [`../dist/skill/SKILL.md`](../dist/skill/SKILL.md) | An agent **skill** teaching a model when and how to use Rune Box — MCP tool names, the REST fallback, how approvals and denials work, and safety notes. Drop it into a Cursor/Claude skill directory. |
 | [`../dist/mcp/`](../dist/mcp/) | The MCP registry **`server.json`** manifest plus a README on publishing Rune Box to MCP registries and wiring it into Claude Desktop / Cursor. |
-| [`python/`](./python/) | The **`rune-box`** Python package (import `runebox`): a pure-stdlib `RuneboxClient` plus lazy-loaded LangChain, CrewAI, LlamaIndex, OpenAI Agents SDK, and Strands tool factories. |
+| [`python/`](./python/) | The **`runee-box`** Python package (import `runebox`): a pure-stdlib `RuneboxClient` plus lazy-loaded LangChain, CrewAI, LlamaIndex, OpenAI Agents SDK, and Strands tool factories. |
 | [`typescript/`](./typescript/) | The **`@runebox/sdk`** package: a `fetch`-based `RuneboxClient` plus Vercel AI SDK, LangChain.js, and Strands `tool(...)` wrappers. |
 
 ## Choosing an adapter

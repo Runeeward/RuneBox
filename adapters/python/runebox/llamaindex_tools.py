@@ -2,7 +2,7 @@
 
 LlamaIndex is imported *lazily* inside :func:`make_runebox_tools` so the base
 ``runebox`` client keeps working without ``llama-index`` installed. Install the
-extra with ``pip install rune-box[llamaindex]``.
+extra with ``pip install runee-box[llamaindex]``.
 
 Each returned :class:`~llama_index.core.tools.FunctionTool` converts governance
 outcomes into a short, model-readable string rather than letting the exception
@@ -41,7 +41,7 @@ def make_runebox_tools(client: RuneboxClient) -> "List[FunctionTool]":
 
     Covers the runebox tool surface: create/kill Citadel, shell, python, node,
     file read/write/list/search, and list-Conclave. Requires ``llama-index``
-    (``pip install rune-box[llamaindex]``).
+    (``pip install runee-box[llamaindex]``).
     """
     # Lazy import: keeps llama-index optional for users of the bare client.
     try:
@@ -49,7 +49,7 @@ def make_runebox_tools(client: RuneboxClient) -> "List[FunctionTool]":
     except ImportError as exc:  # pragma: no cover - depends on optional extra
         raise ImportError(
             "LlamaIndex is required for make_runebox_tools(). "
-            "Install it with: pip install rune-box[llamaindex]"
+            "Install it with: pip install runee-box[llamaindex]"
         ) from exc
 
     def _guard(fn):
