@@ -1,4 +1,4 @@
-$ runeward -c $EX policy test policy-bundle --case tool=shell,action=x,expect=allow
+$ runebox -c $EX policy test policy-bundle --case tool=shell,action=x,expect=allow
 exit: 1
 --- stdout
 --- stderr

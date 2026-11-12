@@ -47,12 +47,12 @@ Requirements:
 Build and inspect the project:
 
 ```bash
-cargo build --locked -p runeward-cli --bin runeward
-./target/debug/runeward --config-dir examples list
-./target/debug/runeward --config-dir examples/safe validate --strict
+cargo build --locked -p runeward-cli --bin runebox
+./target/debug/runebox --config-dir examples list
+./target/debug/runebox --config-dir examples/safe validate --strict
 
 RUNEWARD_STATE_DIR=/tmp/runeward-dev \
-  ./target/debug/runeward --config-dir examples serve
+  ./target/debug/runebox --config-dir examples serve
 ```
 
 Always give a development server its own `RUNEWARD_STATE_DIR`. Concurrent

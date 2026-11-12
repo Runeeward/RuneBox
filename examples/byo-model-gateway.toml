@@ -8,7 +8,7 @@
 #
 #   OPENAI_BASE_URL=http://host.docker.internal:11434/v1 \
 #   OPENAI_API_KEY=local \
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   POST /v1/sandboxes {"profile":"byo-model-gateway"}
 
 [host]

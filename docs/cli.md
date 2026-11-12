@@ -1,6 +1,6 @@
 # CLI reference
 
-The `runeward` binary is the primary entrypoint. A bare Charter name is shorthand
+The `runebox` binary is the primary entrypoint. A bare Charter name is shorthand
 for `enter <charter>`.
 
 ## Global flags
@@ -22,19 +22,19 @@ for `enter <charter>`.
 | `RUNEWARD_AUTHZ_FILE` | JSON file of named RBAC principals (per-token profile/approval scopes); upgrades the single shared token to multi-principal auth. |
 | `RUNEWARD_OIDC_ISSUER` / `RUNEWARD_OIDC_AUDIENCE` | Verify OIDC bearer JWTs and map signed Rune Box tenant/role claims. |
 | `RUNEWARD_OIDC_JWKS_URL` | Optional explicit JWKS endpoint; normally discovered from the issuer. HTTPS required except on loopback. |
-| `RUNEWARD_CREDENTIALS_FILE` | Optional path for the private client credential written by `runeward auth login`. |
+| `RUNEWARD_CREDENTIALS_FILE` | Optional path for the private client credential written by `runebox auth login`. |
 | `RUNEWARD_RATE_LIMIT` | Requests/sec per client IP; defaults to `50`. Set `0`/`off` only for trusted benchmarks. |
 | `RUNEWARD_RECORD_TERMINALS` | `1` records governed terminal sessions as asciinema casts under the state dir. |
 | `RUNEWARD_AUDIT_WEBHOOK_URL` / `RUNEWARD_AUDIT_FILE` | Stream Chronicle events to a webhook and/or file sink in real time. |
 | `RUNEWARD_COPY_FROM_ROOTS` | Colon-separated allowlist restricting `copy_from`/seed source directories. |
-| `RUNEWARD_MCP_DEFAULT_TOKEN` | Selects the principal for a stdio MCP process; falls back to `runeward auth login`. |
+| `RUNEWARD_MCP_DEFAULT_TOKEN` | Selects the principal for a stdio MCP process; falls back to `runebox auth login`. |
 | `RUNEWARD_K8S_NAMESPACE` | Namespace for k8s Citadel pods (default `runeward`). |
 | `RUNEWARD_K8S_PSA_ENFORCE` | Pod Security Admission enforce level for the managed namespace (`privileged`\|`baseline`\|`restricted`; default `privileged`). |
 | `RUNEWARD_K8S_DIRECT_VOLUME_CLASS` | StorageClass whose CSI driver hands volumes to Kata as direct-assigned block devices; workspaces on Kata with Firecracker (`kata-fc`) use it so they are a real disk and can persist. See [Isolation](isolation.md#kata-with-firecracker-kata-fc). |
 | `RUNEWARD_K8S_NETWORK_POLICY` | Truthy creates a default-deny (DNS-only egress) NetworkPolicy in the managed namespace. |
 | `RUNEWARD_MICROVM_DIR` | State and image-disk cache of the native microVM backend (`host.type = "microvm"`; default `~/.runeward/microvm`). Keep it short: its Unix socket paths must fit about 100 bytes. See [Isolation](isolation.md#native-microvms-hosttype-microvm). |
 | `RUNEWARD_MICROVM_VMM` | The monitor a `microvm` Charter without `host.runtime` gets: `firecracker` or `libkrun` (default: Firecracker when configured). |
-| `RUNEWARD_MICROVM_AGENT` | The static `runeward-vmagent` binary booted as the guest's PID 1 (default: next to `runeward`, then `PATH`). |
+| `RUNEWARD_MICROVM_AGENT` | The static `runeward-vmagent` binary booted as the guest's PID 1 (default: next to `runebox`, then `PATH`). |
 | `RUNEWARD_MICROVM_KERNEL` | The uncompressed guest kernel Firecracker boots. |
 | `RUNEWARD_FIRECRACKER_BIN` | The `firecracker` binary (default: `PATH`). |
 | `RUNEWARD_KRUN_HELPER` / `RUNEWARD_LIBKRUN` | The `runeward-krun` helper (default: `PATH`) and the libkrun library it loads (default `libkrun.so.1`, `libkrun.1.dylib` on macOS); libkrun must be built with block-device support. |
@@ -56,37 +56,37 @@ and the Charter's egress policy.
 
 | Command | Description |
 | --- | --- |
-| `runeward auth login\|status\|logout` | Save or remove a client credential using OIDC device flow or `--token-stdin`. |
-| `runeward init [project-dir]` | Create `.runeward/quickstart.toml` without overwriting an existing policy. |
-| `runeward quickstart [project-dir]` | Prove allow, pre-execution denial, and signed audit. |
-| `runeward doctor [charter] [--json]` | Check policy, runtime, required secret sources, image, and state readiness. |
-| `runeward enter <charter> [-- cmd...]` | Create a Citadel and open a shell, or run a one-shot command. |
-| `runeward serve [--bind ADDR] [--port N] [--token ... --tls-cert ... --tls-key ...] [--allow-insecure-http] [--no-ui] [--hardened]` | Start the control plane: REST API + web dashboard (default `--bind 127.0.0.1 --port 8080`). A non-loopback `--bind` requires authentication (`--token`/`RUNEWARD_API_TOKEN` of at least 32 characters, or `RUNEWARD_AUTHZ_FILE`) and TLS, unless `--allow-insecure-http` is passed for a trusted TLS-terminating proxy; `--no-ui` serves the REST API without the dashboard. `--hardened` (or `RUNEWARD_HARDENED=1`) refuses to start unless every hardened-mode check passes. |
-| `runeward mcp [--http --tls-cert ... --tls-key ...]` | Run stdio or streamable-HTTP MCP exposing governed tools to an IDE/agent. |
-| `runeward list` | List reachable Charters. |
-| `runeward print <charter>` | Print a Charter's resolved, secret-redacted policy. |
-| `runeward validate [charter...] [--strict]` | Statically lint Charters (missing images, unresolved secrets, unreachable rules, duplicate env); with no names, every resolvable Charter. `--strict` also fails on warnings. |
-| `runeward policy test <charter> [--cases <file>] [--case <spec>]...` | Simulate a Charter's policy against sample actions from a TOML file (`--cases`) and/or inline `--case tool=...,action=...,expect=...` flags, exiting non-zero on mismatch. |
-| `runeward policy scaffold [template] [--list]` | Print a ready-made policy template for a common control. |
-| `runeward policy learn <evidence-or-chronicle.json>` | Print exact, reviewable proposals from a verified audit trail. |
-| `runeward policy diff <old> <new> [--json]` | List the access a Charter change adds: each wider dimension and every host and port a credential is newly sent to. Exits non-zero when it adds any. Takes names or file paths. |
-| `runeward evidence export <charter> [-o file]` | Package the resolved policy and signed Chronicle events. |
-| `runeward evidence efficiency <evidence-or-chronicle.json> [--top N] [--json]` | Report calls a recorded run made more than once per session, those repeated after a refusal or an identical failure, and the time spent in repeats. Reads only verified recorded events. |
-| `runeward evidence verify <file>` | Verify the policy digest, event chain, and every signature. |
-| `runeward charter sign\|verify <file>` | Produce/verify a detached ed25519 signature over a Charter. |
-| `runeward runtime check\|guide\|install <gvisor\|kata>` | Inspect, explain, or install hardened runtimes (gVisor/Kata). |
-| `runeward replay <cast>` | Replay a recorded terminal session (asciinema v2 cast). |
-| `runeward export <citadel-id> <dest-dir>` | Copy a Citadel workspace back to the host (Docker and k8s). |
-| `runeward cohort ...` | Drive multi-agent Cohorts — see [Cohorts](fleets.md) and [Cohort memory and task context](#cohort-memory-and-task-context). |
-| `runeward citadel fork\|sleep\|wake\|status\|perimeter <id>` | Manage a running Citadel's workspace — see [Citadels, sessions and schedules](#citadels-sessions-and-schedules). |
-| `runeward session turn\|attach\|cancel <session-id>` | Start, follow and cancel agent-session turns. |
-| `runeward schedule create\|list\|get\|delete\|run` | Manage scheduled agent runs. |
-| `runeward chronicle verify <bundle.json>` | Verify an exported, signed Chronicle transcript offline. |
-| `runeward archive ...` | Manage signed OCI policy Archives (`keygen`, `push`, `pull`). |
-| `runeward controller` | Run the Kubernetes controller (watches CRDs). |
-| `runeward webhook` | Run the admission webhook. |
-| `runeward up` | One-command install of the in-cluster control plane. |
-| `runeward version` | Print version information. |
+| `runebox auth login\|status\|logout` | Save or remove a client credential using OIDC device flow or `--token-stdin`. |
+| `runebox init [project-dir]` | Create `.runeward/quickstart.toml` without overwriting an existing policy. |
+| `runebox quickstart [project-dir]` | Prove allow, pre-execution denial, and signed audit. |
+| `runebox doctor [charter] [--json]` | Check policy, runtime, required secret sources, image, and state readiness. |
+| `runebox enter <charter> [-- cmd...]` | Create a Citadel and open a shell, or run a one-shot command. |
+| `runebox serve [--bind ADDR] [--port N] [--token ... --tls-cert ... --tls-key ...] [--allow-insecure-http] [--no-ui] [--hardened]` | Start the control plane: REST API + web dashboard (default `--bind 127.0.0.1 --port 8080`). A non-loopback `--bind` requires authentication (`--token`/`RUNEWARD_API_TOKEN` of at least 32 characters, or `RUNEWARD_AUTHZ_FILE`) and TLS, unless `--allow-insecure-http` is passed for a trusted TLS-terminating proxy; `--no-ui` serves the REST API without the dashboard. `--hardened` (or `RUNEWARD_HARDENED=1`) refuses to start unless every hardened-mode check passes. |
+| `runebox mcp [--http --tls-cert ... --tls-key ...]` | Run stdio or streamable-HTTP MCP exposing governed tools to an IDE/agent. |
+| `runebox list` | List reachable Charters. |
+| `runebox print <charter>` | Print a Charter's resolved, secret-redacted policy. |
+| `runebox validate [charter...] [--strict]` | Statically lint Charters (missing images, unresolved secrets, unreachable rules, duplicate env); with no names, every resolvable Charter. `--strict` also fails on warnings. |
+| `runebox policy test <charter> [--cases <file>] [--case <spec>]...` | Simulate a Charter's policy against sample actions from a TOML file (`--cases`) and/or inline `--case tool=...,action=...,expect=...` flags, exiting non-zero on mismatch. |
+| `runebox policy scaffold [template] [--list]` | Print a ready-made policy template for a common control. |
+| `runebox policy learn <evidence-or-chronicle.json>` | Print exact, reviewable proposals from a verified audit trail. |
+| `runebox policy diff <old> <new> [--json]` | List the access a Charter change adds: each wider dimension and every host and port a credential is newly sent to. Exits non-zero when it adds any. Takes names or file paths. |
+| `runebox evidence export <charter> [-o file]` | Package the resolved policy and signed Chronicle events. |
+| `runebox evidence efficiency <evidence-or-chronicle.json> [--top N] [--json]` | Report calls a recorded run made more than once per session, those repeated after a refusal or an identical failure, and the time spent in repeats. Reads only verified recorded events. |
+| `runebox evidence verify <file>` | Verify the policy digest, event chain, and every signature. |
+| `runebox charter sign\|verify <file>` | Produce/verify a detached ed25519 signature over a Charter. |
+| `runebox runtime check\|guide\|install <gvisor\|kata>` | Inspect, explain, or install hardened runtimes (gVisor/Kata). |
+| `runebox replay <cast>` | Replay a recorded terminal session (asciinema v2 cast). |
+| `runebox export <citadel-id> <dest-dir>` | Copy a Citadel workspace back to the host (Docker and k8s). |
+| `runebox cohort ...` | Drive multi-agent Cohorts — see [Cohorts](fleets.md) and [Cohort memory and task context](#cohort-memory-and-task-context). |
+| `runebox citadel fork\|sleep\|wake\|status\|perimeter <id>` | Manage a running Citadel's workspace — see [Citadels, sessions and schedules](#citadels-sessions-and-schedules). |
+| `runebox session turn\|attach\|cancel <session-id>` | Start, follow and cancel agent-session turns. |
+| `runebox schedule create\|list\|get\|delete\|run` | Manage scheduled agent runs. |
+| `runebox chronicle verify <bundle.json>` | Verify an exported, signed Chronicle transcript offline. |
+| `runebox archive ...` | Manage signed OCI policy Archives (`keygen`, `push`, `pull`). |
+| `runebox controller` | Run the Kubernetes controller (watches CRDs). |
+| `runebox webhook` | Run the admission webhook. |
+| `runebox up` | One-command install of the in-cluster control plane. |
+| `runebox version` | Print version information. |
 
 ## Exit codes
 
@@ -109,10 +109,10 @@ Quote the `request_id` when reporting a refusal; it matches the server's
 
 ## Citadels, sessions and schedules
 
-These commands are REST clients of a running `runeward serve`. Like
+These commands are REST clients of a running `runebox serve`. Like
 `cohort`, they take `--base` (or `$RUNEWARD_BASE`, default
 `http://127.0.0.1:8080`) and `--token` (or `$RUNEWARD_API_TOKEN`, else the
-`runeward auth login` credential). Add `--json` to print the server's JSON
+`runebox auth login` credential). Add `--json` to print the server's JSON
 instead of text. See [Workspaces and context](workspaces-and-context.md).
 
 | Command | Description |
@@ -131,7 +131,7 @@ instead of text. See [Workspaces and context](workspaces-and-context.md).
 
 With `--json`, `session turn` and `session attach` print one JSON event per
 line (`seq`, `stream`, `data`). Otherwise agent stdout goes to stdout, agent
-stderr to stderr, and status events to stderr as `runeward: [status #N] ...`.
+stderr to stderr, and status events to stderr as `runebox: [status #N] ...`.
 
 ## Cohort memory and task context
 
@@ -165,66 +165,66 @@ Otherwise it runs the prompt without a task, as before.
 
 ```bash
 # First-run proof
-runeward quickstart
+runebox quickstart
 
 # Interactive Citadel
-runeward --config-dir examples enter ns-auto
+runebox --config-dir examples enter ns-auto
 
 # One-shot command
-runeward --config-dir examples enter ns-auto -- python --version
+runebox --config-dir examples enter ns-auto -- python --version
 
 # Control plane with an isolated state dir
-RUNEWARD_STATE_DIR=/tmp/rw runeward --config-dir examples serve
+RUNEWARD_STATE_DIR=/tmp/rw runebox --config-dir examples serve
 
 # Verify an exported Chronicle bundle
-runeward chronicle verify ./transcript.json
+runebox chronicle verify ./transcript.json
 
 # Sign and publish a policy Archive
-runeward archive keygen --out ./keys
-runeward archive push oci://ghcr.io/acme/runeward-policies:v3 \
+runebox archive keygen --out ./keys
+runebox archive push oci://ghcr.io/acme/runeward-policies:v3 \
   --policy prod.rego --engine rego --key ./keys/bundle.key
 
 # Authenticated control plane on a non-loopback bind
 RUNEWARD_API_TOKEN=$(openssl rand -hex 32) \
-  runeward --config-dir examples serve --bind 0.0.0.0 --port 8443 \
+  runebox --config-dir examples serve --bind 0.0.0.0 --port 8443 \
   --tls-cert ./tls/server.crt --tls-key ./tls/server.key
 
 # OIDC device login for Cohort CLI and stdio MCP clients
-runeward auth login --issuer https://id.example.com \
+runebox auth login --issuer https://id.example.com \
   --client-id runeward-cli --audience runeward
 
 # Lint every Charter in a directory and unit-test a policy
-runeward --config-dir examples/safe validate --strict
-runeward --config-dir examples policy test ns-auto \
+runebox --config-dir examples/safe validate --strict
+runebox --config-dir examples policy test ns-auto \
   --case "tool=shell,action=rm -rf /,expect=deny"
 
 # Scaffold a common policy and append it to a Charter
-runeward policy scaffold package-approval >> mycharter.toml
+runebox policy scaffold package-approval >> mycharter.toml
 
 # Export portable evidence, verify it, and draft reviewed policy additions
-runeward --config-dir examples evidence export ns-auto -o evidence.json
-runeward evidence verify evidence.json
-runeward policy learn evidence.json > proposed-policy.toml
-runeward evidence efficiency evidence.json --top 10
+runebox --config-dir examples evidence export ns-auto -o evidence.json
+runebox evidence verify evidence.json
+runebox policy learn evidence.json > proposed-policy.toml
+runebox evidence efficiency evidence.json --top 10
 
 # Review a Charter change before approving it (non-zero exit when it adds access)
-runeward policy diff charters/agent.toml proposed/agent.toml
+runebox policy diff charters/agent.toml proposed/agent.toml
 
 # Persistent workspaces, forks and resumable turns
-runeward citadel status cit-1234
-runeward citadel sleep cit-1234
-runeward citadel fork cit-1234 --charter review
-runeward session turn 9f2c... "now add tests for the parser"
-runeward session attach 9f2c... --after 120
+runebox citadel status cit-1234
+runebox citadel sleep cit-1234
+runebox citadel fork cit-1234 --charter review
+runebox session turn 9f2c... "now add tests for the parser"
+runebox session attach 9f2c... --after 120
 
 # Shared Cohort memory, briefs and a nightly schedule
-runeward cohort memory put billing/db "postgres 16 on the primary" --tag database
-runeward cohort brief task-3 "keep the migration reversible" --for claude
-runeward schedule create --cohort coh-1 --every 24h --agent codex \
+runebox cohort memory put billing/db "postgres 16 on the primary" --tag database
+runebox cohort brief task-3 "keep the migration reversible" --for claude
+runebox schedule create --cohort coh-1 --every 24h --agent codex \
   --prompt "triage new issues" --precheck "test -f /workspace/.triage"
 
 # Install and verify a hardened runtime (dry-run by default; --apply to execute)
-runeward runtime install gvisor            # prints the plan
-runeward runtime install gvisor --apply    # downloads + registers runsc
-runeward runtime check                     # confirm it's registered
+runebox runtime install gvisor            # prints the plan
+runebox runtime install gvisor --apply    # downloads + registers runsc
+runebox runtime check                     # confirm it's registered
 ```

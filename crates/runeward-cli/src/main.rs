@@ -1,4 +1,4 @@
-//! `runeward`: policy, approvals, and signed audit for AI agents.
+//! `runebox`: policy, approvals, and signed audit for AI agents.
 
 use std::io::Write;
 

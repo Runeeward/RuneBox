@@ -1,6 +1,6 @@
 # REST API
 
-`runeward serve` exposes the control plane over HTTP (default `127.0.0.1:8080`).
+`runebox serve` exposes the control plane over HTTP (default `127.0.0.1:8080`).
 All actions flow through the same governed path as every other surface.
 
 ## Authentication

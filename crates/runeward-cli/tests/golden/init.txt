@@ -1,6 +1,6 @@
-$ runeward init
+$ runebox init
 exit: 0
 --- stdout
 created: .runeward/quickstart.toml
-next: runeward --config-dir ".runeward" doctor quickstart && runeward --config-dir ".runeward" enter quickstart -- echo hello
+next: runebox --config-dir ".runeward" doctor quickstart && runebox --config-dir ".runeward" enter quickstart -- echo hello
 --- stderr

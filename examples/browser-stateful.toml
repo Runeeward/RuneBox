@@ -6,7 +6,7 @@
 # the sandbox. This profile therefore uses the runeward-sandbox image, which
 # ships both Chromium and the driver (see deploy/Dockerfile.sandbox).
 #
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   POST /v1/sandboxes {"profile":"browser-stateful"}
 #
 # The walkthrough uses data: URLs so no egress is required; browser traffic that

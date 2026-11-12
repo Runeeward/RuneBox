@@ -1,4 +1,4 @@
-//! `runeward enter`: provision a sandbox from a Charter and attach an
+//! `runebox enter`: provision a sandbox from a Charter and attach an
 //! interactive terminal (or run one command), then tear it down.
 
 use std::io::{IsTerminal, Write};
@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 
 use crate::common::{load_profile, resolve_env};
 
-/// `runeward enter <charter> [-- command...]`.
+/// `runebox enter <charter> [-- command...]`.
 pub async fn run(name: &str, inner: &[String], keep: bool, config_dir: &str) -> Result<()> {
     let p = load_profile(name, config_dir)?;
     let (env, warnings) = resolve_env(&p, &runeward_secrets::Dispatcher::from_env()).await;
@@ -19,13 +19,13 @@ pub async fn run(name: &str, inner: &[String], keep: bool, config_dir: &str) -> 
     }
     let be = runeward_backend::for_charter(&p).await?;
     eprintln!(
-        "runeward: provisioning {} via {} backend...",
+        "runebox: provisioning {} via {} backend...",
         crate::common::go_quote(name),
         be.name()
     );
     let spec = runeward_backend::spec_from_charter(&p, env);
     let sb = be.create(spec).await?;
-    eprintln!("runeward: citadel {} ready", sb.id);
+    eprintln!("runebox: citadel {} ready", sb.id);
 
     let result = if inner.is_empty() {
         attach_shell(&be, &sb.id).await
@@ -34,7 +34,7 @@ pub async fn run(name: &str, inner: &[String], keep: bool, config_dir: &str) -> 
     };
 
     if keep {
-        eprintln!("runeward: citadel {} kept (id: {})", sb.id, sb.id);
+        eprintln!("runebox: citadel {} kept (id: {})", sb.id, sb.id);
     } else {
         eprintln!("\nruneward: tearing down citadel {}", sb.id);
         let _ = be.kill(&sb.id).await;

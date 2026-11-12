@@ -1,7 +1,7 @@
 # Production-oriented Charters
 
 These examples are deliberately fail-closed and are validated with
-`runeward validate --strict` in CI. They use a read-only root filesystem,
+`runebox validate --strict` in CI. They use a read-only root filesystem,
 explicit network allowlists, explicit tool rules, finite budgets, and Chronicle
 redaction.
 

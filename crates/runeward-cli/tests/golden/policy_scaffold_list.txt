@@ -1,4 +1,4 @@
-$ runeward policy scaffold
+$ runebox policy scaffold
 exit: 0
 --- stdout
 Available policy templates:
@@ -8,5 +8,5 @@ Available policy templates:
   pii-egress               Lock down egress and sensitive writes for PII tasks
   read-only-fs             Read-only root filesystem
 
-Print one with: runeward policy scaffold <name>
+Print one with: runebox policy scaffold <name>
 --- stderr

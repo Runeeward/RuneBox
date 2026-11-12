@@ -170,7 +170,7 @@ async fn stdio_without_token_under_rbac_is_refused() {
         json(&res)["error"]
             .as_str()
             .unwrap()
-            .starts_with("RUNEWARD_MCP_DEFAULT_TOKEN or `runeward auth login`")
+            .starts_with("RUNEWARD_MCP_DEFAULT_TOKEN or `runebox auth login`")
     );
     // A token matching no principal is reported by every tool.
     let c = Client::stdio(&h.mgr, Some(team_store()), as_token("bogus")).await;

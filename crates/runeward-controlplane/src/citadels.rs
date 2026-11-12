@@ -218,7 +218,9 @@ impl Manager {
                 report.checks.push(check(
                     "policy",
                     "fail",
-                    format!("policy could not be loaded; run `runeward doctor {name}` on the server host"),
+                    format!(
+                        "policy could not be loaded; run `runebox doctor {name}` on the server host"
+                    ),
                 ));
                 return report;
             }
@@ -253,7 +255,7 @@ impl Manager {
                 report.checks.push(check(
                     "runtime",
                     "fail",
-                    "sandbox runtime is unavailable; start Docker/Podman or check Kubernetes access, then run `runeward doctor`",
+                    "sandbox runtime is unavailable; start Docker/Podman or check Kubernetes access, then run `runebox doctor`",
                 ));
                 return report;
             }

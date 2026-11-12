@@ -1,4 +1,4 @@
-$ runeward -c $EX validate --strict dev
+$ runebox -c $EX validate --strict dev
 exit: 1
 --- stdout
 dev

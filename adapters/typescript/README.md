@@ -31,7 +31,7 @@ npm run build      # emits ./dist
 
 ## Quick start
 
-Start the control plane first (`runeward serve`, default
+Start the control plane first (`runebox serve`, default
 `http://localhost:8080`), then:
 
 ```ts

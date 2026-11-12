@@ -1,4 +1,4 @@
-$ runeward -c $EX validate nope
+$ runebox -c $EX validate nope
 exit: 1
 --- stdout
 nope

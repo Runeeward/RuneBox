@@ -6,18 +6,18 @@
 # signature is REQUIRED and checked before the policy is loaded, so a tampered
 # or unsigned bundle fails closed at sandbox creation.
 #
-# Publish and inspect a bundle with the `runeward bundle` command:
+# Publish and inspect a bundle with the `runebox bundle` command:
 #
 #   # 1. Generate a signing keypair (prints base64 public + private keys).
-#   runeward bundle keygen --out ./keys
+#   runebox bundle keygen --out ./keys
 #
 #   # 2. Push a policy as a signed bundle, versioned by tag.
-#   runeward bundle push oci://ghcr.io/runeeward/policies/shell-guard:v1 \
+#   runebox bundle push oci://ghcr.io/runeeward/policies/shell-guard:v1 \
 #       --policy examples/rego-policy.rego --engine rego \
 #       --key ./keys/bundle.key
 #
 #   # 3. (optional) Verify what you published.
-#   runeward bundle pull oci://ghcr.io/runeeward/policies/shell-guard:v1 \
+#   runebox bundle pull oci://ghcr.io/runeeward/policies/shell-guard:v1 \
 #       --verify-key ./keys/bundle.pub
 #
 # Then set `ref` below to the pushed reference and `verify_key` to the base64

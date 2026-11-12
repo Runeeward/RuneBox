@@ -1,12 +1,12 @@
-$ runeward auth login --token-stdin
+$ runebox auth login --token-stdin
 exit: 0
 --- stdout
 --- stderr
-$ runeward auth logout
+$ runebox auth logout
 exit: 0
 --- stdout
 --- stderr
-$ runeward auth status
+$ runebox auth status
 exit: 1
 --- stdout
 --- stderr

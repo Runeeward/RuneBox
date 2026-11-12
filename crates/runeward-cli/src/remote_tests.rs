@@ -1,4 +1,4 @@
-//! The REST-client commands against an in-process `runeward serve`
+//! The REST-client commands against an in-process `runebox serve`
 //! (the server's router over a Manager with an in-memory backend, on a
 //! loopback port). No Docker.
 

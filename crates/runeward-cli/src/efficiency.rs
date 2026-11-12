@@ -1,4 +1,4 @@
-//! `runeward evidence efficiency`: repeated and avoidable calls in a
+//! `runebox evidence efficiency`: repeated and avoidable calls in a
 //! recorded run, read from a verified evidence package or Chronicle bundle.
 //! Nothing is run or replayed; the report only reads what was recorded.
 //!
@@ -195,7 +195,7 @@ pub fn render(r: &Report) -> String {
     out
 }
 
-/// `runeward evidence efficiency <evidence-or-chronicle.json>`.
+/// `runebox evidence efficiency <evidence-or-chronicle.json>`.
 pub fn efficiency(path: &str, top: usize, json: bool) -> Result<()> {
     let events = crate::policy::read_verified_events(path, "report on")?;
     let r = analyse(&events, top);

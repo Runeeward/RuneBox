@@ -5,7 +5,7 @@
 #
 #   docker build --target ide-agents -f deploy/Dockerfile.ide -t runeward-ide-agents:latest .
 #   printf '%s' "$ANTHROPIC_API_KEY" > ~/.runeward-anthropic.key
-#   RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1 ./bin/runeward --config-dir examples serve
+#   RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1 ./bin/runebox --config-dir examples serve
 #   Create charter "ide-claude" → Open IDE → terminal: claude
 
 [host]

@@ -1,6 +1,6 @@
 # Codex, Claude Code, and GitHub Copilot
 
-Rune Box exposes the same governed execution surface to every MCP-capable agent. The checked-in `.mcp.json`, `.vscode/mcp.json`, Cursor configuration, Copilot custom agent, and `dist/codex-plugin/runeward` package all invoke `runeward mcp` without embedding credentials.
+Rune Box exposes the same governed execution surface to every MCP-capable agent. The checked-in `.mcp.json`, `.vscode/mcp.json`, Cursor configuration, Copilot custom agent, and `dist/codex-plugin/runeward` package all invoke `runebox mcp` without embedding credentials.
 
 ## Make conversations observable
 
@@ -25,8 +25,8 @@ that receives user and model turns. Codex, Claude, and Copilot do not expose pri
 text to Rune Box automatically, so turns not forwarded by the host application cannot appear.
 
 The publisher and dashboard must use the same control-plane process. For a dashboard started with
-`runeward serve`, connect the agent to that server's streamable HTTP `/mcp` endpoint or publish to
-its REST endpoint. A separate `runeward mcp` stdio process owns separate in-memory Citadels and
+`runebox serve`, connect the agent to that server's streamable HTTP `/mcp` endpoint or publish to
+its REST endpoint. A separate `runebox mcp` stdio process owns separate in-memory Citadels and
 cannot populate the dashboard served by another process.
 
 Observers authenticate normally, request a short-lived `conversation` ticket, and connect to
@@ -35,7 +35,7 @@ agent or type into the Citadel terminal.
 
 ## Shared setup
 
-Install Rune Box, put `runeward` on `PATH`, and export configuration in the process that launches the agent:
+Install Rune Box, put `runebox` on `PATH`, and export configuration in the process that launches the agent:
 
 ```bash
 export RUNEWARD_CONFIG_DIR="$PWD/examples"
@@ -65,9 +65,9 @@ Alternatively, save a short-lived OIDC credential once; Cohort CLI and stdio
 MCP use it automatically when an explicit environment token is absent:
 
 ```bash
-runeward auth login --issuer https://id.example.com \
+runebox auth login --issuer https://id.example.com \
   --client-id runeward-cli --audience runeward
-runeward auth status
+runebox auth status
 ```
 
 Never commit the token or put it in MCP arguments. Give each human, agent, CI
@@ -88,7 +88,7 @@ Claude Code discovers the repository `.mcp.json`. Start Claude from an environme
 
 VS Code uses `.vscode/mcp.json`. The custom agent at `.github/agents/runeward.agent.md` allowlists the normal Citadel execution and Live chat tools and intentionally excludes approval resolution and Cohort administration.
 
-Copilot cloud agents cannot reach a developer's local Docker socket. Deploy `runeward serve` behind HTTPS and connect to its `/mcp` endpoint with a dedicated workload principal. Remote MCP requests are authorized per request; do not place a second shared proxy token in front of RBAC.
+Copilot cloud agents cannot reach a developer's local Docker socket. Deploy `runebox serve` behind HTTPS and connect to its `/mcp` endpoint with a dedicated workload principal. Remote MCP requests are authorized per request; do not place a second shared proxy token in front of RBAC.
 
 ## Delegated agents
 

@@ -2,7 +2,7 @@
 # board. Workers (agents) claim tasks from the board and run them against their
 # assigned sandbox via the governed tool API.
 #
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   POST /v1/fleets {"profile":"fleet-demo"}
 
 [host]

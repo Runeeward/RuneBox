@@ -5,7 +5,7 @@
 # policy-audited; inner agent commands remain sandbox/network/resource constrained.
 #
 #   printf '%s' "$OPENAI_API_KEY" > ~/.runeward-openai.key
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   POST /v1/fleets {"profile":"codex-fleet"}   # provisions 3 sandboxes + seeds the board
 #   then: claim -> codex exec -> complete (see the worker loop in the runbook)
 

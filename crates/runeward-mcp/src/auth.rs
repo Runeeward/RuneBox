@@ -134,7 +134,7 @@ impl Resolver {
         let Some(parts) = http else {
             if self.store.is_some() && self.stdio.principal.is_none() {
                 return Err(format!(
-                    "{ENV_MCP_DEFAULT_TOKEN} or `runeward auth login` is required for MCP stdio when authentication is configured"
+                    "{ENV_MCP_DEFAULT_TOKEN} or `runebox auth login` is required for MCP stdio when authentication is configured"
                 ));
             }
             return Ok(self.stdio.clone());
@@ -252,7 +252,7 @@ mod tests {
             .await
             .expect("resolver");
         let err = r.resolve(None).await.expect_err("stdio needs a token");
-        assert!(err.starts_with("RUNEWARD_MCP_DEFAULT_TOKEN or `runeward auth login`"));
+        assert!(err.starts_with("RUNEWARD_MCP_DEFAULT_TOKEN or `runebox auth login`"));
 
         let legacy = Resolver::new(None, " agent-7 ", "ignored")
             .await

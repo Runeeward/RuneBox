@@ -135,7 +135,7 @@ pub fn write_starter_charter(project_dir: &str, name: &str, force: bool) -> Resu
     Ok((path, true))
 }
 
-/// `runeward init [project-dir]`.
+/// `runebox init [project-dir]`.
 pub fn init(dir: Option<&str>, name: &str, force: bool) -> Result<()> {
     let dir = dir.unwrap_or(".");
     let (path, created) = write_starter_charter(dir, name, force)?;
@@ -143,7 +143,7 @@ pub fn init(dir: Option<&str>, name: &str, force: bool) -> Result<()> {
     let config = go_quote(&go_dir(&path));
     println!("{verb}: {path}");
     println!(
-        "next: runeward --config-dir {config} doctor {name} && runeward --config-dir {config} enter {name} -- echo hello"
+        "next: runebox --config-dir {config} doctor {name} && runebox --config-dir {config} enter {name} -- echo hello"
     );
     Ok(())
 }
@@ -176,7 +176,7 @@ struct DoctorReport<'a> {
     ready: bool,
 }
 
-/// `runeward doctor [charter]`.
+/// `runebox doctor [charter]`.
 pub async fn doctor(name: Option<&str>, as_json: bool, config_dir: &str) -> Result<()> {
     let (checks, ready) = run_doctor(&resolve_config_dir(config_dir), name.unwrap_or("")).await;
     let mut stdout = std::io::stdout().lock();
@@ -207,7 +207,7 @@ pub async fn run_doctor(config_dir: &str, requested: &str) -> (Vec<DoctorCheck>,
         checks.push(check(
             "policies",
             "fail",
-            "no policies found; run `runeward init`",
+            "no policies found; run `runebox init`",
         ));
         return (checks, false);
     }
@@ -371,19 +371,19 @@ pub fn friendly_runtime_error(msg: &str) -> String {
             Some(i) if i > 0 => &msg[..i],
             _ => msg,
         };
-        return format!("{short}; start Docker/Podman, then run `runeward doctor` again");
+        return format!("{short}; start Docker/Podman, then run `runebox doctor` again");
     }
     msg.to_owned()
 }
 
-/// `runeward quickstart [project-dir]`.
+/// `runebox quickstart [project-dir]`.
 pub async fn quickstart(dir: Option<&str>, no_run: bool, force: bool) -> Result<()> {
     let dir = dir.unwrap_or(".");
     let (path, _) = write_starter_charter(dir, "quickstart", force)?;
     println!("starter policy: {path}");
     if no_run {
         println!(
-            "setup complete; run `runeward doctor quickstart` when your container engine is ready"
+            "setup complete; run `runebox doctor quickstart` when your container engine is ready"
         );
         return Ok(());
     }
@@ -435,7 +435,7 @@ async fn quickstart_proof(mgr: &Manager) -> Result<()> {
         println!("deny: {}", denied.reason);
         mgr.verify_ledger().await?;
         println!("audit: signed Chronicle verified for sandbox {}", sb.id);
-        println!("next: runeward --config-dir .runeward serve");
+        println!("next: runebox --config-dir .runeward serve");
         Ok(())
     }
     .await;
@@ -519,7 +519,7 @@ mod tests {
             "raw socket path leaked: {got}"
         );
         assert!(
-            got.contains("runeward doctor"),
+            got.contains("runebox doctor"),
             "missing recovery instruction: {got}"
         );
     }

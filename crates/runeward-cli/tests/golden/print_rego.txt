@@ -1,4 +1,4 @@
-$ runeward -c $EX print rego
+$ runebox -c $EX print rego
 exit: 0
 --- stdout
 policy (Charter): rego

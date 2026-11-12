@@ -37,7 +37,7 @@ pub struct McpConfig {
     pub default_principal: String,
     /// The token identifying the stdio principal when an authz store is
     /// configured (`RUNEWARD_MCP_DEFAULT_TOKEN`, else the stored
-    /// `runeward auth login` token).
+    /// `runebox auth login` token).
     pub default_token: String,
     /// The legacy shared HTTP bearer token, enforced by [`crate::router`]
     /// only when there is no authz store. Empty disables it.

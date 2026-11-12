@@ -1,4 +1,4 @@
-$ runeward policy learn chronicle-tampered.json
+$ runebox policy learn chronicle-tampered.json
 exit: 1
 --- stdout
 --- stderr

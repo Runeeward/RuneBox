@@ -1,4 +1,4 @@
-$ runeward -c $EX print governed
+$ runebox -c $EX print governed
 exit: 0
 --- stdout
 policy (Charter): governed

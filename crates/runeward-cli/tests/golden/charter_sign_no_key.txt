@@ -1,4 +1,4 @@
-$ runeward charter sign charter.toml
+$ runebox charter sign charter.toml
 exit: 1
 --- stdout
 --- stderr

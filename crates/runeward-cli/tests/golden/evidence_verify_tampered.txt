@@ -1,4 +1,4 @@
-$ runeward evidence verify evidence-tampered.json
+$ runebox evidence verify evidence-tampered.json
 exit: 1
 --- stdout
 --- stderr

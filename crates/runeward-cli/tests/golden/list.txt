@@ -1,4 +1,4 @@
-$ runeward -c $EX list
+$ runebox -c $EX list
 exit: 0
 --- stdout
 agent-demo                 host=container  egress=deny+1

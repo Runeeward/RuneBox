@@ -3,7 +3,7 @@
 # for destructive shell commands and a human-in-the-loop approval gate for
 # writes under /etc, on top of the local Docker backend.
 #
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   POST /v1/sandboxes {"profile":"rego"}
 #
 # Then try a denied command (rm ...) and an approval-gated write (/etc/...).

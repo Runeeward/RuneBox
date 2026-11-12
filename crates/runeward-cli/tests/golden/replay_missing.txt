@@ -1,4 +1,4 @@
-$ runeward replay missing.cast
+$ runebox replay missing.cast
 exit: 1
 --- stdout
 --- stderr

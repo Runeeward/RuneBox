@@ -2,7 +2,7 @@
 # board. Each worker claims a task, runs it in its own sandbox under the same
 # policy/egress/guardrail contract, and marks it done.
 #
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   POST /v1/fleets {"profile":"agent-fleet"}
 
 [host]

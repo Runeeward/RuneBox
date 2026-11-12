@@ -7,7 +7,7 @@
 #   printf '%s' "$CURSOR_API_KEY"    > ~/.runeward-cursor.key
 #   printf '%s' "$OPENAI_API_KEY"    > ~/.runeward-openai.key
 #   printf '%s' "$ANTHROPIC_API_KEY" > ~/.runeward-anthropic.key
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   AGENT=claude MODEL=sonnet ./examples/fleet.sh build "Build a FastAPI todo API with tests"
 
 [host]

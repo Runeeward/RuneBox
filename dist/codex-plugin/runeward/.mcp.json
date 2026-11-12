@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "runeward": {
-      "command": "runeward",
+      "command": "runebox",
       "args": ["mcp"]
     }
   }

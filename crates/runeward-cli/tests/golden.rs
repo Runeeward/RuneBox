@@ -1,6 +1,6 @@
 //! Golden-output parity with the Go CLI.
 //!
-//! Each case runs the `runeward` binary in a fresh temporary directory
+//! Each case runs the `runebox` binary in a fresh temporary directory
 //! (holding a copy of `tests/fixtures`) with a scrubbed environment and
 //! compares exit code, stdout and stderr with `tests/golden/<case>.txt`.
 //! The golden files were recorded from the Go binary:
@@ -419,7 +419,7 @@ fn binary() -> (PathBuf, String, bool) {
             true,
         ),
         _ => (
-            PathBuf::from(env!("CARGO_BIN_EXE_runeward")),
+            PathBuf::from(env!("CARGO_BIN_EXE_runebox")),
             runeward_cli::VERSION.to_owned(),
             false,
         ),
@@ -476,7 +476,7 @@ fn run_case(c: &Case, bin: &Path, version: &str) -> String {
         }
         let res = child.wait_with_output().unwrap();
         out.push_str(&format!(
-            "$ runeward {}\nexit: {}\n--- stdout\n{}--- stderr\n{}",
+            "$ runebox {}\nexit: {}\n--- stdout\n{}--- stderr\n{}",
             step.join(" "),
             res.status.code().unwrap_or(-1),
             String::from_utf8_lossy(&res.stdout),

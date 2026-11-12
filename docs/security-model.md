@@ -33,7 +33,7 @@ Please disclose privately; do not open a public issue.
   A Charter can explicitly override an application image's entrypoint with
   `host.command`; Docker/Podman creation requires the process to remain alive
   across post-start checks before the Citadel is reported as running.
-- **Control-plane authentication.** `runeward serve` binds `127.0.0.1` by
+- **Control-plane authentication.** `runebox serve` binds `127.0.0.1` by
   default and refuses any non-loopback `--bind` unless authentication is set (an
   API token via `--token` / `RUNEWARD_API_TOKEN`, or an RBAC store). When set it
   is required on every request — REST, `/mcp`, the terminal WebSocket, and the
@@ -59,7 +59,7 @@ Please disclose privately; do not open a public issue.
   one. Recovery snapshots are tenant-scoped and persisted. HTTP MCP uses the
   same per-request principal and ownership rules as REST; stdio MCP binds one
   process to the principal selected by `RUNEWARD_MCP_DEFAULT_TOKEN` or the
-  credential saved by `runeward auth login`.
+  credential saved by `runebox auth login`.
 - **HTTP hardening.** Responses set `nosniff`, frame denial, no-referrer, and a
   restrictive Permissions Policy. API/MCP responses are no-store and use a
   deny-all content policy; dashboard assets use the explicit dashboard CSP.
@@ -160,7 +160,7 @@ Please disclose privately; do not open a public issue.
   spikes (`RUNEWARD_ANOMALY_*`).
 - **Terminal session recording.** With `RUNEWARD_RECORD_TERMINALS=1`, governed
   terminal sessions are captured as asciinema v2 casts under the state dir and
-  can be replayed with `runeward replay` as part of the audit trail.
+  can be replayed with `runebox replay` as part of the audit trail.
 - **Read-only Live chat.** Conversation turns are opt-in messages published by
   an agent harness, not automatic capture of private agent UI text. Rune Box
   bounds each Citadel's in-memory history, applies declared-secret and
@@ -213,7 +213,7 @@ Please disclose privately; do not open a public issue.
   the ledger and additionally masks common credential shapes (API keys, bearer
   tokens, PEM keys, `password=`/`token=` pairs) wherever they appear, but
   pattern matching is best-effort and can't catch every custom format.
-- Network exposure of `runeward serve`. It binds `127.0.0.1` and requires an API
+- Network exposure of `runebox serve`. It binds `127.0.0.1` and requires an API
   token before any non-loopback bind, but you still choose the token strength,
   terminate TLS appropriately, and configure static RBAC or OIDC rather than a
   shared token for team deployments.
@@ -250,13 +250,13 @@ or `kata`); on Docker it maps to `docker run --runtime` (e.g. `runsc` for
 gVisor; for Kata, the name it is registered under in `daemon.json`, such as
 `kata` pointing at the `containerd-shim-kata-v2` or `kata-runtime` binary, or
 the containerd runtime handler `io.containerd.kata-qemu.v2`). The runtime must
-first be installed and registered with your engine. `runeward runtime install
+first be installed and registered with your engine. `runebox runtime install
 gvisor --apply` downloads and registers gVisor for Docker; Kata itself is not
 installed by Rune Box (`runtime install kata --apply` only registers an
 existing Kata install with Docker, or applies a RuntimeClass on Kubernetes). A
 name the engine doesn't recognize fails environment creation rather than silently falling back to the
-shared-kernel runtime. `runeward runtime check` probes Docker and Kubernetes for
-registered `runsc`/`kata` runtimes and `runeward runtime guide` prints the setup
+shared-kernel runtime. `runebox runtime check` probes Docker and Kubernetes for
+registered `runsc`/`kata` runtimes and `runebox runtime guide` prints the setup
 steps. microVM runtimes (Kata Containers with QEMU or Cloud Hypervisor, and
 Firecracker on Kubernetes; `krun` is refused because it cannot exec into a
 running guest) are supported the same way, and the reported tier is derived from
@@ -292,7 +292,7 @@ binary at another path does not, and a file put at a listed path after start
 does not. For an interpreter the binary is the interpreter: `python3
 script.py` and a `#!/usr/bin/env python3` script are both `python3.11`, so
 listing an interpreter (or a shell, `env`, `busybox`) allows every program it
-runs; `runeward validate` warns about that. Scripts are never identified by
+runs; `runebox validate` warns about that. Scripts are never identified by
 name, since argv is chosen by the caller and proves nothing.
 
 **How it is enforced.** For every connection to such an endpoint the broker
@@ -338,7 +338,7 @@ supervisor to run, so:
 - **Docker and Podman** with strict egress and a container runtime (runc,
   crun): enforced. Cooperative egress cannot attribute (the broker runs in
   the control plane and sees only NATed connections), so a Charter with
-  `binaries` and without strict egress is an error in `runeward validate`
+  `binaries` and without strict egress is an error in `runebox validate`
   and refused at create, the same way `landlock = "required"` is refused on a
   kernel without Landlock. gVisor and VM runtimes keep the Citadel's sockets
   out of the sidecar's sight and are refused at create.
@@ -355,7 +355,7 @@ supervisor to run, so:
   guest's network namespace too, but that has not been run yet.
 - **Native microVMs** (`host.type = "microvm"`): not supported. The broker
   runs on the host, outside the VM, so it cannot reach the helper inside the
-  guest; `runeward validate` reports an error and the create is refused.
+  guest; `runebox validate` reports an error and the create is refused.
 
 `binaries` requires the supervisor even without `[filesystem]` or
 `[process]`, so the agent needs a non-root identity (`[process] run_as_user`,

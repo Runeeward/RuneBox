@@ -1,4 +1,4 @@
-//! `runeward runtime`: inspect this host for VM-grade isolation runtimes
+//! `runebox runtime`: inspect this host for VM-grade isolation runtimes
 //! (gVisor's runsc, Kata Containers) registered with Docker and/or
 //! Kubernetes, print setup guidance, and install them ([`install`]).
 //!
@@ -74,7 +74,7 @@ fn exit_status_text(status: &std::process::ExitStatus) -> String {
     }
 }
 
-/// `runeward runtime [check] [--strict]`. A diagnostic, not a gate: it
+/// `runebox runtime [check] [--strict]`. A diagnostic, not a gate: it
 /// fails only under `--strict` when nothing VM-grade is available.
 pub async fn check(strict: bool) -> Result<()> {
     let mut statuses = vec![
@@ -90,7 +90,7 @@ pub async fn check(strict: bool) -> Result<()> {
         },
     ];
     let mut out = String::new();
-    out.push_str("runeward runtime check\n======================\n\n");
+    out.push_str("runebox runtime check\n======================\n\n");
     inspect_docker(&mut out, &mut statuses).await;
     out.push('\n');
     inspect_kube(&mut out, &mut statuses).await;
@@ -123,9 +123,9 @@ pub async fn check(strict: bool) -> Result<()> {
     }
     if any_available {
         out.push_str("At least one VM-grade runtime is available. Set `runtime_class` in a\n");
-        out.push_str("Charter's [host] block to use it (see `runeward runtime guide`).\n");
+        out.push_str("Charter's [host] block to use it (see `runebox runtime guide`).\n");
     } else {
-        out.push_str("No VM-grade isolation runtime detected. Run `runeward runtime guide`\n");
+        out.push_str("No VM-grade isolation runtime detected. Run `runebox runtime guide`\n");
         out.push_str("for full setup instructions, or see docs/security-model.md.\n");
     }
     std::io::stdout().write_all(out.as_bytes())?;
@@ -236,7 +236,7 @@ fn missing_guidance(out: &mut String, name: &str) {
             "       { \"runtimes\": { \"runsc\": { \"path\": \"/usr/local/bin/runsc\" } } }\n",
             "     then `sudo systemctl restart docker`.\n",
             "  3. Kubernetes: create a RuntimeClass named `gvisor` (handler: runsc).\n",
-            "  4. Point runeward at it: set `runtime_class = \"gvisor\"` in the Charter [host].\n",
+            "  4. Point runebox at it: set `runtime_class = \"gvisor\"` in the Charter [host].\n",
             "\n",
         )),
         "Kata" => out.push_str(concat!(
@@ -246,29 +246,29 @@ fn missing_guidance(out: &mut String, name: &str) {
             "       { \"runtimes\": { \"kata\": { \"path\": \"/usr/bin/kata-runtime\" } } }\n",
             "     then `sudo systemctl restart docker`.\n",
             "  3. Kubernetes: create a RuntimeClass named `kata` (handler: kata).\n",
-            "  4. Point runeward at it: set `runtime_class = \"kata\"` in the Charter [host].\n",
+            "  4. Point runebox at it: set `runtime_class = \"kata\"` in the Charter [host].\n",
             "\n",
         )),
         _ => {}
     }
 }
 
-/// `runeward runtime guide`.
+/// `runebox runtime guide`.
 pub fn guide() -> Result<()> {
     std::io::stdout().write_all(GUIDE.as_bytes())?;
     Ok(())
 }
 
-const GUIDE: &str = r#"runeward VM-grade isolation setup guide
+const GUIDE: &str = r#"runebox VM-grade isolation setup guide
 =======================================
 
-runeward can run each Citadel under a hardened, VM-grade runtime instead of the
+runebox can run each Citadel under a hardened, VM-grade runtime instead of the
 host kernel's default runc. Two options are supported today:
 
   - gVisor (runsc): an application kernel in userspace; strong syscall isolation.
   - Kata Containers: lightweight VMs; hardware-virtualization isolation.
 
-How runeward consumes it
+How runebox consumes it
 ------------------------
 A Charter's [host] block may set:
 
@@ -282,7 +282,7 @@ A Charter's [host] block may set:
   - Kubernetes: runtime_class is set as the Pod's "runtimeClassName". The named
     RuntimeClass must exist in the cluster, or the Pod is rejected.
 
-In both cases an unregistered runtime fails closed — runeward never silently
+In both cases an unregistered runtime fails closed — runebox never silently
 falls back to the default runtime. See docs/security-model.md.
 
 gVisor (runsc)
@@ -331,7 +331,7 @@ Kata Containers
 
 4. Use it: set runtime_class = "kata" in the Charter [host] block.
 
-Verify your setup any time with: runeward runtime check
+Verify your setup any time with: runebox runtime check
 "#;
 
 fn join_or_dash(items: &[String]) -> String {

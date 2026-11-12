@@ -18,12 +18,14 @@ Homebrew installs the current signed CLI release on macOS or Linux:
 
 ```bash
 brew install Runeeward/tap/runebox
-runeward version
-runeward quickstart
+runebox version
+runebox quickstart
 ```
 
 The formula was named `runeward` before v0.4.2. `brew upgrade` moves an existing install to
-`runebox`, and the command is still `runeward`.
+`runebox`.
+
+The command was called `runeward` before v0.4.4; that name still works for one release.
 
 Local sandboxes also require a running Docker, OrbStack, or Podman engine.
 
@@ -60,7 +62,7 @@ curl -fsSL https://raw.githubusercontent.com/Runeeward/RuneBox/main/install.sh |
 Pin a release or location:
 
 ```bash
-RUNEWARD_VERSION=v0.4.3 RUNEWARD_BIN_DIR="$HOME/.local/bin" \
+RUNEWARD_VERSION=v0.4.4 RUNEWARD_BIN_DIR="$HOME/.local/bin" \
   sh -c "$(curl -fsSL https://raw.githubusercontent.com/Runeeward/RuneBox/main/install.sh)"
 ```
 
@@ -76,8 +78,8 @@ changes:
 ```bash
 git clone https://github.com/Runeeward/RuneBox
 cd RuneBox
-cargo build --release --locked -p runeward-cli --bin runeward
-./target/release/runeward version
+cargo build --release --locked -p runeward-cli --bin runebox
+./target/release/runebox version
 ```
 
 The Linux-only helpers build the same way: `-p runeward-egress`, `-p runeward-supervisor` and
@@ -121,6 +123,6 @@ See [SECURITY.md](https://github.com/Runeeward/RuneBox/blob/main/SECURITY.md) fo
 
 - Docker, OrbStack, or Podman for local sandboxes.
 - Optionally Kubernetes and Helm for cluster deployments.
-- Run `runeward doctor <policy>` before launch to check the selected runtime and image.
+- Run `runebox doctor <policy>` before launch to check the selected runtime and image.
 
 Next: [Quickstart](quickstart.md).

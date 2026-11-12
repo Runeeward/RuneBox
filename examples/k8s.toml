@@ -1,7 +1,7 @@
 # A minimal Kubernetes-backed profile. Used by the declarative CRD/controller
 # flow and the k8s backend walkthrough in docs/E2E-TESTING.md.
 #
-#   ./bin/runeward up
+#   ./bin/runebox up
 #   kubectl -n runeward create configmap runeward-profiles --from-file=examples/
 #   kubectl apply -f - <<'EOF'
 #   apiVersion: runeward.dev/v1alpha1

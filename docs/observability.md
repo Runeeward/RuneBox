@@ -1,6 +1,6 @@
 # Observability
 
-Operators run `runeward serve` and `runeward controller` as long-lived
+Operators run `runebox serve` and `runebox controller` as long-lived
 services, so both expose Prometheus metrics and emit structured logs. Usage
 telemetry is available too, but it is strictly opt-in and off by default.
 
@@ -98,7 +98,7 @@ output (stderr):
 Use `json` when shipping to a log aggregator:
 
 ```bash
-RUNEWARD_LOG_FORMAT=json RUNEWARD_LOG_LEVEL=info runeward --config-dir examples serve
+RUNEWARD_LOG_FORMAT=json RUNEWARD_LOG_LEVEL=info runebox --config-dir examples serve
 ```
 
 ```json

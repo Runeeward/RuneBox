@@ -1,4 +1,4 @@
-$ runeward auth status
+$ runebox auth status
 exit: 1
 --- stdout
 --- stderr

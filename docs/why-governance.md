@@ -104,7 +104,7 @@ plane required.
 curl -s localhost:8080/v1/chronicle/export > transcript.json
 
 # Verify the chain + signatures offline (e.g. on an auditor's machine)
-runeward chronicle verify transcript.json
+runebox chronicle verify transcript.json
 # ok: 128 events verified (hash chain + signatures intact)
 ```
 
@@ -117,9 +117,9 @@ curl -s localhost:8080/v1/citadels/$SB/chronicle    # one Citadel's events + ver
 
 `chronicle verify` checks a Chronicle bundle on its own: the hash chain and every
 event signature. To tie that trail to the policy that was in force, export an
-evidence package instead (`runeward evidence export <charter>`): it embeds the same
+evidence package instead (`runebox evidence export <charter>`): it embeds the same
 signed bundle together with the resolved, secret-redacted Charter and its digest,
-and `runeward evidence verify` checks the policy digest plus the chain and
+and `runebox evidence verify` checks the policy digest plus the chain and
 signatures. See [Quickstart](quickstart.md#5-export-portable-evidence).
 
 The mapping to a control framework is then concrete: the **Charter is the

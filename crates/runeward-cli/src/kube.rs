@@ -20,7 +20,7 @@ use crate::version::VERSION;
 /// The server-side-apply owner for everything `up` applies.
 pub const FIELD_MANAGER: &str = "runeward-up";
 
-/// `runeward up [--image] [--crds-only]`.
+/// `runebox up [--image] [--crds-only]`.
 pub async fn up(image: &str, crds_only: bool) -> Result<()> {
     let image = if image.is_empty() {
         std::env::var("RUNEWARD_IMAGE").unwrap_or_default()
@@ -32,13 +32,13 @@ pub async fn up(image: &str, crds_only: bool) -> Result<()> {
         apply_manifest(&client, m.content, "").await?;
     }
     if crds_only {
-        println!("runeward: CRDs installed. Run the controller with `runeward controller`.");
+        println!("runebox: CRDs installed. Run the controller with `runebox controller`.");
         return Ok(());
     }
     for m in runeward_k8s::manifests::install() {
         apply_manifest(&client, m.content, &image).await?;
     }
-    println!("runeward: installed. Add Charters with a ConfigMap named 'runeward-profiles', e.g.:");
+    println!("runebox: installed. Add Charters with a ConfigMap named 'runeward-profiles', e.g.:");
     println!("  kubectl -n runeward create configmap runeward-profiles --from-file=examples/");
     Ok(())
 }
@@ -126,7 +126,7 @@ pub fn override_images(doc: &mut Value, image: &str) {
     }
 }
 
-/// `runeward controller [--workers] [--all-namespaces]`.
+/// `runebox controller [--workers] [--all-namespaces]`.
 pub async fn controller(workers: usize, all_namespaces: bool, config_dir: &str) -> Result<()> {
     let client = kube_client().await?;
     let mgr = Manager::open(manager_config_dir(&resolve_config_dir(config_dir))).await?;
@@ -147,7 +147,7 @@ pub async fn controller(workers: usize, all_namespaces: bool, config_dir: &str) 
     Ok(result?)
 }
 
-/// `runeward webhook [--port] [--service] [--cert-secret]`.
+/// `runebox webhook [--port] [--service] [--cert-secret]`.
 pub async fn webhook(port: u16, service: &str, cert_secret: &str) -> Result<()> {
     let client = kube_client().await?;
     runeward_obs::init_logging();

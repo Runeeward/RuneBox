@@ -1,4 +1,4 @@
-$ runeward serve --tls-cert x.pem
+$ runebox serve --tls-cert x.pem
 exit: 1
 --- stdout
 --- stderr

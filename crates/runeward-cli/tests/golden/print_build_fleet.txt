@@ -1,4 +1,4 @@
-$ runeward -c $EX print build-fleet
+$ runebox -c $EX print build-fleet
 exit: 0
 --- stdout
 policy (Charter): build-fleet

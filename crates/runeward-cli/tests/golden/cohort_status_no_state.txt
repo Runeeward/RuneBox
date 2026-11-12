@@ -1,5 +1,5 @@
-$ runeward cohort status
+$ runebox cohort status
 exit: 1
 --- stdout
 --- stderr
-error: no active cohort; run `runeward cohort up` first or pass --cohort <id>
+error: no active cohort; run `runebox cohort up` first or pass --cohort <id>

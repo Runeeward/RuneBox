@@ -67,7 +67,7 @@ pub fn mkdir_all(dir: &str, mode: u32) -> std::io::Result<()> {
     b.create(dir)
 }
 
-/// `runeward archive keygen [--out dir]`.
+/// `runebox archive keygen [--out dir]`.
 pub fn keygen(out: &str) -> Result<()> {
     let mut secret = [0u8; 32];
     rand::TryRng::try_fill_bytes(&mut rand::rngs::SysRng, &mut secret)
@@ -96,7 +96,7 @@ pub fn keygen(out: &str) -> Result<()> {
     Ok(())
 }
 
-/// `runeward archive push <ref>`.
+/// `runebox archive push <ref>`.
 pub async fn push(
     reference: &str,
     policy_file: &str,
@@ -138,7 +138,7 @@ pub async fn push(
     Ok(())
 }
 
-/// `runeward archive pull <ref>`.
+/// `runebox archive pull <ref>`.
 pub async fn pull(reference: &str, verify_key: &str, plain_http: bool, out: &str) -> Result<()> {
     let verify = if verify_key.is_empty() {
         None
@@ -170,7 +170,7 @@ pub async fn pull(reference: &str, verify_key: &str, plain_http: bool, out: &str
     Ok(())
 }
 
-/// `runeward charter sign <file>`.
+/// `runebox charter sign <file>`.
 pub fn charter_sign(file: &str, key_file: &str, out: &str) -> Result<()> {
     if key_file.is_empty() {
         bail!("--key is required");
@@ -197,7 +197,7 @@ pub fn charter_sign(file: &str, key_file: &str, out: &str) -> Result<()> {
     Ok(())
 }
 
-/// `runeward charter verify <file>`.
+/// `runebox charter verify <file>`.
 pub fn charter_verify(file: &str, verify_key: &str, sig_file: &str) -> Result<()> {
     if verify_key.is_empty() {
         bail!("--verify-key is required");

@@ -1,11 +1,11 @@
-$ runeward charter sign charter.toml --key charter.key
+$ runebox charter sign charter.toml --key charter.key
 exit: 0
 --- stdout
 signed charter.toml
 key-id:    ae760f4a935daabd
 signature: charter.toml.sig
 --- stderr
-$ runeward charter verify charter.toml --verify-key waxo+w/5yRxjbw1wnAtIiQE87ClPE9eJS6+XheeD7dE=
+$ runebox charter verify charter.toml --verify-key waxo+w/5yRxjbw1wnAtIiQE87ClPE9eJS6+XheeD7dE=
 exit: 1
 --- stdout
 --- stderr

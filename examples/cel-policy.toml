@@ -4,7 +4,7 @@
 # `tool` (e.g. "shell", "file.write", "net") and `arg` (the command, path, or
 # host). First matching rule wins; unmatched actions fall through to allow.
 #
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   POST /v1/sandboxes {"profile":"cel-policy"}
 
 policy_engine = "cel"

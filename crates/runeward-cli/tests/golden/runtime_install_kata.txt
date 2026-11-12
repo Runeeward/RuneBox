@@ -1,4 +1,4 @@
-$ runeward runtime install kata
+$ runebox runtime install kata
 exit: 0
 --- stdout
 Kata Containers -> Docker
@@ -19,6 +19,6 @@ Re-run with --apply to perform these steps.
 Next steps
 ----------
   1. Set runtime_class = "kata" under [host] in your Charter.
-  2. Verify with: runeward runtime check
+  2. Verify with: runebox runtime check
   3. Details: docs/security-model.md
 --- stderr

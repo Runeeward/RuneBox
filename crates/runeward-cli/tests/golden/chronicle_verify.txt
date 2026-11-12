@@ -1,4 +1,4 @@
-$ runeward chronicle verify chronicle.json
+$ runebox chronicle verify chronicle.json
 exit: 0
 --- stdout
 ok: 6 events verified (hash chain + signatures intact)

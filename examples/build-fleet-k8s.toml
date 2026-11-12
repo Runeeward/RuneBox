@@ -8,7 +8,7 @@
 #   printf '%s' "$ANTHROPIC_API_KEY" > ~/.runeward-anthropic.key
 #   printf '%s' "$CURSOR_API_KEY"    > ~/.runeward-cursor.key
 #   export RUNEWARD_KUBE_CONTEXT=orbstack RUNEWARD_K8S_NAMESPACE=runeward
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   AGENT=claude MODEL=sonnet ./examples/fleet.sh build "Build a FastAPI todo API with tests"
 #
 # `serve` reads the key files locally (where it runs) and injects them into every

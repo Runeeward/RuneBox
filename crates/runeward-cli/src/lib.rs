@@ -1,7 +1,7 @@
-//! The `runeward` command-line interface for Rune Box.
+//! The `runebox` command-line interface for Rune Box.
 //!
 //! Every command, flag, environment variable, default and exit code of the
-//! Go CLI is kept: a bare `runeward <charter>` means `enter <charter>`,
+//! Go CLI is kept: a bare `runebox <charter>` means `enter <charter>`,
 //! `-c/--config-dir` (or `$RUNEWARD_CONFIG_DIR`) pins Charter resolution,
 //! and any failure prints `error: <message>` and exits 1. Human-readable
 //! output (tables, `validate`, `doctor`, `version`, verification messages)

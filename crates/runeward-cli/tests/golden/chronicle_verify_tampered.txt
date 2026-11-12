@@ -1,4 +1,4 @@
-$ runeward chronicle verify chronicle-tampered.json
+$ runebox chronicle verify chronicle-tampered.json
 exit: 1
 --- stdout
 --- stderr

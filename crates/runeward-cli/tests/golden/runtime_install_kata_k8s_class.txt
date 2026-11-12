@@ -1,4 +1,4 @@
-$ runeward runtime install KATA --engine K8S --runtime-class kata-qemu
+$ runebox runtime install KATA --engine K8S --runtime-class kata-qemu
 exit: 0
 --- stdout
 Kata Containers -> Kubernetes RuntimeClass
@@ -18,6 +18,6 @@ Re-run with --apply to `kubectl apply -f -` the manifest above.
 Next steps
 ----------
   1. Set runtime_class = "kata-qemu" under [host] in your Charter.
-  2. Verify with: runeward runtime check
+  2. Verify with: runebox runtime check
   3. Details: docs/security-model.md
 --- stderr

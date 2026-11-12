@@ -1,5 +1,5 @@
-$ runeward --version
+$ runebox --version
 exit: 0
 --- stdout
-runeward version $VERSION
+runebox version $VERSION
 --- stderr

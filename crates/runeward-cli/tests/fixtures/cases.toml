@@ -1,4 +1,4 @@
-# Policy cases for `runeward policy test` golden runs.
+# Policy cases for `runebox policy test` golden runs.
 [[case]]
 name   = "block rm"
 tool   = "shell"

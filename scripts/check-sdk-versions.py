@@ -153,8 +153,8 @@ def main() -> int:
         raise SystemExit("Codex plugin component paths are invalid")
     plugin_mcp = json.loads((plugin_root / ".mcp.json").read_text(encoding="utf-8"))
     runeward_mcp = plugin_mcp.get("mcpServers", {}).get("runeward", {})
-    if runeward_mcp.get("command") != "runeward" or runeward_mcp.get("args") != ["mcp"]:
-        raise SystemExit("Codex plugin MCP command must run `runeward mcp`")
+    if runeward_mcp.get("command") != "runebox" or runeward_mcp.get("args") != ["mcp"]:
+        raise SystemExit("Codex plugin MCP command must run `runebox mcp`")
     skill_path = plugin_root / "skills/runeward-governed-execution/SKILL.md"
     skill_text = skill_path.read_text(encoding="utf-8")
     frontmatter = re.match(r"^---\n(?P<body>.*?)\n---", skill_text, re.DOTALL)

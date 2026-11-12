@@ -1,4 +1,4 @@
-$ runeward init --name a/b
+$ runebox init --name a/b
 exit: 1
 --- stdout
 --- stderr

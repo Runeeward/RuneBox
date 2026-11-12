@@ -1,4 +1,4 @@
-$ runeward -c $EX print byo-model-gateway
+$ runebox -c $EX print byo-model-gateway
 exit: 0
 --- stdout
 policy (Charter): byo-model-gateway

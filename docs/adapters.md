@@ -17,7 +17,7 @@ or escalated to a human; and everything is recorded in a tamper-evident Chronicl
 ## Which one do I want?
 
 - **Using an MCP client** (Claude Desktop, Cursor, VS Code)? You don't need an
-  adapter at all — point the client at the Rune Box MCP server (`runeward mcp`).
+  adapter at all — point the client at the Rune Box MCP server (`runebox mcp`).
   See the [REST API](rest-api.md) and the `dist/mcp/` manifest.
 - **Building a Python agent** with LangChain, CrewAI, LlamaIndex, the OpenAI
   Agents SDK, or Strands? Use the [`runeward` Python package](#python-runeward).
@@ -27,7 +27,7 @@ or escalated to a human; and everything is recorded in a tamper-evident Chronicl
   REST control plane and work standalone with zero third-party runtime
   dependencies.
 
-All adapters target the same control plane started with `runeward serve` (default
+All adapters target the same control plane started with `runebox serve` (default
 `http://localhost:8080`) and expose the same method surface, mirroring the
 governed tool set: `create_sandbox`, `shell`, `python`, `node`,
 `read_file`/`write_file`/`list_files`/`search_files`,
@@ -49,7 +49,7 @@ model-readable strings on the framework tools:
   `approval_id`; don't route around the gate.
 
 !!! note "Authentication"
-    If `runeward serve` is started with a token (`--token` / `RUNEWARD_API_TOKEN`)
+    If `runebox serve` is started with a token (`--token` / `RUNEWARD_API_TOKEN`)
     or RBAC, pass it to the client — `RunewardClient(..., token="...")` in Python
     or `new RunewardClient({ token: "..." })` in TypeScript.
 

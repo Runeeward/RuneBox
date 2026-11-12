@@ -1,6 +1,6 @@
 [package]
 name = "runeward-cli"
-description = "The runeward command-line interface for Rune Box: Charters, Citadels, Cohorts, the control plane and its Kubernetes integration"
+description = "The runebox command-line interface for Rune Box: Charters, Citadels, Cohorts, the control plane and its Kubernetes integration"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -16,7 +16,7 @@ name = "runeward_cli"
 path = "src/lib.rs"
 
 [[bin]]
-name = "runeward"
+name = "runebox"
 path = "src/main.rs"
 
 [dependencies]

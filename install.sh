@@ -1,5 +1,5 @@
 #!/bin/sh
-# Rune Box installer: installs the `runeward` CLI.
+# Rune Box installer: installs the `runebox` CLI.
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/Runeeward/RuneBox/main/install.sh | sh
@@ -13,7 +13,9 @@
 set -eu
 
 REPO="Runeeward/RuneBox"
-BIN_NAME="runeward"
+BIN_NAME="runebox"
+# The command was called runeward before v0.4.4; linked for one release.
+OLD_BIN_NAME="runeward"
 
 info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn()  { printf '\033[1;33mwarning:\033[0m %s\n' "$*" >&2; }
@@ -39,7 +41,7 @@ os=$(uname -s | tr '[:upper:]' '[:lower:]')
 case "$os" in
   linux)  os=linux ;;
   darwin) os=darwin ;;
-  *) err "unsupported OS: $os (linux and darwin are supported; on Windows download runeward_windows_amd64.zip from the release page)" ;;
+  *) err "unsupported OS: $os (linux and darwin are supported; on Windows download runebox_windows_amd64.zip from the release page)" ;;
 esac
 
 arch=$(uname -m)
@@ -57,9 +59,10 @@ if [ "$version" = "latest" ]; then
     | grep '"tag_name"' | head -n1 | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
   [ -n "$version" ] || err "could not resolve the latest release tag (set RUNEWARD_VERSION)"
 fi
-info "Installing Rune Box (runeward) ${version} (${os}/${arch})"
+info "Installing Rune Box (runebox) ${version} (${os}/${arch})"
 
 asset="${BIN_NAME}_${os}_${arch}.tar.gz"
+archive_bin="$BIN_NAME"
 base="https://github.com/${REPO}/releases/download/${version}"
 
 tmp=$(mktemp -d 2>/dev/null || mktemp -d -t runeward)
@@ -67,7 +70,13 @@ trap 'rm -rf "$tmp"' EXIT
 
 # --- download ------------------------------------------------------------------
 info "Downloading ${asset}"
-$DLO "$tmp/$asset" "$base/$asset" || err "download failed: $base/$asset"
+if ! $DLO "$tmp/$asset" "$base/$asset" 2>/dev/null; then
+  # Releases before v0.4.4 ship the CLI as runeward_<os>_<arch>.tar.gz.
+  legacy="${OLD_BIN_NAME}_${os}_${arch}.tar.gz"
+  $DLO "$tmp/$legacy" "$base/$legacy" || err "download failed: $base/$asset"
+  asset="$legacy"
+  archive_bin="$OLD_BIN_NAME"
+fi
 
 # --- verify release signatures + checksum (fail closed) -----------------------
 # By default we verify checksums.txt with cosign first, then verify the artifact
@@ -132,15 +141,15 @@ fi
 
 # --- extract -------------------------------------------------------------------
 tar -xzf "$tmp/$asset" -C "$tmp"
-# Release archives contain a binary named runeward (older ones may use
-# runeward_<os>_<arch>).
-if [ -f "$tmp/${BIN_NAME}" ]; then
-  binpath="$tmp/${BIN_NAME}"
-elif [ -f "$tmp/${BIN_NAME}_${os}_${arch}" ]; then
-  binpath="$tmp/${BIN_NAME}_${os}_${arch}"
+# Release archives contain a binary named runebox (runeward before v0.4.4;
+# older ones may use runeward_<os>_<arch>).
+if [ -f "$tmp/${archive_bin}" ]; then
+  binpath="$tmp/${archive_bin}"
+elif [ -f "$tmp/${archive_bin}_${os}_${arch}" ]; then
+  binpath="$tmp/${archive_bin}_${os}_${arch}"
 else
-  binpath=$(find "$tmp" -type f -name "${BIN_NAME}*" ! -name '*.tar.gz' | head -n1)
-  [ -n "$binpath" ] || err "could not find the runeward binary in the archive"
+  binpath=$(find "$tmp" -type f -name "${archive_bin}*" ! -name '*.tar.gz' | head -n1)
+  [ -n "$binpath" ] || err "could not find the ${archive_bin} binary in the archive"
 fi
 chmod +x "$binpath"
 
@@ -150,15 +159,18 @@ if [ ! -d "$bindir" ] || [ ! -w "$bindir" ]; then
   if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1 && [ "$bindir" = "/usr/local/bin" ]; then
     info "Installing to $bindir (using sudo)"
     sudo install -m 0755 "$binpath" "$bindir/$BIN_NAME"
+    sudo ln -sf "$BIN_NAME" "$bindir/$OLD_BIN_NAME"
     installed="$bindir/$BIN_NAME"
   else
     bindir="$HOME/.local/bin"
     mkdir -p "$bindir"
     install -m 0755 "$binpath" "$bindir/$BIN_NAME"
+    ln -sf "$BIN_NAME" "$bindir/$OLD_BIN_NAME"
     installed="$bindir/$BIN_NAME"
   fi
 else
   install -m 0755 "$binpath" "$bindir/$BIN_NAME"
+  ln -sf "$BIN_NAME" "$bindir/$OLD_BIN_NAME"
   installed="$bindir/$BIN_NAME"
 fi
 

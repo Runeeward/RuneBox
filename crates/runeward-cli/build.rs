@@ -1,4 +1,4 @@
-//! Stamps the version reported by `runeward version`: `$RUNEWARD_VERSION`
+//! Stamps the version reported by `runebox version`: `$RUNEWARD_VERSION`
 //! when set at build time (release builds), otherwise the package version
 //! plus the git commit when git is available.
 

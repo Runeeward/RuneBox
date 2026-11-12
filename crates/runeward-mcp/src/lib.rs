@@ -26,7 +26,7 @@
 //!   principal named by `RUNEWARD_MCP_DEFAULT_PRINCIPAL` (default
 //!   `mcp-stdio`), or, when `RUNEWARD_AUTHZ_FILE` is configured, the
 //!   principal matching `RUNEWARD_MCP_DEFAULT_TOKEN` or the stored
-//!   `runeward auth login` token.
+//!   `runebox auth login` token.
 //! - **streamable HTTP** ([`router`] to mount at `/mcp`, or [`serve_http`]
 //!   for `runeward mcp --http`): the caller is identified per request from
 //!   its `Authorization: Bearer` token. With an authz store, unknown or
@@ -76,7 +76,7 @@ pub use tools::{canonical_json, tool_definitions, tool_list_digest};
 pub const SERVER_NAME: &str = "runeward";
 
 /// The reported MCP server implementation version (the Go server's).
-pub const VERSION: &str = "0.4.3";
+pub const VERSION: &str = "0.4.4";
 
 /// Names the stdio principal when no authz store is configured.
 pub const ENV_MCP_DEFAULT_PRINCIPAL: &str = "RUNEWARD_MCP_DEFAULT_PRINCIPAL";

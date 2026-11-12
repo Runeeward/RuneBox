@@ -114,7 +114,7 @@ cosign verify ghcr.io/runeeward/runeward:<tag> \
 ```
 
 Each release also ships an SPDX SBOM of the Rust dependency graph
-(`runeward_<version>.sbom.spdx.json`), covered by the same signature.
+(`runebox_<version>.sbom.spdx.json`), covered by the same signature.
 
 ## Safe harbor
 

@@ -24,10 +24,10 @@ Exit codes:
      retrying later may succeed
 A refusal prints `refused (<reason>, retryable=<bool>, request_id=<id>): <message>`.";
 
-/// `runeward`: policy, approvals, and signed audit for AI agents.
+/// `runebox`: policy, approvals, and signed audit for AI agents.
 #[derive(Debug, Parser)]
 #[command(
-    name = "runeward",
+    name = "runebox",
     about = "Policy, approvals, and signed audit for AI agents",
     long_about = ROOT_LONG,
     disable_version_flag = true
@@ -42,7 +42,7 @@ pub struct Cli {
         default_value = ""
     )]
     pub config_dir: String,
-    /// version for runeward
+    /// version for runebox
     #[arg(short = 'v', long = "version")]
     pub show_version: bool,
     #[command(subcommand)]
@@ -66,7 +66,7 @@ pub enum Command {
     Chronicle(ChronicleCmd),
     /// Drive a governed Cohort by prompt (create, push prompts, run an agent on each)
     #[command(
-        long_about = "Talks to a running `runeward serve`. `up` creates a Cohort and remembers its id;
+        long_about = "Talks to a running `runebox serve`. `up` creates a Cohort and remembers its id;
 `exec` runs a prompt on one Citadel (workspace accumulates); `add`+`run` fan
 prompts out across all workers in parallel. Pick the agent with --agent and
 the model with --model."
@@ -74,7 +74,7 @@ the model with --model."
     Cohort(CohortArgs),
     /// Manage a running Citadel's workspace: fork, sleep, wake, status, perimeter
     #[command(
-        long_about = "Talks to a running `runeward serve`. `fork` copies a Citadel's workspace into a
+        long_about = "Talks to a running `runebox serve`. `fork` copies a Citadel's workspace into a
 new, independent Citadel; `sleep` and `wake` stop and resume a persistent
 workspace (Charter [workspace] persist = true) under the same id; `status`
 shows the isolation tier the backend delivered, usage and the workspace
@@ -83,7 +83,7 @@ state; `perimeter` lists egress and request-broker decisions."
     Citadel(CitadelArgs),
     /// Start, follow and cancel agent-session turns
     #[command(
-        long_about = "Talks to a running `runeward serve`. `turn` starts the next turn of an agent
+        long_about = "Talks to a running `runebox serve`. `turn` starts the next turn of an agent
 session (its agent CLI with your prompt) and streams the output; `attach`
 replays the transcript after a sequence number and then follows live
 output, so a dropped client loses nothing; `cancel` stops the active turn
@@ -92,7 +92,7 @@ output, so a dropped client loses nothing; `cancel` stops the active turn
     Session(SessionArgs),
     /// Create and manage scheduled agent runs (cron or interval)
     #[command(
-        long_about = "Talks to a running `runeward serve`. A schedule targets one Citadel or one
+        long_about = "Talks to a running `runebox serve`. A schedule targets one Citadel or one
 Cohort and fires on a 5-field UTC cron expression or a fixed interval
 (at least 1m). Each firing asks policy, runs the optional precheck (the
 agent starts only if it exits 0) and starts a fresh agent session."
@@ -107,7 +107,7 @@ agent starts only if it exits 0) and starts a fresh agent session."
     #[command(
         long_about = "Watch runeward.dev/v1alpha1 Citadel and Cohort resources and reconcile
 them onto the governed Kubernetes backend. Apply the CRDs from deploy/crds
-first (or use `runeward up`). Profiles are resolved from --config-dir /
+first (or use `runebox up`). Profiles are resolved from --config-dir /
 $RUNEWARD_CONFIG_DIR, typically a mounted ConfigMap in-cluster."
     )]
     Controller {
@@ -275,7 +275,7 @@ error-severity finding; --strict also fails on warnings."
         long_about = "Serve a validating+mutating admission webhook that applies
 runeward.dev/v1alpha1 ClusterPolicy defaults and guardrails to Citadel
 and Cohort resources. Apply the ClusterPolicy CRD first (or use
-`runeward up`). The webhook self-registers its configurations and serves
+`runebox up`). The webhook self-registers its configurations and serves
 HTTPS with a self-signed certificate it mints on startup."
     )]
     Webhook {
@@ -479,7 +479,7 @@ mutations, gate package installs, confine egress, …). Run without a
 template name (or with --list) to see what's available, then paste the
 output into a Charter:
 
-  runeward policy scaffold package-approval >> mycharter.toml
+  runebox policy scaffold package-approval >> mycharter.toml
 "
     )]
     Scaffold {
@@ -534,7 +534,7 @@ pub struct RemoteArgs {
         default_value = "http://127.0.0.1:8080"
     )]
     pub base: String,
-    /// control-plane bearer token (or $RUNEWARD_API_TOKEN / `runeward auth login`)
+    /// control-plane bearer token (or $RUNEWARD_API_TOKEN / `runebox auth login`)
     #[arg(long, global = true, default_value = "")]
     pub token: String,
     /// print the server's JSON instead of text
@@ -718,7 +718,7 @@ pub struct CohortArgs {
     /// Cohort id; defaults to the one saved by `cohort up`
     #[arg(long, global = true, default_value = "")]
     pub cohort: String,
-    /// control-plane bearer token (or $RUNEWARD_API_TOKEN / `runeward auth login`)
+    /// control-plane bearer token (or $RUNEWARD_API_TOKEN / `runebox auth login`)
     #[arg(long, global = true, default_value = "")]
     pub token: String,
     /// print the server's JSON instead of text (memory, note, brief, handoff, task)
@@ -910,10 +910,10 @@ and manifests it would run and mutates nothing. All downloads are
 checksum-verified (fail closed); all shell-outs are timeout-bounded.
 
 Examples:
-  runeward runtime install gvisor                 # dry-run docker plan
-  runeward runtime install gvisor --apply         # download+verify+register
-  runeward runtime install gvisor --engine k8s    # print a RuntimeClass
-  runeward runtime install kata --engine k8s --apply"
+  runebox runtime install gvisor                 # dry-run docker plan
+  runebox runtime install gvisor --apply         # download+verify+register
+  runebox runtime install gvisor --engine k8s    # print a RuntimeClass
+  runebox runtime install kata --engine k8s --apply"
     )]
     Install {
         /// gvisor or kata
@@ -972,7 +972,7 @@ pub const RESERVED: &[&str] = &[
 ];
 
 /// Injects `enter` before the first non-flag token when that token is not
-/// a reserved subcommand, so `runeward <charter>` means `enter <charter>`.
+/// a reserved subcommand, so `runebox <charter>` means `enter <charter>`.
 pub fn rewrite_for_enter(args: Vec<OsString>) -> Vec<OsString> {
     let mut i = 0;
     while i < args.len() {
@@ -1002,7 +1002,7 @@ pub fn rewrite_for_enter(args: Vec<OsString>) -> Vec<OsString> {
 /// the process exit code: 0 on success, 1 on any error (usage errors too,
 /// as the Go CLI does).
 pub async fn execute(argv: Vec<OsString>) -> i32 {
-    let mut full = vec![OsString::from("runeward")];
+    let mut full = vec![OsString::from("runebox")];
     full.extend(rewrite_for_enter(argv));
     let cli = match Cli::try_parse_from(full) {
         Ok(c) => c,
@@ -1030,14 +1030,14 @@ async fn dispatch(cli: Cli) -> Result<()> {
     let cfg = cli.config_dir.as_str();
     let Some(command) = cli.command else {
         if cli.show_version {
-            println!("runeward version {}", crate::version::VERSION);
+            println!("runebox version {}", crate::version::VERSION);
             return Ok(());
         }
         Cli::command().print_long_help()?;
         return Ok(());
     };
     if cli.show_version {
-        println!("runeward version {}", crate::version::VERSION);
+        println!("runebox version {}", crate::version::VERSION);
         return Ok(());
     }
     match command {
@@ -1088,7 +1088,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
             clap_complete::generate(
                 shell,
                 &mut Cli::command(),
-                "runeward",
+                "runebox",
                 &mut std::io::stdout(),
             );
             Ok(())
@@ -1123,7 +1123,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
         } => {
             let dest = go_abs(&expand_home(&dest_dir))?;
             runeward_backend::export(&citadel_id, std::path::Path::new(&dest)).await?;
-            eprintln!("runeward: exported citadel {citadel_id} workspace -> {dest}");
+            eprintln!("runebox: exported citadel {citadel_id} workspace -> {dest}");
             Ok(())
         }
         Command::Init {
@@ -1206,7 +1206,7 @@ fn replay(path: &str, honor_timing: bool) -> Result<()> {
 }
 
 /// The bearer token: the flag, else `$RUNEWARD_API_TOKEN`, else the
-/// stored `runeward auth login` credential.
+/// stored `runebox auth login` credential.
 fn resolve_token(flag: &str) -> String {
     if flag.is_empty() {
         std::env::var("RUNEWARD_API_TOKEN")
@@ -1448,7 +1448,7 @@ mod tests {
 
     #[test]
     fn enter_takes_a_trailing_command() {
-        let cli = Cli::try_parse_from(["runeward", "enter", "dev", "--keep", "--", "ls", "-la"])
+        let cli = Cli::try_parse_from(["runebox", "enter", "dev", "--keep", "--", "ls", "-la"])
             .unwrap_or_else(|e| panic!("{e}"));
         match cli.command {
             Some(Command::Enter {

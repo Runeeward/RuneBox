@@ -1,4 +1,4 @@
-$ runeward runtime install runc
+$ runebox runtime install runc
 exit: 1
 --- stdout
 --- stderr

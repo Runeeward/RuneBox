@@ -8,7 +8,7 @@ use runeward_charter::{Finding, Severity};
 use crate::common::{charter_options, load_profile, resolve_config_dir};
 use crate::tabwriter::TabWriter;
 
-/// `runeward list`: every reachable Charter with its host and egress mode.
+/// `runebox list`: every reachable Charter with its host and egress mode.
 pub fn list(config_dir: &str) -> Result<()> {
     let dir = resolve_config_dir(config_dir);
     let opts = charter_options(&dir);
@@ -40,7 +40,7 @@ pub fn list(config_dir: &str) -> Result<()> {
     Ok(())
 }
 
-/// `runeward print <charter>`: the resolved, redacted controls.
+/// `runebox print <charter>`: the resolved, redacted controls.
 pub fn print(name: &str, config_dir: &str) -> Result<()> {
     let p = load_profile(name, config_dir)?;
     let mut stdout = std::io::stdout().lock();
@@ -48,7 +48,7 @@ pub fn print(name: &str, config_dir: &str) -> Result<()> {
     Ok(())
 }
 
-/// `runeward validate [charter...]`: lints Charters without launching
+/// `runebox validate [charter...]`: lints Charters without launching
 /// anything. Fails on any error finding, and on warnings under `--strict`.
 pub fn validate(names: &[String], strict: bool, config_dir: &str) -> Result<()> {
     let dir = resolve_config_dir(config_dir);

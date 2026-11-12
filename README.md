@@ -24,10 +24,10 @@ a new model or orchestration stack.
 
 ## Prove it in one command
 
-Prerequisites: a running Docker, OrbStack, or Podman engine and the `runeward` binary.
+Prerequisites: a running Docker, OrbStack, or Podman engine and the `runebox` binary.
 
 ```bash
-runeward quickstart
+runebox quickstart
 ```
 
 The command creates `.runeward/quickstart.toml`, checks the policy, runtime, image, and state path,
@@ -38,10 +38,10 @@ signed audit trail. It never overwrites an existing policy unless `--force` is p
 unset `env://` value is not presented as launch-ready.
 
 ```bash
-runeward doctor quickstart                     # explain setup problems safely
-runeward --config-dir .runeward serve          # dashboard + governed REST API
-runeward evidence export quickstart -o run.json
-runeward evidence verify run.json              # independent policy/audit verification
+runebox doctor quickstart                     # explain setup problems safely
+runebox --config-dir .runeward serve          # dashboard + governed REST API
+runebox evidence export quickstart -o run.json
+runebox evidence verify run.json              # independent policy/audit verification
 ```
 
 ## What Rune Box adds
@@ -77,7 +77,7 @@ original themed names for compatibility.
 | Network controls | Perimeter | `/perimeter`, `[network]` |
 | Budgets and limits | Rationing | `[rationing]` |
 | Agent group/fleet | Cohort | `/v1/cohorts`, `[cohort]` |
-| Signed policy bundle | Archive | `runeward archive`, `[policy_bundle]` |
+| Signed policy bundle | Archive | `runebox archive`, `[policy_bundle]` |
 
 See the full [naming and writing convention](docs/naming.md).
 
@@ -101,8 +101,8 @@ Local sandboxes require a running Docker, OrbStack, or Podman engine.
 
 ```bash
 brew install Runeeward/tap/runebox
-runeward version
-runeward quickstart
+runebox version
+runebox quickstart
 ```
 
 ### pip — Python SDK
@@ -142,8 +142,8 @@ To build the current `main` branch, use Rust **1.95** or newer (the workspace MS
 ```bash
 git clone https://github.com/Runeeward/RuneBox
 cd RuneBox
-cargo build --release --locked -p runeward-cli --bin runeward
-./target/release/runeward version
+cargo build --release --locked -p runeward-cli --bin runebox
+./target/release/runebox version
 ```
 
 `cargo install --locked --path crates/runeward-cli` installs it into `~/.cargo/bin` instead.
@@ -156,7 +156,7 @@ Expose governed tools to an MCP-capable IDE or agent:
 {
   "mcpServers": {
     "runeward": {
-      "command": "runeward",
+      "command": "runebox",
       "args": ["mcp", "--config-dir", ".runeward"]
     }
   }
@@ -166,7 +166,7 @@ Expose governed tools to an MCP-capable IDE or agent:
 Or place an agent CLI inside a sandbox and run one or many governed workers:
 
 ```bash
-runeward cohort --agent claude --model sonnet build "Build a tested API"
+runebox cohort --agent claude --model sonnet build "Build a tested API"
 ```
 
 Adapters are included for LangChain, CrewAI, LlamaIndex, OpenAI Agents, Strands, Vercel AI SDK,
@@ -177,7 +177,7 @@ The dashboard also has a read-only **Live chat** TTY for each Citadel. Agent har
 Python, and TypeScript equivalents), and authorized teammates can follow the redacted conversation
 without terminal input access. Rune Box cannot infer private UI chat text that the agent client does
 not publish; wire the publish call into the harness turn callback. The publisher must connect to the
-same `runeward serve` control plane as the dashboard (through `/mcp`, REST, or an SDK).
+same `runebox serve` control plane as the dashboard (through `/mcp`, REST, or an SDK).
 
 ## Harness agents and subagents
 
@@ -197,9 +197,9 @@ Policies support built-in glob rules, CEL, OPA/Rego, and signed OCI bundles. Tes
 from a reviewed scaffold, or derive exact proposals from verified production evidence:
 
 ```bash
-runeward policy scaffold package-approval
-runeward policy test quickstart --case 'tool=shell,action=rm -rf /,expect=deny'
-runeward policy learn run.json > proposed-policy.toml
+runebox policy scaffold package-approval
+runebox policy test quickstart --case 'tool=shell,action=rm -rf /,expect=deny'
+runebox policy learn run.json > proposed-policy.toml
 ```
 
 `policy learn` never edits a policy automatically. It verifies the evidence first, skips redacted
@@ -256,7 +256,7 @@ Rune Box is a Rust Cargo workspace (`crates/`) that builds four binaries:
 
 | Binary | Runs | Crate |
 | --- | --- | --- |
-| `runeward` | CLI, control plane (`serve`), MCP server, Kubernetes controller and webhook | `runeward-cli` |
+| `runebox` | CLI, control plane (`serve`), MCP server, Kubernetes controller and webhook | `runeward-cli` |
 | `runeward-egress` | Policy-enforcing egress proxy and credential broker (Linux sidecar) | `runeward-egress` |
 | `runeward-supervisor` | In-sandbox PID 1: Landlock, seccomp, dropped identity (Linux) | `runeward-supervisor` |
 | `runeward-browser` | In-sandbox headless-browser driver (Linux) | `runeward-browser` |

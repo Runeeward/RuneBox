@@ -1,4 +1,4 @@
-$ runeward charter sign charter.toml --key charter.key
+$ runebox charter sign charter.toml --key charter.key
 exit: 0
 --- stdout
 signed charter.toml

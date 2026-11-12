@@ -26,7 +26,7 @@ shown); the key is a placeholder for servers that ignore auth:
 ```bash
 OPENAI_BASE_URL=http://host.docker.internal:11434/v1 \
 OPENAI_API_KEY=local \
-runeward --config-dir examples serve
+runebox --config-dir examples serve
 ```
 
 Then create a Citadel from the `byo-model-gateway` Charter:

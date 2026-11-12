@@ -1,5 +1,5 @@
-//! `runeward serve` (the control plane: REST API, dashboard and `/mcp`) and
-//! `runeward mcp` (the MCP server over stdio or streamable HTTP).
+//! `runebox serve` (the control plane: REST API, dashboard and `/mcp`) and
+//! `runebox mcp` (the MCP server over stdio or streamable HTTP).
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -14,7 +14,7 @@ use runeward_server::{ServerConfig, TlsPaths};
 use crate::common::{manager_config_dir, resolve_config_dir, shutdown_signal};
 use crate::version::VERSION;
 
-/// `runeward serve` flags.
+/// `runebox serve` flags.
 #[derive(Debug, Clone, clap::Args)]
 pub struct ServeArgs {
     /// listen port
@@ -72,7 +72,7 @@ pub async fn server_config(args: &ServeArgs) -> Result<ServerConfig> {
     Ok(config)
 }
 
-/// `runeward serve`.
+/// `runebox serve`.
 pub async fn serve(args: &ServeArgs, config_dir: &str) -> Result<()> {
     let mut config = server_config(args).await?;
     let mgr = Manager::open(manager_config_dir(&resolve_config_dir(config_dir))).await?;
@@ -104,7 +104,7 @@ pub async fn serve(args: &ServeArgs, config_dir: &str) -> Result<()> {
     Ok(result?)
 }
 
-/// `runeward mcp`.
+/// `runebox mcp`.
 pub async fn mcp(args: &McpArgs, config_dir: &str) -> Result<()> {
     let authz = authz_from_env().await?;
     let config = McpConfig::from_env();

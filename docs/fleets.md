@@ -4,21 +4,21 @@ A Cohort is N governed Citadels coordinated by an atomic Command Board. It's how
 you run many agents in parallel (or iterate on one app) with the same isolation,
 policy, egress, and audit guarantees as a single environment.
 
-The `runeward cohort` command is a client to a running control plane
-(`runeward serve`), so start that first.
+The `runebox cohort` command is a client to a running control plane
+(`runebox serve`), so start that first.
 
 ## Subcommands
 
 | Command | What it does |
 | --- | --- |
-| `runeward cohort up [charter]` | Create a Cohort of workers from a Charter. |
-| `runeward cohort add <prompt>` | Queue a task (its own workspace when a worker picks it up). |
-| `runeward cohort run` | Let idle workers claim and execute queued tasks in parallel. |
-| `runeward cohort build <prompt>` | Shorthand: add a task and run it. |
-| `runeward cohort exec <prompt>` | Run a prompt pinned to a single Citadel (accumulates in one workspace). |
-| `runeward cohort status` | Show workers and Command Board state. |
-| `runeward cohort export [dir]` | Copy the finished workspace(s) back to the host. |
-| `runeward cohort down` | Tear the Cohort down. |
+| `runebox cohort up [charter]` | Create a Cohort of workers from a Charter. |
+| `runebox cohort add <prompt>` | Queue a task (its own workspace when a worker picks it up). |
+| `runebox cohort run` | Let idle workers claim and execute queued tasks in parallel. |
+| `runebox cohort build <prompt>` | Shorthand: add a task and run it. |
+| `runebox cohort exec <prompt>` | Run a prompt pinned to a single Citadel (accumulates in one workspace). |
+| `runebox cohort status` | Show workers and Command Board state. |
+| `runebox cohort export [dir]` | Copy the finished workspace(s) back to the host. |
+| `runebox cohort down` | Tear the Cohort down. |
 
 Select the agent and model with environment variables, e.g. `AGENT=claude`,
 `MODEL=sonnet`, `AGENT=codex MODEL=gpt-5-codex`, or `AGENT=cursor`.
@@ -38,11 +38,11 @@ Use `exec`, which pins to a single Citadel — the "pass a prompt, then add more
 prompts/changes" flow where the same code accumulates:
 
 ```bash
-AGENT=claude MODEL=sonnet runeward cohort up
-runeward cohort exec "Build a FastAPI todo API in app/ with SQLite and pytest"
-runeward cohort exec "Now add a PUT /todos/{id} endpoint and tests"   # same code
-runeward cohort exec "Add a Dockerfile and a README"
-runeward cohort export ./out
+AGENT=claude MODEL=sonnet runebox cohort up
+runebox cohort exec "Build a FastAPI todo API in app/ with SQLite and pytest"
+runebox cohort exec "Now add a PUT /todos/{id} endpoint and tests"   # same code
+runebox cohort exec "Add a Dockerfile and a README"
+runebox cohort export ./out
 ```
 
 `cohort run`, `build`, and `exec` create durable agent sessions instead of

@@ -1,5 +1,5 @@
 # Deny-by-default egress demo on a cached busybox image (has wget).
-#   runeward --config-dir examples serve
+#   runebox --config-dir examples serve
 #   POST /v1/sandboxes {"profile":"egress-demo"}
 # Only example.com is reachable; everything else is refused by the proxy.
 

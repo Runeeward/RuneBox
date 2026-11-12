@@ -1,7 +1,7 @@
 # A worked autonomous-agent profile with a deny-by-default contract. Sanitized
 # template; real operator profiles live in ~/.config/runeward/.
 #
-#   runeward --config-dir examples print ns-auto
+#   runebox --config-dir examples print ns-auto
 #
 # The agent gets a toolchain, a handful of credentials, and a short list of
 # hostnames it may talk to. Everything else is denied by default.

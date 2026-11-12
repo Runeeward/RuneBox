@@ -1,4 +1,4 @@
-$ runeward policy scaffold block-prod
+$ runebox policy scaffold block-prod
 exit: 0
 --- stdout
 # block-prod — refuse production-mutating commands and egress to prod hosts.
