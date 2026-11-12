@@ -18,8 +18,10 @@ COPY deploy/csi-directvolume/patches /patches
 RUN apk add --no-cache patch \
     && for p in /patches/*.patch; do patch -p1 --fuzz=0 < "$p" || exit 1; done \
     && go vet ./pkg/...
+# golang.org/x/net 0.62.0 fixes CVE-2026-78661 in Kata's pinned 0.60.0.
 RUN --mount=type=cache,target=/go/pkg/mod \
-    CGO_ENABLED=0 go build -trimpath \
+    go get golang.org/x/net@v0.62.0 \
+    && CGO_ENABLED=0 go build -trimpath \
     -ldflags "-s -w -X main.version=${KATA_VERSION}-runeward" \
     -o /out/directvolplugin ./cmd/directvolplugin
 
