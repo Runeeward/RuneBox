@@ -367,11 +367,24 @@ async fn snapshot_persists_profile_and_tenant_owner_and_restores() {
     );
     h.mgr.close().await.expect("close");
 
-    let reloaded = Manager::builder(super::support::config(h.dir.path(), None))
-        .registry(h.mgr.registry.clone())
-        .build()
-        .await
-        .expect("restart");
+    // A process another test spawns at this moment can briefly hold a
+    // forked copy of the ledger's descriptor, and with it the writer lock,
+    // so the restart retries for a moment instead of failing on that race.
+    let mut attempt = 0;
+    let reloaded = loop {
+        match Manager::builder(super::support::config(h.dir.path(), None))
+            .registry(h.mgr.registry.clone())
+            .build()
+            .await
+        {
+            Ok(m) => break m,
+            Err(e) if attempt < 40 && e.to_string().contains("already in use") => {
+                attempt += 1;
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+            Err(e) => panic!("restart: {e:?}"),
+        }
+    };
     let got = reloaded.snapshot_ref(&snap.id).expect("snapshot");
     assert_eq!(
         (got.profile.as_str(), got.name.as_str()),
