@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/runeward
+      url: https://pypi.org/p/rune-box
     permissions:
       id-token: write
     steps:
@@ -95,7 +95,7 @@ jobs:
         with:
           name: python-distributions
           path: dist
-      - name: Publish runeward to PyPI
+      - name: Publish rune-box to PyPI
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           # Tag workflows may be retried after one registry succeeds and the
@@ -108,7 +108,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: npm
-      url: https://www.npmjs.com/package/@runeward/sdk
+      url: https://www.npmjs.com/package/@runebox/sdk
     permissions:
       id-token: write
     steps:
@@ -132,27 +132,27 @@ jobs:
             exit 1
           fi
           echo "tarball=${tarballs[0]}" >> "$GITHUB_OUTPUT"
-      - name: Publish stable @runeward/sdk to npm
+      - name: Publish stable @runebox/sdk to npm
         if: ${{ !contains(inputs.version || github.ref_name, '-') }}
         env:
           NPM_TARBALL: ${{ steps.npm-distribution.outputs.tarball }}
           RELEASE_REF: ${{ inputs.version || github.ref_name }}
         run: |
           version="${RELEASE_REF#v}"
-          if npm view "@runeward/sdk@${version}" version >/dev/null 2>&1; then
-            echo "@runeward/sdk@${version} already exists; skipping publish"
+          if npm view "@runebox/sdk@${version}" version >/dev/null 2>&1; then
+            echo "@runebox/sdk@${version} already exists; skipping publish"
             exit 0
           fi
           npm publish "$NPM_TARBALL" --provenance
-      - name: Publish prerelease @runeward/sdk to npm next channel
+      - name: Publish prerelease @runebox/sdk to npm next channel
         if: ${{ contains(inputs.version || github.ref_name, '-') }}
         env:
           NPM_TARBALL: ${{ steps.npm-distribution.outputs.tarball }}
           RELEASE_REF: ${{ inputs.version || github.ref_name }}
         run: |
           version="${RELEASE_REF#v}"
-          if npm view "@runeward/sdk@${version}" version >/dev/null 2>&1; then
-            echo "@runeward/sdk@${version} already exists; skipping publish"
+          if npm view "@runebox/sdk@${version}" version >/dev/null 2>&1; then
+            echo "@runebox/sdk@${version} already exists; skipping publish"
             exit 0
           fi
           npm publish "$NPM_TARBALL" --provenance --tag next

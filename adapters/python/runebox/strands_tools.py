@@ -1,9 +1,9 @@
-"""Strands Agents SDK tool wrappers around :class:`RunewardClient`.
+"""Strands Agents SDK tool wrappers around :class:`RuneboxClient`.
 
 The `Strands Agents SDK <https://strandsagents.com>`_ (``pip install
-strands-agents``) is imported *lazily* inside :func:`make_runeward_tools` so the
-base ``runeward`` client keeps working without it. Install the extra with
-``pip install runeward[strands]``.
+strands-agents``) is imported *lazily* inside :func:`make_runebox_tools` so the
+base ``runebox`` client keeps working without it. Install the extra with
+``pip install rune-box[strands]``.
 
 Each returned tool is built with ``@tool``: Strands derives its schema from the
 function's type hints and docstring. Governance outcomes are converted into a
@@ -15,17 +15,17 @@ from __future__ import annotations
 
 from typing import Any, List
 
-from .client import RunewardApprovalRequired, RunewardClient, RunewardDenied
+from .client import RuneboxApprovalRequired, RuneboxClient, RuneboxDenied
 
 
-def _format_denied(exc: RunewardDenied) -> str:
+def _format_denied(exc: RuneboxDenied) -> str:
     return (
         f"DENIED by policy: {exc.reason}. Do not retry this action; choose a "
         "different, allowed approach or report the block to the human."
     )
 
 
-def _format_approval(exc: RunewardApprovalRequired) -> str:
+def _format_approval(exc: RuneboxApprovalRequired) -> str:
     return (
         f"APPROVAL REQUIRED (approval_id={exc.approval_id}): "
         f"{exc.reason or 'a human must sign off before this runs'}. "
@@ -33,19 +33,19 @@ def _format_approval(exc: RunewardApprovalRequired) -> str:
     )
 
 
-def make_runeward_tools(client: RunewardClient) -> List[Any]:
+def make_runebox_tools(client: RuneboxClient) -> List[Any]:
     """Build a list of Strands ``@tool`` functions bound to ``client``.
 
     Pass the result to a ``strands.Agent(tools=...)``. Requires
-    ``strands-agents`` (``pip install runeward[strands]``).
+    ``strands-agents`` (``pip install rune-box[strands]``).
     """
     # Lazy import so strands-agents stays an optional extra.
     try:
         from strands import tool
     except ImportError as exc:  # pragma: no cover - depends on optional extra
         raise ImportError(
-            "The Strands Agents SDK is required for make_runeward_tools(). "
-            "Install it with: pip install runeward[strands]"
+            "The Strands Agents SDK is required for make_runebox_tools(). "
+            "Install it with: pip install rune-box[strands]"
         ) from exc
 
     def _guard(fn):
@@ -55,16 +55,16 @@ def make_runeward_tools(client: RunewardClient) -> List[Any]:
             try:
                 result = fn(*args, **kwargs)
                 return result if isinstance(result, str) else str(result)
-            except RunewardDenied as denied:
+            except RuneboxDenied as denied:
                 return _format_denied(denied)
-            except RunewardApprovalRequired as approval:
+            except RuneboxApprovalRequired as approval:
                 return _format_approval(approval)
 
         return wrapped
 
     @tool
-    def runeward_create_citadel(profile: str) -> str:
-        """Provision a governed Citadel from a runeward Charter (e.g. 'dev').
+    def runebox_create_citadel(profile: str) -> str:
+        """Provision a governed Citadel from a runebox Charter (e.g. 'dev').
 
         Args:
             profile: Charter name, e.g. 'dev' or 'governed'.
@@ -72,18 +72,18 @@ def make_runeward_tools(client: RunewardClient) -> List[Any]:
         return _guard(client.create_sandbox)(profile)
 
     @tool
-    def runeward_shell(sandbox: str, command: List[str], workdir: str = "") -> str:
+    def runebox_shell(sandbox: str, command: List[str], workdir: str = "") -> str:
         """Run a shell command in a Citadel; returns verdict, exit_code, stdout, stderr.
 
         Args:
-            sandbox: Citadel id from runeward_create_citadel.
+            sandbox: Citadel id from runebox_create_citadel.
             command: argv list, e.g. ['ls', '-la'].
             workdir: Optional working directory.
         """
         return _guard(client.shell)(sandbox, command, workdir)
 
     @tool
-    def runeward_python(sandbox: str, code: str) -> str:
+    def runebox_python(sandbox: str, code: str) -> str:
         """Run a Python code snippet inside the Citadel.
 
         Args:
@@ -93,7 +93,7 @@ def make_runeward_tools(client: RunewardClient) -> List[Any]:
         return _guard(client.python)(sandbox, code)
 
     @tool
-    def runeward_node(sandbox: str, code: str) -> str:
+    def runebox_node(sandbox: str, code: str) -> str:
         """Run a Node.js code snippet inside the Citadel.
 
         Args:
@@ -103,7 +103,7 @@ def make_runeward_tools(client: RunewardClient) -> List[Any]:
         return _guard(client.node)(sandbox, code)
 
     @tool
-    def runeward_read_file(sandbox: str, path: str) -> str:
+    def runebox_read_file(sandbox: str, path: str) -> str:
         """Read a file's contents from the Citadel.
 
         Args:
@@ -113,7 +113,7 @@ def make_runeward_tools(client: RunewardClient) -> List[Any]:
         return _guard(client.read_file)(sandbox, path)
 
     @tool
-    def runeward_write_file(sandbox: str, path: str, content: str) -> str:
+    def runebox_write_file(sandbox: str, path: str, content: str) -> str:
         """Write content to a file in the Citadel.
 
         Args:
@@ -128,7 +128,7 @@ def make_runeward_tools(client: RunewardClient) -> List[Any]:
         return _guard(_write)()
 
     @tool
-    def runeward_list_files(sandbox: str, path: str) -> str:
+    def runebox_list_files(sandbox: str, path: str) -> str:
         """List a directory in the Citadel.
 
         Args:
@@ -138,7 +138,7 @@ def make_runeward_tools(client: RunewardClient) -> List[Any]:
         return _guard(client.list_files)(sandbox, path)
 
     @tool
-    def runeward_search_files(sandbox: str, query: str, path: str) -> str:
+    def runebox_search_files(sandbox: str, query: str, path: str) -> str:
         """Search for a query string under a path in the Citadel.
 
         Args:
@@ -149,12 +149,12 @@ def make_runeward_tools(client: RunewardClient) -> List[Any]:
         return _guard(client.search_files)(sandbox, query, path)
 
     @tool
-    def runeward_list_conclave() -> str:
+    def runebox_list_conclave() -> str:
         """List pending human-in-the-loop Conclave requests."""
         return _guard(client.list_approvals)()
 
     @tool
-    def runeward_kill_citadel(sandbox: str) -> str:
+    def runebox_kill_citadel(sandbox: str) -> str:
         """Tear down a Citadel when the task is finished.
 
         Args:
@@ -168,14 +168,14 @@ def make_runeward_tools(client: RunewardClient) -> List[Any]:
         return _guard(_kill)()
 
     return [
-        runeward_create_citadel,
-        runeward_shell,
-        runeward_python,
-        runeward_node,
-        runeward_read_file,
-        runeward_write_file,
-        runeward_list_files,
-        runeward_search_files,
-        runeward_list_conclave,
-        runeward_kill_citadel,
+        runebox_create_citadel,
+        runebox_shell,
+        runebox_python,
+        runebox_node,
+        runebox_read_file,
+        runebox_write_file,
+        runebox_list_files,
+        runebox_search_files,
+        runebox_list_conclave,
+        runebox_kill_citadel,
     ]

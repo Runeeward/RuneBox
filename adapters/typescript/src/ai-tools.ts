@@ -1,8 +1,8 @@
 /**
- * Vercel AI SDK tool wrappers around {@link RunewardClient}.
+ * Vercel AI SDK tool wrappers around {@link RuneboxClient}.
  *
  * `ai` and `zod` are **optional peer dependencies** — this module imports them
- * at call time inside {@link makeRunewardTools} so the core client stays
+ * at call time inside {@link makeRuneboxTools} so the core client stays
  * dependency-free. Install them where you use the tools:
  *
  * ```bash
@@ -20,17 +20,17 @@
  * pause for a human.
  */
 
-import { RunewardApprovalRequired, RunewardClient, RunewardDenied } from "./client.js";
+import { RuneboxApprovalRequired, RuneboxClient, RuneboxDenied } from "./client.js";
 
 /** Turn a governance error into a model-friendly instruction; rethrow otherwise. */
 function describeGovernance(err: unknown): string {
-  if (err instanceof RunewardDenied) {
+  if (err instanceof RuneboxDenied) {
     return (
       `DENIED by policy: ${err.reason}. Do not retry this action; choose a ` +
       `different, allowed approach or tell the human it was blocked.`
     );
   }
-  if (err instanceof RunewardApprovalRequired) {
+  if (err instanceof RuneboxApprovalRequired) {
     return (
       `APPROVAL REQUIRED (approval_id=${err.approvalId}): ` +
       `${err.reason || "a human must sign off before this runs"}. ` +
@@ -51,7 +51,7 @@ async function guarded<T>(fn: () => Promise<T>): Promise<string> {
 }
 
 /**
- * Build a map of Vercel AI SDK tools bound to `client`, keyed by the runeward
+ * Build a map of Vercel AI SDK tools bound to `client`, keyed by the runebox
  * MCP tool names. Spread the result into a `tools` object passed to
  * `generateText` / `streamText`.
  *
@@ -59,14 +59,14 @@ async function guarded<T>(fn: () => Promise<T>): Promise<string> {
  * ```ts
  * import { generateText } from "ai";
  * import { openai } from "@ai-sdk/openai";
- * import { RunewardClient } from "@runeward/sdk";
- * import { makeRunewardTools } from "@runeward/sdk/ai-tools";
+ * import { RuneboxClient } from "@runebox/sdk";
+ * import { makeRuneboxTools } from "@runebox/sdk/ai-tools";
  *
- * const tools = await makeRunewardTools(new RunewardClient());
+ * const tools = await makeRuneboxTools(new RuneboxClient());
  * await generateText({ model: openai("gpt-4o"), tools, prompt: "..." });
  * ```
  */
-export async function makeRunewardTools(client: RunewardClient) {
+export async function makeRuneboxTools(client: RuneboxClient) {
   // Dynamic imports keep `ai` and `zod` as optional peers. The `as string`
   // specifier makes these fully dynamic so tsc does not require the packages
   // to be installed to build this file.
@@ -74,9 +74,9 @@ export async function makeRunewardTools(client: RunewardClient) {
   const { z } = await import("zod" as string);
 
   return {
-    runeward_create_citadel: tool({
+    runebox_create_citadel: tool({
       description:
-        "Provision a governed Citadel from a runeward Charter (e.g. 'dev'). Returns Citadel metadata including its id.",
+        "Provision a governed Citadel from a runebox Charter (e.g. 'dev'). Returns Citadel metadata including its id.",
       parameters: z.object({
         profile: z.string().describe("Charter name, e.g. 'dev' or 'governed'."),
       }),
@@ -84,7 +84,7 @@ export async function makeRunewardTools(client: RunewardClient) {
         guarded(() => client.createSandbox(profile)),
     }),
 
-    runeward_shell: tool({
+    runebox_shell: tool({
       description:
         "Run a shell command (as an argv array, e.g. ['ls','-la']) in a Citadel. Returns verdict, exit_code, stdout, stderr.",
       parameters: z.object({
@@ -96,7 +96,7 @@ export async function makeRunewardTools(client: RunewardClient) {
         guarded(() => client.shell(sandbox, command, workdir ?? "")),
     }),
 
-    runeward_python: tool({
+    runebox_python: tool({
       description: "Run a Python code snippet inside the Citadel.",
       parameters: z.object({
         sandbox: z.string(),
@@ -106,7 +106,7 @@ export async function makeRunewardTools(client: RunewardClient) {
         guarded(() => client.python(sandbox, code)),
     }),
 
-    runeward_node: tool({
+    runebox_node: tool({
       description: "Run a Node.js code snippet inside the Citadel.",
       parameters: z.object({
         sandbox: z.string(),
@@ -116,7 +116,7 @@ export async function makeRunewardTools(client: RunewardClient) {
         guarded(() => client.node(sandbox, code)),
     }),
 
-    runeward_read_file: tool({
+    runebox_read_file: tool({
       description: "Read a file's contents from the Citadel.",
       parameters: z.object({
         sandbox: z.string(),
@@ -126,7 +126,7 @@ export async function makeRunewardTools(client: RunewardClient) {
         guarded(() => client.readFile(sandbox, path)),
     }),
 
-    runeward_write_file: tool({
+    runebox_write_file: tool({
       description: "Write content to a file in the Citadel.",
       parameters: z.object({
         sandbox: z.string(),
@@ -137,7 +137,7 @@ export async function makeRunewardTools(client: RunewardClient) {
         guarded(async () => `wrote ${await client.writeFile(sandbox, path, content)} bytes to ${path}`),
     }),
 
-    runeward_list_files: tool({
+    runebox_list_files: tool({
       description: "List a directory in the Citadel.",
       parameters: z.object({
         sandbox: z.string(),
@@ -147,7 +147,7 @@ export async function makeRunewardTools(client: RunewardClient) {
         guarded(() => client.listFiles(sandbox, path)),
     }),
 
-    runeward_search_files: tool({
+    runebox_search_files: tool({
       description: "Search for a query string under a path in the Citadel.",
       parameters: z.object({
         sandbox: z.string(),
@@ -158,13 +158,13 @@ export async function makeRunewardTools(client: RunewardClient) {
         guarded(() => client.searchFiles(sandbox, query, path)),
     }),
 
-    runeward_list_conclave: tool({
+    runebox_list_conclave: tool({
       description: "List pending human-in-the-loop Conclave requests.",
       parameters: z.object({}),
       execute: () => guarded(() => client.listApprovals()),
     }),
 
-    runeward_kill_citadel: tool({
+    runebox_kill_citadel: tool({
       description: "Tear down a Citadel when the task is finished.",
       parameters: z.object({
         sandbox: z.string(),

@@ -22,8 +22,8 @@ or escalated to a human; and everything is recorded in a tamper-evident Chronicl
 - **Building a Python agent** with LangChain, CrewAI, LlamaIndex, the OpenAI
   Agents SDK, or Strands? Use the [`runeward` Python package](#python-runeward).
 - **Building a TypeScript agent** on the Vercel AI SDK, LangChain.js, or Strands?
-  Use the [`@runeward/sdk` package](#typescript-runewardsdk).
-- **Rolling your own?** Both `RunewardClient`s are thin, typed wrappers over the
+  Use the [`@runebox/sdk` package](#typescript-runeboxsdk).
+- **Rolling your own?** Both `RuneboxClient`s are thin, typed wrappers over the
   REST control plane and work standalone with zero third-party runtime
   dependencies.
 
@@ -50,8 +50,8 @@ model-readable strings on the framework tools:
 
 !!! note "Authentication"
     If `runebox serve` is started with a token (`--token` / `RUNEWARD_API_TOKEN`)
-    or RBAC, pass it to the client — `RunewardClient(..., token="...")` in Python
-    or `new RunewardClient({ token: "..." })` in TypeScript.
+    or RBAC, pass it to the client — `RuneboxClient(..., token="...")` in Python
+    or `new RuneboxClient({ token: "..." })` in TypeScript.
 
 ## Python (`runeward`)
 
@@ -60,12 +60,12 @@ helpers are optional extras, imported lazily, so the base client works with
 nothing else installed.
 
 ```bash
-python -m pip install runeward
-python -m pip install 'runeward[langchain]'
-python -m pip install 'runeward[crewai]'
-python -m pip install 'runeward[llamaindex]'
-python -m pip install 'runeward[openai-agents]'
-python -m pip install 'runeward[strands]'
+python -m pip install rune-box
+python -m pip install 'rune-box[langchain]'
+python -m pip install 'rune-box[crewai]'
+python -m pip install 'rune-box[llamaindex]'
+python -m pip install 'rune-box[openai-agents]'
+python -m pip install 'rune-box[strands]'
 ```
 
 For repository development, use `python -m pip install -e ./adapters/python`.
@@ -73,17 +73,17 @@ For repository development, use `python -m pip install -e ./adapters/python`.
 ### Raw client
 
 ```python
-from runeward import RunewardClient, RunewardDenied, RunewardApprovalRequired
+from runebox import RuneboxClient, RuneboxDenied, RuneboxApprovalRequired
 
-rw = RunewardClient("http://localhost:8080")
+rw = RuneboxClient("http://localhost:8080")
 sbx = rw.create_sandbox("dev")
 print(rw.shell(sbx["id"], ["python3", "--version"])["stdout"])
 
 try:
     rw.shell(sbx["id"], ["rm", "-rf", "/"])
-except RunewardDenied as e:
+except RuneboxDenied as e:
     print("blocked by policy:", e.reason)        # do NOT retry
-except RunewardApprovalRequired as e:
+except RuneboxApprovalRequired as e:
     print("needs a human:", e.approval_id)        # pause for an operator
 
 rw.kill_sandbox(sbx["id"])
@@ -91,22 +91,22 @@ rw.kill_sandbox(sbx["id"])
 
 ### Framework tools
 
-Each framework module exposes a single `make_runeward_tools(client)` factory that
+Each framework module exposes a single `make_runebox_tools(client)` factory that
 returns that framework's native tool objects, all named `runeward_*`:
 
 ```python
-from runeward import RunewardClient
+from runebox import RuneboxClient
 
-client = RunewardClient("http://localhost:8080")
+client = RuneboxClient("http://localhost:8080")
 
 # Pick one, matching your framework:
-from runeward.langchain_tools import make_runeward_tools       # LangChain
-from runeward.crewai_tools import make_runeward_tools          # CrewAI
-from runeward.llamaindex_tools import make_runeward_tools      # LlamaIndex
-from runeward.openai_agents_tools import make_runeward_tools   # OpenAI Agents SDK
-from runeward.strands_tools import make_runeward_tools         # Strands Agents SDK
+from runebox.langchain_tools import make_runebox_tools       # LangChain
+from runebox.crewai_tools import make_runebox_tools          # CrewAI
+from runebox.llamaindex_tools import make_runebox_tools      # LlamaIndex
+from runebox.openai_agents_tools import make_runebox_tools   # OpenAI Agents SDK
+from runebox.strands_tools import make_runebox_tools         # Strands Agents SDK
 
-tools = make_runeward_tools(client)
+tools = make_runebox_tools(client)
 # LangChain:     pass `tools` to an AgentExecutor / create_react_agent(...)
 # CrewAI:        crewai.Agent(tools=tools, ...)
 # LlamaIndex:    FunctionAgent(tools=tools, ...) / ReActAgent
@@ -117,17 +117,17 @@ tools = make_runeward_tools(client)
 See the [Python adapter README](https://github.com/Runeeward/RuneBox/tree/main/adapters/python)
 for full, per-framework examples.
 
-## TypeScript (`@runeward/sdk`)
+## TypeScript (`@runebox/sdk`)
 
-The core `RunewardClient` uses the global `fetch` and has **no runtime
+The core `RuneboxClient` uses the global `fetch` and has **no runtime
 dependencies** (Node 18+, Deno, Bun, browsers). Tool wrappers require optional
 peer dependencies, imported lazily.
 
 ```bash
-npm install @runeward/sdk                            # core client
-npm install @runeward/sdk ai zod                     # + Vercel AI SDK tools
-npm install @runeward/sdk @langchain/core zod
-npm install @runeward/sdk @strands-agents/sdk zod
+npm install @runebox/sdk                            # core client
+npm install @runebox/sdk ai zod                     # + Vercel AI SDK tools
+npm install @runebox/sdk @langchain/core zod
+npm install @runebox/sdk @strands-agents/sdk zod
 ```
 
 For repository development, use `npm install ./adapters/typescript`.
@@ -135,9 +135,9 @@ For repository development, use `npm install ./adapters/typescript`.
 ### Raw client
 
 ```ts
-import { RunewardClient, RunewardDenied } from "@runeward/sdk";
+import { RuneboxClient, RuneboxDenied } from "@runebox/sdk";
 
-const rw = new RunewardClient({ baseUrl: "http://localhost:8080" });
+const rw = new RuneboxClient({ baseUrl: "http://localhost:8080" });
 const sbx = await rw.createSandbox("dev");
 console.log((await rw.shell(sbx.id, ["node", "--version"])).stdout);
 await rw.killSandbox(sbx.id);
@@ -148,10 +148,10 @@ await rw.killSandbox(sbx.id);
 ```ts
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { RunewardClient } from "@runeward/sdk";
-import { makeRunewardTools } from "@runeward/sdk/ai-tools";
+import { RuneboxClient } from "@runebox/sdk";
+import { makeRuneboxTools } from "@runebox/sdk/ai-tools";
 
-const tools = await makeRunewardTools(new RunewardClient());
+const tools = await makeRuneboxTools(new RuneboxClient());
 await generateText({ model: openai("gpt-4o"), tools, maxSteps: 8, prompt: "…" });
 ```
 
@@ -160,10 +160,10 @@ await generateText({ model: openai("gpt-4o"), tools, maxSteps: 8, prompt: "…" 
 ```ts
 import { ChatOpenAI } from "@langchain/openai";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
-import { RunewardClient } from "@runeward/sdk";
-import { makeRunewardTools } from "@runeward/sdk/langchain-tools";
+import { RuneboxClient } from "@runebox/sdk";
+import { makeRuneboxTools } from "@runebox/sdk/langchain-tools";
 
-const tools = await makeRunewardTools(new RunewardClient());
+const tools = await makeRuneboxTools(new RuneboxClient());
 const agent = createReactAgent({ llm: new ChatOpenAI({ model: "gpt-4o" }), tools });
 ```
 
@@ -171,10 +171,10 @@ const agent = createReactAgent({ llm: new ChatOpenAI({ model: "gpt-4o" }), tools
 
 ```ts
 import { Agent } from "@strands-agents/sdk";
-import { RunewardClient } from "@runeward/sdk";
-import { makeRunewardTools } from "@runeward/sdk/strands-tools";
+import { RuneboxClient } from "@runebox/sdk";
+import { makeRuneboxTools } from "@runebox/sdk/strands-tools";
 
-const tools = await makeRunewardTools(new RunewardClient());
+const tools = await makeRuneboxTools(new RuneboxClient());
 const agent = new Agent({ tools });
 await agent.invoke("Create a dev sandbox, run `node --version`, then tear it down.");
 ```

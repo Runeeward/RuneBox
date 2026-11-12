@@ -5,13 +5,13 @@ environment without pulling in ``requests`` or an async HTTP stack. The client
 mirrors the Rune Box REST contract 1:1 and translates the governance outcomes
 into exceptions:
 
-* HTTP ``403`` -> :class:`RunewardDenied` (policy) or
-  :class:`RunewardAuthorizationError` (role / resource access)
-* HTTP ``202`` -> :class:`RunewardApprovalRequired` (carries the ``approval_id``)
+* HTTP ``403`` -> :class:`RuneboxDenied` (policy) or
+  :class:`RuneboxAuthorizationError` (role / resource access)
+* HTTP ``202`` -> :class:`RuneboxApprovalRequired` (carries the ``approval_id``)
 * any other refused call (the body carries a ``refusal`` object: bad request,
   unknown resource, conflict, rate limit, ...) -> :class:`RefusedError`
 
-Everything else that isn't a 2xx becomes a :class:`RunewardError`. Every error
+Everything else that isn't a 2xx becomes a :class:`RuneboxError`. Every error
 exposes ``request_id`` (the ``X-Request-Id`` the server answered with) and,
 when the server proved the call never ran, a parsed :class:`Refusal`.
 """
@@ -28,11 +28,11 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, TypedDict
 
 __all__ = [
-    "RunewardClient",
-    "RunewardError",
-    "RunewardDenied",
-    "RunewardAuthorizationError",
-    "RunewardApprovalRequired",
+    "RuneboxClient",
+    "RuneboxError",
+    "RuneboxDenied",
+    "RuneboxAuthorizationError",
+    "RuneboxApprovalRequired",
     "RefusedError",
     "Refusal",
     "Sandbox",
@@ -70,7 +70,7 @@ class IsolationEvidence(TypedDict, total=False):
 
 class IsolationTierEvidence(TypedDict, total=False):
     """Where a sandbox's isolation tier comes from. ``floor``/``meets_floor``
-    (the Charter's ``[isolation] minimum``) only on :meth:`RunewardClient.get_sandbox`."""
+    (the Charter's ``[isolation] minimum``) only on :meth:`RuneboxClient.get_sandbox`."""
 
     tier: str
     backend: str
@@ -213,7 +213,7 @@ class Refusal:
         )
 
 
-class RunewardError(Exception):
+class RuneboxError(Exception):
     """Base error for any non-success response from the control plane.
 
     ``request_id`` correlates the error with the server's logs (the
@@ -239,22 +239,22 @@ class RunewardError(Exception):
         return ""
 
 
-class RefusedError(RunewardError):
+class RefusedError(RuneboxError):
     """Raised when the server refused a call before it ran and no more
     specific governance error applies (bad request, unknown resource,
     conflict such as ``session_busy``/``version_conflict``, rate limit,
     budget, isolation floor, ...).
 
     Policy denials, authorization failures and approval gates keep raising
-    :class:`RunewardDenied`, :class:`RunewardAuthorizationError` and
-    :class:`RunewardApprovalRequired`; those also carry ``refusal``.
+    :class:`RuneboxDenied`, :class:`RuneboxAuthorizationError` and
+    :class:`RuneboxApprovalRequired`; those also carry ``refusal``.
     """
 
     def __init__(self, reason: str, retryable: bool, request_id: str, message: str, *,
                  status: Optional[int] = None,
                  payload: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(
-            f"runeward refused the call ({reason}): {message}".rstrip(": "),
+            f"runebox refused the call ({reason}): {message}".rstrip(": "),
             status=status, payload=payload, request_id=request_id,
         )
         self.reason = reason
@@ -262,7 +262,7 @@ class RefusedError(RunewardError):
         self.message = message
 
 
-class RunewardDenied(RunewardError):
+class RuneboxDenied(RuneboxError):
     """Raised when policy denies an action (HTTP 403).
 
     ``reason`` explains *why* it was blocked. A denial is a policy decision, not
@@ -271,21 +271,21 @@ class RunewardDenied(RunewardError):
 
     def __init__(self, reason: str, *, payload: Optional[Dict[str, Any]] = None,
                  request_id: str = "") -> None:
-        super().__init__(f"runeward denied action: {reason}", status=403, payload=payload,
+        super().__init__(f"runebox denied action: {reason}", status=403, payload=payload,
                          request_id=request_id)
         self.reason = reason
 
 
-class RunewardAuthorizationError(RunewardError):
+class RuneboxAuthorizationError(RuneboxError):
     """Raised when an authenticated caller lacks role or resource access."""
 
     def __init__(self, message: str, *, payload: Optional[Dict[str, Any]] = None,
                  request_id: str = "") -> None:
-        super().__init__(f"runeward authorization denied: {message}", status=403, payload=payload,
+        super().__init__(f"runebox authorization denied: {message}", status=403, payload=payload,
                          request_id=request_id)
 
 
-class RunewardApprovalRequired(RunewardError):
+class RuneboxApprovalRequired(RuneboxError):
     """Raised when an action needs human approval (HTTP 202).
 
     ``approval_id`` identifies the pending request in the approvals inbox. The
@@ -296,7 +296,7 @@ class RunewardApprovalRequired(RunewardError):
     def __init__(self, approval_id: str, *, reason: str = "",
                  payload: Optional[Dict[str, Any]] = None, request_id: str = "") -> None:
         super().__init__(
-            f"runeward requires approval (id={approval_id}): {reason}".rstrip(": "),
+            f"runebox requires approval (id={approval_id}): {reason}".rstrip(": "),
             status=202,
             payload=payload,
             request_id=request_id,
@@ -305,12 +305,12 @@ class RunewardApprovalRequired(RunewardError):
         self.reason = reason
 
 
-class RunewardClient:
+class RuneboxClient:
     """Thin, synchronous client over the Rune Box REST control plane.
 
     Example
     -------
-    >>> rw = RunewardClient("http://localhost:8080")
+    >>> rw = RuneboxClient("http://localhost:8080")
     >>> sbx = rw.create_sandbox("dev")
     >>> rw.shell(sbx["id"], ["echo", "hello"])["stdout"]
     'hello\\n'
@@ -324,7 +324,7 @@ class RunewardClient:
         self.base_url = self._normalize_base_url(base_url)
         self._validate_transport(self.base_url, allow_insecure)
         self.timeout = timeout
-        self.token = token or os.environ.get("RUNEWARD_API_TOKEN")
+        self.token = token or os.environ.get("RUNEBOX_API_TOKEN")
         #: ``X-Request-Id`` of the most recent response (success or error).
         self.last_request_id: str = ""
 
@@ -361,13 +361,13 @@ class RunewardClient:
             # _raise_for_status always raises for non-2xx; keep the type checker happy.
             raise
         except urllib.error.URLError as exc:  # connection refused, DNS, timeout
-            raise RunewardError(f"could not reach runeward at {url}: {exc.reason}") from exc
+            raise RuneboxError(f"could not reach runebox at {url}: {exc.reason}") from exc
 
     def _decode(self, status: int, raw: bytes, request_id: str = "",
                 accepted: bool = False) -> Any:
         """Handle a response the stdlib treated as success (2xx)."""
         payload = self._safe_json(raw)
-        # 202 is "success" to urllib but means an approval gate to runeward,
+        # 202 is "success" to urllib but means an approval gate to runebox,
         # except on routes that answer 202 Accepted for queued work (agent
         # sessions and turns); there only an explicit verdict is a gate.
         if status == 202 and (not accepted or "verdict" in payload or "refusal" in payload):
@@ -410,7 +410,7 @@ class RunewardClient:
 
     @staticmethod
     def _env_allows_insecure() -> bool:
-        value = os.environ.get("RUNEWARD_ALLOW_INSECURE_HTTP", "").strip().lower()
+        value = os.environ.get("RUNEBOX_ALLOW_INSECURE_HTTP", "").strip().lower()
         return value in {"1", "true", "yes", "on"}
 
     @classmethod
@@ -422,14 +422,14 @@ class RunewardClient:
             return
         if allow_insecure or cls._env_allows_insecure():
             warnings.warn(
-                f"runeward client using insecure HTTP transport to non-loopback host: {base_url}",
+                f"runebox client using insecure HTTP transport to non-loopback host: {base_url}",
                 RuntimeWarning,
                 stacklevel=3,
             )
             return
         raise ValueError(
             "refusing insecure http:// base URL to non-loopback host; "
-            "use https://, set allow_insecure=True, or set RUNEWARD_ALLOW_INSECURE_HTTP=1"
+            "use https://, set allow_insecure=True, or set RUNEBOX_ALLOW_INSECURE_HTTP=1"
         )
 
     @staticmethod
@@ -448,13 +448,13 @@ class RunewardClient:
         if not isinstance(payload, dict):
             payload = {"raw": payload}
         if payload.get("code") == "authz_denied":
-            raise RunewardAuthorizationError(payload.get("error", "not authorized"), payload=payload,
+            raise RuneboxAuthorizationError(payload.get("error", "not authorized"), payload=payload,
                                              request_id=request_id)
         if payload.get("verdict") == "deny" or (status == 403 and not payload.get("code")):
-            raise RunewardDenied(payload.get("reason", "denied by policy"), payload=payload,
+            raise RuneboxDenied(payload.get("reason", "denied by policy"), payload=payload,
                                  request_id=request_id)
         if status == 202 or payload.get("verdict") == "require-approval":
-            raise RunewardApprovalRequired(
+            raise RuneboxApprovalRequired(
                 payload.get("approval_id", ""),
                 reason=payload.get("reason", ""),
                 payload=payload,
@@ -470,8 +470,8 @@ class RunewardClient:
                 status=status,
                 payload=payload,
             )
-        raise RunewardError(
-            f"runeward returned HTTP {status}: {payload}", status=status, payload=payload,
+        raise RuneboxError(
+            f"runebox returned HTTP {status}: {payload}", status=status, payload=payload,
             request_id=request_id,
         )
 

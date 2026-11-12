@@ -1,8 +1,8 @@
 /**
- * LangChain.js tool wrappers around {@link RunewardClient}.
+ * LangChain.js tool wrappers around {@link RuneboxClient}.
  *
  * `@langchain/core` and `zod` are **optional peer dependencies** — this module
- * imports them at call time inside {@link makeRunewardTools} so the core client
+ * imports them at call time inside {@link makeRuneboxTools} so the core client
  * stays dependency-free. Install them where you use the tools:
  *
  * ```bash
@@ -20,17 +20,17 @@
  * pause for a human.
  */
 
-import { RunewardApprovalRequired, RunewardClient, RunewardDenied } from "./client.js";
+import { RuneboxApprovalRequired, RuneboxClient, RuneboxDenied } from "./client.js";
 
 /** Turn a governance error into a model-friendly instruction; rethrow otherwise. */
 function describeGovernance(err: unknown): string {
-  if (err instanceof RunewardDenied) {
+  if (err instanceof RuneboxDenied) {
     return (
       `DENIED by policy: ${err.reason}. Do not retry this action; choose a ` +
       `different, allowed approach or tell the human it was blocked.`
     );
   }
-  if (err instanceof RunewardApprovalRequired) {
+  if (err instanceof RuneboxApprovalRequired) {
     return (
       `APPROVAL REQUIRED (approval_id=${err.approvalId}): ` +
       `${err.reason || "a human must sign off before this runs"}. ` +
@@ -52,7 +52,7 @@ async function guarded<T>(fn: () => Promise<T>): Promise<string> {
 
 /**
  * Build an array of LangChain.js `DynamicStructuredTool`s bound to `client`,
- * named to match the runeward MCP tools. Pass them to an agent (e.g.
+ * named to match the runebox MCP tools. Pass them to an agent (e.g.
  * `createReactAgent({ llm, tools })`) or bind them to a chat model with
  * `model.bindTools(tools)`.
  *
@@ -60,14 +60,14 @@ async function guarded<T>(fn: () => Promise<T>): Promise<string> {
  * ```ts
  * import { ChatOpenAI } from "@langchain/openai";
  * import { createReactAgent } from "@langchain/langgraph/prebuilt";
- * import { RunewardClient } from "@runeward/sdk";
- * import { makeRunewardTools } from "@runeward/sdk/langchain-tools";
+ * import { RuneboxClient } from "@runebox/sdk";
+ * import { makeRuneboxTools } from "@runebox/sdk/langchain-tools";
  *
- * const tools = await makeRunewardTools(new RunewardClient());
+ * const tools = await makeRuneboxTools(new RuneboxClient());
  * const agent = createReactAgent({ llm: new ChatOpenAI({ model: "gpt-4o" }), tools });
  * ```
  */
-export async function makeRunewardTools(client: RunewardClient) {
+export async function makeRuneboxTools(client: RuneboxClient) {
   // Dynamic imports keep `@langchain/core` and `zod` as optional peers. The
   // `as string` specifier makes these fully dynamic so tsc does not require the
   // packages to be installed to build this file.
@@ -76,9 +76,9 @@ export async function makeRunewardTools(client: RunewardClient) {
 
   return [
     new DynamicStructuredTool({
-      name: "runeward_create_citadel",
+      name: "runebox_create_citadel",
       description:
-        "Provision a governed Citadel from a runeward Charter (e.g. 'dev'). Returns Citadel metadata including its id.",
+        "Provision a governed Citadel from a runebox Charter (e.g. 'dev'). Returns Citadel metadata including its id.",
       schema: z.object({
         profile: z.string().describe("Charter name, e.g. 'dev' or 'governed'."),
       }),
@@ -87,7 +87,7 @@ export async function makeRunewardTools(client: RunewardClient) {
     }),
 
     new DynamicStructuredTool({
-      name: "runeward_shell",
+      name: "runebox_shell",
       description:
         "Run a shell command (as an argv array, e.g. ['ls','-la']) in a Citadel. Returns verdict, exit_code, stdout, stderr.",
       schema: z.object({
@@ -100,7 +100,7 @@ export async function makeRunewardTools(client: RunewardClient) {
     }),
 
     new DynamicStructuredTool({
-      name: "runeward_python",
+      name: "runebox_python",
       description: "Run a Python code snippet inside the Citadel.",
       schema: z.object({
         sandbox: z.string(),
@@ -111,7 +111,7 @@ export async function makeRunewardTools(client: RunewardClient) {
     }),
 
     new DynamicStructuredTool({
-      name: "runeward_node",
+      name: "runebox_node",
       description: "Run a Node.js code snippet inside the Citadel.",
       schema: z.object({
         sandbox: z.string(),
@@ -122,7 +122,7 @@ export async function makeRunewardTools(client: RunewardClient) {
     }),
 
     new DynamicStructuredTool({
-      name: "runeward_read_file",
+      name: "runebox_read_file",
       description: "Read a file's contents from the Citadel.",
       schema: z.object({
         sandbox: z.string(),
@@ -133,7 +133,7 @@ export async function makeRunewardTools(client: RunewardClient) {
     }),
 
     new DynamicStructuredTool({
-      name: "runeward_write_file",
+      name: "runebox_write_file",
       description: "Write content to a file in the Citadel.",
       schema: z.object({
         sandbox: z.string(),
@@ -145,7 +145,7 @@ export async function makeRunewardTools(client: RunewardClient) {
     }),
 
     new DynamicStructuredTool({
-      name: "runeward_list_files",
+      name: "runebox_list_files",
       description: "List a directory in the Citadel.",
       schema: z.object({
         sandbox: z.string(),
@@ -156,7 +156,7 @@ export async function makeRunewardTools(client: RunewardClient) {
     }),
 
     new DynamicStructuredTool({
-      name: "runeward_search_files",
+      name: "runebox_search_files",
       description: "Search for a query string under a path in the Citadel.",
       schema: z.object({
         sandbox: z.string(),
@@ -168,14 +168,14 @@ export async function makeRunewardTools(client: RunewardClient) {
     }),
 
     new DynamicStructuredTool({
-      name: "runeward_list_conclave",
+      name: "runebox_list_conclave",
       description: "List pending human-in-the-loop Conclave requests.",
       schema: z.object({}),
       func: async () => guarded(() => client.listApprovals()),
     }),
 
     new DynamicStructuredTool({
-      name: "runeward_kill_citadel",
+      name: "runebox_kill_citadel",
       description: "Tear down a Citadel when the task is finished.",
       schema: z.object({
         sandbox: z.string(),

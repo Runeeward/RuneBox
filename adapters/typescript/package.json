@@ -1,5 +1,5 @@
 {
-  "name": "@runeward/sdk",
+  "name": "@runebox/sdk",
   "version": "0.4.4",
   "description": "TypeScript SDK for Rune Box, the open-source governance harness for AI agents: policy, approvals, isolation, budgets, persistent workspaces and signed evidence.",
   "type": "module",

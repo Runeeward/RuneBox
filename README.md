@@ -88,8 +88,8 @@ Choose the package that matches how you use Rune Box:
 | Install with | What it installs | Command |
 | --- | --- | --- |
 | [Homebrew](https://github.com/Runeeward/homebrew-tap) | Rune Box CLI for macOS or Linux | `brew install Runeeward/tap/runebox` |
-| [PyPI](https://pypi.org/project/runeward/) | Python client and agent-framework adapters | `python -m pip install runeward` |
-| [npm](https://www.npmjs.com/package/@runeward/sdk) | TypeScript client and agent-framework tools | `npm install @runeward/sdk` |
+| [PyPI](https://pypi.org/project/rune-box/) | Python client and agent-framework adapters | `python -m pip install rune-box` |
+| [npm](https://www.npmjs.com/package/@runebox/sdk) | TypeScript client and agent-framework tools | `npm install @runebox/sdk` |
 
 For normal local use, install the CLI with Homebrew. For an agent integration, install the SDK for
 its language as well. The pip and npm packages connect to a running Rune Box API; they do not
@@ -110,8 +110,8 @@ runebox quickstart
 Requires Python 3.9 or newer. The base client has no third-party runtime dependencies.
 
 ```bash
-python -m pip install runeward
-python -c "import runeward; print(runeward.__version__)"
+python -m pip install rune-box
+python -c "import runebox; print(runebox.__version__)"
 ```
 
 ### npm — TypeScript SDK
@@ -119,8 +119,8 @@ python -c "import runeward; print(runeward.__version__)"
 Requires Node.js 18 or newer.
 
 ```bash
-npm install @runeward/sdk
-npm ls @runeward/sdk
+npm install @runebox/sdk
+npm ls @runebox/sdk
 ```
 
 See [Adapters](docs/adapters.md) for LangChain, CrewAI, LlamaIndex, OpenAI Agents, Strands,

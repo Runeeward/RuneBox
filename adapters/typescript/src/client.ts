@@ -5,13 +5,13 @@
  * has **no runtime dependencies**. It mirrors the Rune Box REST contract 1:1
  * and translates the governance outcomes into typed errors:
  *
- * - HTTP `403` -> {@link RunewardDenied} (policy) or
- *   {@link RunewardAuthorizationError} (role / resource access)
- * - HTTP `202` -> {@link RunewardApprovalRequired} (carries the `approvalId`)
+ * - HTTP `403` -> {@link RuneboxDenied} (policy) or
+ *   {@link RuneboxAuthorizationError} (role / resource access)
+ * - HTTP `202` -> {@link RuneboxApprovalRequired} (carries the `approvalId`)
  * - any other refused call (the body carries a `refusal` object) ->
  *   {@link RefusedError}
  *
- * Any other non-2xx response becomes a {@link RunewardError}. Every error
+ * Any other non-2xx response becomes a {@link RuneboxError}. Every error
  * exposes `requestId` (the server's `X-Request-Id`) and, when the server
  * proved the call never ran, the parsed {@link Refusal}.
  */
@@ -276,7 +276,7 @@ export interface CreateSandboxOptions {
  * `requestId` correlates it with the server's logs; `refusal` is set when the
  * server proved the call never ran.
  */
-export class RunewardError extends Error {
+export class RuneboxError extends Error {
   readonly status?: number;
   readonly payload: Record<string, unknown>;
   readonly refusal?: Refusal;
@@ -285,7 +285,7 @@ export class RunewardError extends Error {
 
   constructor(message: string, status?: number, payload: Record<string, unknown> = {}, requestId = "") {
     super(message);
-    this.name = "RunewardError";
+    this.name = "RuneboxError";
     this.status = status;
     this.payload = payload;
     this.refusal = parseRefusal(payload);
@@ -301,7 +301,7 @@ export class RunewardError extends Error {
  * denials, authorization failures and approval gates keep their own error
  * types, which also carry `refusal`.
  */
-export class RefusedError extends RunewardError {
+export class RefusedError extends RuneboxError {
   readonly reason: string;
   readonly retryable: boolean;
   /** The server's refusal message (unformatted). */
@@ -315,7 +315,7 @@ export class RefusedError extends RunewardError {
     status?: number,
     payload: Record<string, unknown> = {},
   ) {
-    super(`runeward refused the call (${reason})${message ? `: ${message}` : ""}`, status, payload, requestId);
+    super(`runebox refused the call (${reason})${message ? `: ${message}` : ""}`, status, payload, requestId);
     this.name = "RefusedError";
     this.reason = reason;
     this.retryable = retryable;
@@ -327,21 +327,21 @@ export class RefusedError extends RunewardError {
  * Thrown when policy denies an action (HTTP 403). A denial is a policy
  * decision, not a transient failure — do not retry the identical action.
  */
-export class RunewardDenied extends RunewardError {
+export class RuneboxDenied extends RuneboxError {
   readonly reason: string;
 
   constructor(reason: string, payload: Record<string, unknown> = {}, requestId = "") {
-    super(`runeward denied action: ${reason}`, 403, payload, requestId);
-    this.name = "RunewardDenied";
+    super(`runebox denied action: ${reason}`, 403, payload, requestId);
+    this.name = "RuneboxDenied";
     this.reason = reason;
   }
 }
 
 /** Thrown when the caller is authenticated but lacks resource or role access. */
-export class RunewardAuthorizationError extends RunewardError {
+export class RuneboxAuthorizationError extends RuneboxError {
 	constructor(message: string, payload: Record<string, unknown> = {}, requestId = "") {
-		super(`runeward authorization denied: ${message}`, 403, payload, requestId);
-		this.name = "RunewardAuthorizationError";
+		super(`runebox authorization denied: ${message}`, 403, payload, requestId);
+		this.name = "RuneboxAuthorizationError";
 	}
 }
 
@@ -349,20 +349,20 @@ export class RunewardAuthorizationError extends RunewardError {
  * Thrown when an action needs human approval (HTTP 202). Pause and surface the
  * `approvalId` to a human rather than working around the gate.
  */
-export class RunewardApprovalRequired extends RunewardError {
+export class RuneboxApprovalRequired extends RuneboxError {
   readonly approvalId: string;
   readonly reason: string;
 
   constructor(approvalId: string, reason = "", payload: Record<string, unknown> = {}, requestId = "") {
-    super(`runeward requires approval (id=${approvalId})${reason ? `: ${reason}` : ""}`, 202, payload, requestId);
-    this.name = "RunewardApprovalRequired";
+    super(`runebox requires approval (id=${approvalId})${reason ? `: ${reason}` : ""}`, 202, payload, requestId);
+    this.name = "RuneboxApprovalRequired";
     this.approvalId = approvalId;
     this.reason = reason;
   }
 }
 
-/** Options for constructing a {@link RunewardClient}. */
-export interface RunewardClientOptions {
+/** Options for constructing a {@link RuneboxClient}. */
+export interface RuneboxClientOptions {
   /** Control-plane base URL. Defaults to `http://localhost:8080`. */
   baseUrl?: string;
   /** Optional bearer token if the control plane requires auth. */
@@ -378,26 +378,26 @@ export interface RunewardClientOptions {
  *
  * @example
  * ```ts
- * const rw = new RunewardClient({ baseUrl: "http://localhost:8080" });
+ * const rw = new RuneboxClient({ baseUrl: "http://localhost:8080" });
  * const sbx = await rw.createSandbox("dev");
  * const out = await rw.shell(sbx.id, ["echo", "hello"]);
  * console.log(out.stdout); // "hello\n"
  * await rw.killSandbox(sbx.id);
  * ```
  */
-export class RunewardClient {
+export class RuneboxClient {
   private readonly baseUrl: string;
   private readonly token?: string;
   private readonly timeoutMs: number;
   /** `X-Request-Id` of the most recent response (success or error). */
   lastRequestId = "";
 
-  constructor(options: RunewardClientOptions = {}) {
+  constructor(options: RuneboxClientOptions = {}) {
     // Normalize so path joins never double up slashes.
     this.baseUrl = this.normalizeBaseUrl(options.baseUrl ?? "http://localhost:8080");
     this.validateTransport(this.baseUrl, options.allowInsecure ?? false);
     const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-    this.token = options.token ?? env?.RUNEWARD_API_TOKEN;
+    this.token = options.token ?? env?.RUNEBOX_API_TOKEN;
     this.timeoutMs = options.timeoutMs ?? 60_000;
   }
 
@@ -414,7 +414,7 @@ export class RunewardClient {
 
   private envAllowsInsecure(): boolean {
     const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-    const raw = env?.RUNEWARD_ALLOW_INSECURE_HTTP;
+    const raw = env?.RUNEBOX_ALLOW_INSECURE_HTTP;
     if (!raw) return false;
     const value = raw.trim().toLowerCase();
     return value === "1" || value === "true" || value === "yes" || value === "on";
@@ -425,11 +425,11 @@ export class RunewardClient {
     if (parsed.protocol !== "http:") return;
     if (this.isLoopbackHost(parsed.hostname)) return;
     if (allowInsecure || this.envAllowsInsecure()) {
-      console.warn(`runeward client using insecure HTTP transport to non-loopback host: ${baseUrl}`);
+      console.warn(`runebox client using insecure HTTP transport to non-loopback host: ${baseUrl}`);
       return;
     }
     throw new Error(
-      "refusing insecure http:// base URL to non-loopback host; use https://, set allowInsecure: true, or set RUNEWARD_ALLOW_INSECURE_HTTP=1",
+      "refusing insecure http:// base URL to non-loopback host; use https://, set allowInsecure: true, or set RUNEBOX_ALLOW_INSECURE_HTTP=1",
     );
   }
 
@@ -474,7 +474,7 @@ export class RunewardClient {
         signal: controller.signal,
       });
     } catch (err) {
-      throw new RunewardError(`could not reach runeward at ${url}: ${(err as Error).message}`);
+      throw new RuneboxError(`could not reach runebox at ${url}: ${(err as Error).message}`);
     } finally {
       clearTimeout(timer);
     }
@@ -504,13 +504,13 @@ export class RunewardClient {
 
   private raiseForStatus(status: number, payload: Record<string, unknown>, requestId = ""): never {
     if (payload.code === "authz_denied") {
-      throw new RunewardAuthorizationError(String(payload.error ?? "not authorized"), payload, requestId);
+      throw new RuneboxAuthorizationError(String(payload.error ?? "not authorized"), payload, requestId);
     }
     if (payload.verdict === "deny" || (status === 403 && payload.code === undefined)) {
-      throw new RunewardDenied(String(payload.reason ?? "denied by policy"), payload, requestId);
+      throw new RuneboxDenied(String(payload.reason ?? "denied by policy"), payload, requestId);
     }
     if (status === 202 || payload.verdict === "require-approval") {
-      throw new RunewardApprovalRequired(
+      throw new RuneboxApprovalRequired(
         String(payload.approval_id ?? ""),
         String(payload.reason ?? ""),
         payload,
@@ -528,7 +528,7 @@ export class RunewardClient {
         payload,
       );
     }
-    throw new RunewardError(`runeward returned HTTP ${status}: ${JSON.stringify(payload)}`, status, payload, requestId);
+    throw new RuneboxError(`runebox returned HTTP ${status}: ${JSON.stringify(payload)}`, status, payload, requestId);
   }
 
   // -- health & discovery ----------------------------------------------
