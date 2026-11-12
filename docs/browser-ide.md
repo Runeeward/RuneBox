@@ -5,7 +5,7 @@ inside the environment; `runebox serve` reverse-proxies it behind short-lived ti
 (same family as the interactive terminal). This is additive — it does **not**
 replace host-IDE MCP or in-environment CLI agents.
 
-Enable with `RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1`. Off by default.
+Enable with `RUNEBOX_ENABLE_EXPERIMENTAL_IDE=1`. Off by default.
 
 ## Ways to work with an IDE
 
@@ -20,8 +20,8 @@ Enable with `RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1`. Off by default.
 - Charter `[ide]`: `enabled`, `port` (default `8080`), optional `path`, optional
   `agents = ["claude", "codex", "cursor"]` (dashboard hints only).
 - Images from `deploy/Dockerfile.ide`:
-  - target `ide` → `runeward-ide:latest` (lean code-server).
-  - target `ide-agents` → `runeward-ide-agents:latest` (code-server + Claude
+  - target `ide` → `runebox-ide:latest` (lean code-server).
+  - target `ide-agents` → `runebox-ide-agents:latest` (code-server + Claude
     Code + Codex CLIs; optional Cursor CLI via build-args).
 - Example Charters: `ide-demo`, `ide-claude`, `ide-codex`, `ide-cursor`.
 - Control plane: starts code-server inside the environment, records container/pod IP:port (no
@@ -36,10 +36,10 @@ Enable with `RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1`. Off by default.
 ### Quick start
 
 ```bash
-docker build --target ide -f deploy/Dockerfile.ide -t runeward-ide:latest .
+docker build --target ide -f deploy/Dockerfile.ide -t runebox-ide:latest .
 
-RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1 \
-  RUNEWARD_STATE_DIR=/tmp/rw-ide \
+RUNEBOX_ENABLE_EXPERIMENTAL_IDE=1 \
+  RUNEBOX_STATE_DIR=/tmp/rw-ide \
   ./bin/runebox --config-dir examples serve
 
 # Create ide-demo → dashboard Open IDE, or:
@@ -51,21 +51,21 @@ RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1 \
 ### IDE + coding CLIs
 
 ```bash
-docker build --target ide-agents -f deploy/Dockerfile.ide -t runeward-ide-agents:latest .
+docker build --target ide-agents -f deploy/Dockerfile.ide -t runebox-ide-agents:latest .
 
 # Keys as documented in each Charter:
-#   ~/.runeward-anthropic.key  → ide-claude  (terminal: claude)
-#   ~/.runeward-openai.key     → ide-codex   (terminal: codex; source it from CODEX_API_KEY)
-#   ~/.runeward-cursor.key     → ide-cursor  (terminal: agent; needs Cursor build-args)
+#   ~/.runebox-anthropic.key  → ide-claude  (terminal: claude)
+#   ~/.runebox-openai.key     → ide-codex   (terminal: codex; source it from CODEX_API_KEY)
+#   ~/.runebox-cursor.key     → ide-cursor  (terminal: agent; needs Cursor build-args)
 
-RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1 ./bin/runebox --config-dir examples serve
+RUNEBOX_ENABLE_EXPERIMENTAL_IDE=1 ./bin/runebox --config-dir examples serve
 ```
 
 Cursor CLI in the agents image is opt-in (same digest-pinned installer as
 `Dockerfile.agent`):
 
 ```bash
-docker build --target ide-agents -f deploy/Dockerfile.ide -t runeward-ide-agents:latest \
+docker build --target ide-agents -f deploy/Dockerfile.ide -t runebox-ide-agents:latest \
   --build-arg INSTALL_CURSOR=true \
   --build-arg CURSOR_INSTALLER_SHA256=<digest> .
 ```

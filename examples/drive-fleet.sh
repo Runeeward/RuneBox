@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Drive a runeward fleet: give each sandbox one task, run the Cursor agent on it,
-# then mark the task done (or failed). runeward provisions the governed pods and
+# Drive a runebox fleet: give each sandbox one task, run the Cursor agent on it,
+# then mark the task done (or failed). runebox provisions the governed pods and
 # the shared task board; this loop is the "worker" that actually runs the agent.
 #
-#   RUNEWARD_TOKEN=<principal token> ./examples/drive-fleet.sh <fleet-id> [model]
+#   RUNEBOX_TOKEN=<principal token> ./examples/drive-fleet.sh <fleet-id> [model]
 set -euo pipefail
 
-BASE="${RUNEWARD_BASE:-http://127.0.0.1:8080}"
+BASE="${RUNEBOX_BASE:-http://127.0.0.1:8080}"
 FID="${1:?usage: drive-fleet.sh <fleet-id> [model]}"
 MODEL="${2:-opus-4.8}"   # use the exact slug your `agent` CLI accepts
-if [ -n "${RUNEWARD_AUTHZ_FILE:-}" ] && [ -z "${RUNEWARD_TOKEN:-}" ]; then
-  echo "error: RUNEWARD_TOKEN must select a principal when RUNEWARD_AUTHZ_FILE is set" >&2
+if [ -n "${RUNEBOX_AUTHZ_FILE:-}" ] && [ -z "${RUNEBOX_TOKEN:-}" ]; then
+  echo "error: RUNEBOX_TOKEN must select a principal when RUNEBOX_AUTHZ_FILE is set" >&2
   exit 1
 fi
-TOKEN="${RUNEWARD_TOKEN:-${RUNEWARD_API_TOKEN:-}}"
+TOKEN="${RUNEBOX_TOKEN:-${RUNEBOX_API_TOKEN:-}}"
 AUTH=()
 if [ -n "$TOKEN" ]; then AUTH=(-H "Authorization: Bearer $TOKEN"); fi
 

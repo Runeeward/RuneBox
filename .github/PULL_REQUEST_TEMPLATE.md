@@ -1,4 +1,4 @@
-<!-- Thanks for contributing to runeward! -->
+<!-- Thanks for contributing to runebox! -->
 
 ## Summary
 

@@ -9,12 +9,12 @@ telemetry is available too, but it is strictly opt-in and off by default.
 The control plane serves Prometheus metrics at `GET /metrics` (same listener as
 the REST API and dashboard; when an API token / RBAC is configured, `/metrics`
 requires the token too, so give the scraper a bearer credential). Point a
-scraper at it — the `job_name` must contain `runeward` so the
-`RunewardTargetDown` alert matches:
+scraper at it — the `job_name` must contain `runebox` so the
+`RuneboxTargetDown` alert matches:
 
 ```yaml
 scrape_configs:
-  - job_name: runeward
+  - job_name: runebox
     metrics_path: /metrics
     static_configs:
       - targets: ["localhost:8080"]
@@ -24,25 +24,25 @@ The control plane exports:
 
 | Metric                             | Type      | Labels           | Meaning                                              |
 | ---------------------------------- | --------- | ---------------- | ---------------------------------------------------- |
-| `runeward_actions_total`           | counter   | `tool`, `verdict`| Governed actions processed, by tool and verdict.     |
-| `runeward_actions_duration_seconds`| histogram | `tool`           | Wall-clock duration of executed governed actions.    |
-| `runeward_sandboxes_created_total` | counter   | —                | Sandboxes created since start.                       |
-| `runeward_usage_tokens_total`      | counter   | `profile`        | Model tokens reported via the usage API, by profile. |
-| `runeward_usage_cost_usd_total`    | counter   | `profile`        | Reported spend (USD) via the usage API, by profile.  |
-| `runeward_build_info`              | gauge     | `version`        | Always `1`; carries the running version as a label.  |
+| `runebox_actions_total`           | counter   | `tool`, `verdict`| Governed actions processed, by tool and verdict.     |
+| `runebox_actions_duration_seconds`| histogram | `tool`           | Wall-clock duration of executed governed actions.    |
+| `runebox_sandboxes_created_total` | counter   | —                | Sandboxes created since start.                       |
+| `runebox_usage_tokens_total`      | counter   | `profile`        | Model tokens reported via the usage API, by profile. |
+| `runebox_usage_cost_usd_total`    | counter   | `profile`        | Reported spend (USD) via the usage API, by profile.  |
+| `runebox_build_info`              | gauge     | `version`        | Always `1`; carries the running version as a label.  |
 
 `verdict` mirrors the ledger: `allow`, `deny`, `require-approval`, or `error`.
 A label series appears only after its first event, so a fresh process shows just
-`runeward_build_info` and `runeward_sandboxes_created_total` until traffic flows.
+`runebox_build_info` and `runebox_sandboxes_created_total` until traffic flows.
 
-Because `runeward_actions_duration_seconds` is a histogram, Prometheus also
-exposes `runeward_actions_duration_seconds_bucket` (with an `le` label),
+Because `runebox_actions_duration_seconds` is a histogram, Prometheus also
+exposes `runebox_actions_duration_seconds_bucket` (with an `le` label),
 `_sum`, and `_count` series for quantile and average calculations.
 
 ## Grafana dashboard
 
 A ready-to-import dashboard lives at
-[`deploy/grafana/runeward-dashboard.json`](https://github.com/Runeeward/RuneBox/blob/main/deploy/grafana/runeward-dashboard.json).
+[`deploy/grafana/runebox-dashboard.json`](https://github.com/Runeeward/RuneBox/blob/main/deploy/grafana/runebox-dashboard.json).
 It contains only panels built from the metrics above: deny ratio,
 require-approval rate, action rate by verdict, top tools by action rate, p95
 action duration per tool, sandbox creation rate/total, and a build-info table.
@@ -50,7 +50,7 @@ action duration per tool, sandbox creation rate/total, and a build-info table.
 To import:
 
 1. In Grafana, go to **Dashboards → New → Import**.
-2. Upload `runeward-dashboard.json` (or paste its contents).
+2. Upload `runebox-dashboard.json` (or paste its contents).
 3. When prompted for the **`DS_PROMETHEUS`** input, select the Prometheus
    datasource that scrapes Rune Box, then click **Import**.
 
@@ -60,30 +60,30 @@ dashboard is repointed by that single selection.
 ## Alert rules
 
 Prometheus alerting rules live at
-[`deploy/prometheus/runeward-alerts.yaml`](https://github.com/Runeeward/RuneBox/blob/main/deploy/prometheus/runeward-alerts.yaml).
+[`deploy/prometheus/runebox-alerts.yaml`](https://github.com/Runeeward/RuneBox/blob/main/deploy/prometheus/runebox-alerts.yaml).
 Reference the file from `prometheus.yml` and reload (or restart) Prometheus:
 
 ```yaml
 rule_files:
-  - /etc/prometheus/rules/runeward-alerts.yaml
+  - /etc/prometheus/rules/runebox-alerts.yaml
 ```
 
 ```bash
 # Validate before shipping (part of the Prometheus toolchain):
-promtool check rules deploy/prometheus/runeward-alerts.yaml
+promtool check rules deploy/prometheus/runebox-alerts.yaml
 
 # Hot-reload a running Prometheus once the file is in place:
 curl -X POST http://localhost:9090/-/reload
 ```
 
-The group `runeward` contains:
+The group `runebox` contains:
 
 | Alert                      | Severity | Fires when                                                        | Indicates                                                            |
 | -------------------------- | -------- | ----------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `RunewardDenySpike`        | warning  | deny ratio > 50% for 10m                                          | Policy is blocking most traffic — bad actor or too-strict profile.   |
-| `RunewardHighActionLatency`| warning  | p95 action duration for a tool > 30s for 10m                      | Governed actions are slow; backend/sandbox or downstream is degraded.|
-| `RunewardNoActivity`       | info     | overall action rate == 0 for 30m                                  | Idle, or agents can no longer reach the control plane.               |
-| `RunewardTargetDown`       | critical | `up` for a `.*runeward.*` job == 0 for 5m                         | The control plane is down or unreachable.                            |
+| `RuneboxDenySpike`        | warning  | deny ratio > 50% for 10m                                          | Policy is blocking most traffic — bad actor or too-strict profile.   |
+| `RuneboxHighActionLatency`| warning  | p95 action duration for a tool > 30s for 10m                      | Governed actions are slow; backend/sandbox or downstream is degraded.|
+| `RuneboxNoActivity`       | info     | overall action rate == 0 for 30m                                  | Idle, or agents can no longer reach the control plane.               |
+| `RuneboxTargetDown`       | critical | `up` for a `.*runebox.*` job == 0 for 5m                         | The control plane is down or unreachable.                            |
 
 ## Structured logs
 
@@ -92,13 +92,13 @@ output (stderr):
 
 | Variable               | Values                          | Default |
 | ---------------------- | ------------------------------- | ------- |
-| `RUNEWARD_LOG_FORMAT`  | `text`, `json`                  | `text`  |
-| `RUNEWARD_LOG_LEVEL`   | `debug`, `info`, `warn`, `error`| `info`  |
+| `RUNEBOX_LOG_FORMAT`  | `text`, `json`                  | `text`  |
+| `RUNEBOX_LOG_LEVEL`   | `debug`, `info`, `warn`, `error`| `info`  |
 
 Use `json` when shipping to a log aggregator:
 
 ```bash
-RUNEWARD_LOG_FORMAT=json RUNEWARD_LOG_LEVEL=info runebox --config-dir examples serve
+RUNEBOX_LOG_FORMAT=json RUNEBOX_LOG_LEVEL=info runebox --config-dir examples serve
 ```
 
 ```json
@@ -114,8 +114,8 @@ Rune Box never phones home unless you turn it on **and** point it at a collector
 you control. Telemetry is active only when both are set:
 
 ```bash
-export RUNEWARD_TELEMETRY=1
-export RUNEWARD_TELEMETRY_ENDPOINT=https://your-collector.example/ingest
+export RUNEBOX_TELEMETRY=1
+export RUNEBOX_TELEMETRY_ENDPOINT=https://your-collector.example/ingest
 ```
 
 The [DO_NOT_TRACK](https://consoledonottrack.com) convention always wins: if
@@ -131,5 +131,5 @@ Every `serve`/`controller` startup logs the current telemetry state so it is
 never a surprise:
 
 ```
-telemetry disabled (opt in with RUNEWARD_TELEMETRY=1 and RUNEWARD_TELEMETRY_ENDPOINT)
+telemetry disabled (opt in with RUNEBOX_TELEMETRY=1 and RUNEBOX_TELEMETRY_ENDPOINT)
 ```

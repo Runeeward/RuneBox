@@ -105,21 +105,21 @@ jobs:
       matrix:
         include:
           - dockerfile: deploy/Dockerfile
-            image: runeward
+            image: runebox
           - dockerfile: deploy/Dockerfile.egress
-            image: runeward-egress
+            image: runebox-egress
           - dockerfile: deploy/Dockerfile.agent
-            image: runeward-agent
+            image: runebox-agent
           - dockerfile: deploy/Dockerfile.sandbox
-            image: runeward-sandbox
+            image: runebox-sandbox
           - dockerfile: deploy/Dockerfile.ide
-            image: runeward-ide
+            image: runebox-ide
             target: ide
           - dockerfile: deploy/Dockerfile.ide
-            image: runeward-ide-agents
+            image: runebox-ide-agents
             target: ide-agents
           - dockerfile: deploy/Dockerfile.csi-directvolume
-            image: runeward-csi-directvolume
+            image: runebox-csi-directvolume
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build ${{ matrix.image }} image

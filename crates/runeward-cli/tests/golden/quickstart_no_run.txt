@@ -1,6 +1,0 @@
-$ runebox quickstart --no-run
-exit: 0
---- stdout
-starter policy: .runeward/quickstart.toml
-setup complete; run `runebox doctor quickstart` when your container engine is ready
---- stderr

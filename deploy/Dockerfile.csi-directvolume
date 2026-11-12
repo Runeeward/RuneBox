@@ -20,7 +20,7 @@ RUN apk add --no-cache patch \
     && go vet ./pkg/...
 RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 go build -trimpath \
-    -ldflags "-s -w -X main.version=${KATA_VERSION}-runeward" \
+    -ldflags "-s -w -X main.version=${KATA_VERSION}-runebox" \
     -o /out/directvolplugin ./cmd/directvolplugin
 
 # mkfs, debugfs, blkid, fsck and mount for formatting and staging disks.

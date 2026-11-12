@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: runebox-controller
+  namespace: runebox
+  labels:
+    app.kubernetes.io/name: runebox
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: runebox-controller
+  namespace: runebox
+  labels:
+    app.kubernetes.io/name: runebox
+rules:
+  # Reconcile the custom resources and their status.
+  - apiGroups: ["runebox.runeward.io"]
+    resources: ["citadels", "cohorts"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["runebox.runeward.io"]
+    resources: ["citadels/status", "cohorts/status"]
+    verbs: ["get", "update", "patch"]
+  # Drive the Kubernetes backend (pods + workspace PVCs + egress config).
+  - apiGroups: [""]
+    resources: ["pods", "persistentvolumeclaims", "configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Kubernetes remotecommand uses POST on the exec subresource.
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  # Read-only: a pod that cannot start reports why in its events.
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: runebox-controller
+  namespace: runebox
+  labels:
+    app.kubernetes.io/name: runebox
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: runebox-controller
+subjects:
+  - kind: ServiceAccount
+    name: runebox-controller
+    namespace: runebox

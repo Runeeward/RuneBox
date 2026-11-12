@@ -53,7 +53,7 @@ workdir = "/workspace"
 
 [[env]]
 name = "REQUIRED_SECRET"
-op = "env://RUNEWARD_E2E_INTENTIONALLY_MISSING"
+op = "env://RUNEBOX_E2E_INTENTIONALLY_MISSING"
 EOF
 cat >"$work/authz.json" <<'EOF'
 {"principals":[
@@ -67,13 +67,13 @@ cat >"$work/authz.json" <<'EOF'
 EOF
 chmod 600 "$work/authz.json"
 
-binary=${RUNEWARD_E2E_BINARY:-$repo_root/runeward-e2e}
+binary=${RUNEBOX_E2E_BINARY:-$repo_root/runebox-e2e}
 if [[ ! -x "$binary" ]]; then
-  (cd "$repo_root" && cargo build --release --locked -p runeward-cli --bin runebox \
+  (cd "$repo_root" && cargo build --release --locked -p runebox-cli --bin runebox \
     && cp target/release/runebox "$binary")
 fi
 
-RUNEWARD_AUTHZ_FILE="$work/authz.json" RUNEWARD_STATE_DIR="$work/state" \
+RUNEBOX_AUTHZ_FILE="$work/authz.json" RUNEBOX_STATE_DIR="$work/state" \
   "$binary" --config-dir "$work/charters" serve --bind 127.0.0.1 --port 18080 --no-ui >"$work/server.log" 2>&1 &
 server_pid=$!
 for _ in $(seq 1 40); do

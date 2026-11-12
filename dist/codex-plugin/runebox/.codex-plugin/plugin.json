@@ -1,0 +1,22 @@
+{
+  "name": "runebox",
+  "version": "0.4.4",
+  "description": "Govern Codex execution with isolated Citadels, scoped Charters, approvals, budgets, and signed Chronicles.",
+  "author": {
+    "name": "Rune Box"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Rune Box",
+    "shortDescription": "Run agent actions inside governed Citadels.",
+    "longDescription": "Rune Box gives Codex an MCP execution boundary with least-privilege Charters, human Conclave approvals, budgets, tenant ownership, and a signed Chronicle.",
+    "developerName": "Rune Box",
+    "category": "Developer Tools",
+    "capabilities": [
+      "mcp",
+      "skills"
+    ],
+    "defaultPrompt": "Use Rune Box to complete this task in the least-privileged available Charter. Stop on policy denial, pause on approval, and tear down the Citadel when finished."
+  },
+  "mcpServers": "./.mcp.json"
+}

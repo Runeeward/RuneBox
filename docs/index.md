@@ -24,7 +24,7 @@ denial, and verifies the signed audit trail. Continue with the [Quickstart](quic
 the dashboard:
 
 ```bash
-runebox --config-dir .runeward serve
+runebox --config-dir .runebox serve
 ```
 
 ## The control loop

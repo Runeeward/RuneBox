@@ -22,7 +22,7 @@ runebox version
 runebox quickstart
 ```
 
-The formula was named `runeward` before v0.4.2. `brew upgrade` moves an existing install to
+The formula was named `runebox` before v0.4.2. `brew upgrade` moves an existing install to
 `runebox`.
 
 The command was called `runeward` before v0.4.4; that name still works for one release.
@@ -62,7 +62,7 @@ curl -fsSL https://raw.githubusercontent.com/Runeeward/RuneBox/main/install.sh |
 Pin a release or location:
 
 ```bash
-RUNEWARD_VERSION=v0.4.4 RUNEWARD_BIN_DIR="$HOME/.local/bin" \
+RUNEBOX_VERSION=v0.4.4 RUNEBOX_BIN_DIR="$HOME/.local/bin" \
   sh -c "$(curl -fsSL https://raw.githubusercontent.com/Runeeward/RuneBox/main/install.sh)"
 ```
 
@@ -78,28 +78,28 @@ changes:
 ```bash
 git clone https://github.com/Runeeward/RuneBox
 cd RuneBox
-cargo build --release --locked -p runeward-cli --bin runebox
+cargo build --release --locked -p runebox-cli --bin runebox
 ./target/release/runebox version
 ```
 
-The Linux-only helpers build the same way: `-p runeward-egress`, `-p runeward-supervisor` and
-`-p runeward-browser`.
+The Linux-only helpers build the same way: `-p runebox-egress`, `-p runebox-supervisor` and
+`-p runebox-browser`.
 
 ## Container images
 
 Published multi-architecture images:
 
 ```bash
-docker pull ghcr.io/runeeward/runeward:latest
-docker pull ghcr.io/runeeward/runeward-egress:latest
-docker pull ghcr.io/runeeward/runeward-agent:latest
-docker pull ghcr.io/runeeward/runeward-sandbox:latest
-docker pull ghcr.io/runeeward/runeward-ide:latest
-docker pull ghcr.io/runeeward/runeward-ide-agents:latest
+docker pull ghcr.io/runeeward/runebox:latest
+docker pull ghcr.io/runeeward/runebox-egress:latest
+docker pull ghcr.io/runeeward/runebox-agent:latest
+docker pull ghcr.io/runeeward/runebox-sandbox:latest
+docker pull ghcr.io/runeeward/runebox-ide:latest
+docker pull ghcr.io/runeeward/runebox-ide-agents:latest
 ```
 
 Images and release checksums are signed keylessly by the release workflow. The repository was
-renamed from `Runeeward/runeward` to `Runeeward/RuneBox`, so the identity accepts both names.
+renamed from `Runeeward/runebox` to `Runeeward/RuneBox`, so the identity accepts both names.
 Verify `checksums.txt` from a release:
 
 ```bash
@@ -112,7 +112,7 @@ cosign verify-blob --bundle checksums.txt.sigstore.json \
 Verify an image:
 
 ```bash
-cosign verify ghcr.io/runeeward/runeward:<tag> \
+cosign verify ghcr.io/runeeward/runebox:<tag> \
   --certificate-identity-regexp '^https://github\.com/Runeeward/(runeward|RuneBox)/\.github/workflows/release\.yml@refs/.*$' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```

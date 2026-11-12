@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: runebox-controller
+  namespace: runebox
+  labels:
+    app.kubernetes.io/name: runebox
+    app.kubernetes.io/component: controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: runebox
+      app.kubernetes.io/component: controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: runebox
+        app.kubernetes.io/component: controller
+    spec:
+      serviceAccountName: runebox-controller
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: controller
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          # Overridden by `runebox up --image` / $RUNEBOX_IMAGE.
+          image: runebox:latest
+          # Use a locally-built image when present (OrbStack/kind share the
+          # Docker store); avoids the forced registry pull that a ":latest" tag
+          # otherwise triggers. Set to Always when pulling from a real registry.
+          imagePullPolicy: IfNotPresent
+          args: ["controller"]
+          env:
+            - name: RUNEBOX_K8S_NAMESPACE
+              value: runebox
+            - name: RUNEBOX_CONFIG_DIR
+              value: /etc/runebox/profiles
+            - name: RUNEBOX_STATE_DIR
+              value: /var/lib/runebox
+          volumeMounts:
+            - name: profiles
+              mountPath: /etc/runebox/profiles
+              readOnly: true
+            - name: state
+              mountPath: /var/lib/runebox
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
+      volumes:
+        - name: profiles
+          configMap:
+            name: runebox-profiles
+            optional: true
+        - name: state
+          emptyDir: {}

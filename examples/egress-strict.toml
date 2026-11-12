@@ -7,9 +7,9 @@
 # SNI / HTTP Host header and enforces the allowlist below in the kernel path.
 #
 # The backend is selected by host.type below (kubernetes), so no extra env is
-# needed. Requires the runeward-egress:latest image built WITH iptables
+# needed. Requires the runebox-egress:latest image built WITH iptables
 # (deploy/Dockerfile.egress) and a namespace whose PodSecurity admission permits
-# NET_ADMIN (e.g. the default "runeward" namespace labeled privileged). Strict
+# NET_ADMIN (e.g. the default "runebox" namespace labeled privileged). Strict
 # mode is a no-op on the docker backend (single container).
 #
 #   runebox --config-dir examples serve

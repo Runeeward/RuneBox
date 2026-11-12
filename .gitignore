@@ -1,11 +1,11 @@
 # Binaries (built at the repo root). Anchored with a leading slash so these do
-# NOT match the cmd/<name> source dirs or deploy/helm/runeward/.
+# NOT match the cmd/<name> source dirs or deploy/helm/runebox/.
 /bin/
 /dist/bin/
-/runeward
-/runeward-agent
-/runeward-browser
-/runeward-egress
+/runebox
+/runebox-agent
+/runebox-browser
+/runebox-egress
 
 
 # Python
@@ -14,13 +14,13 @@ __pycache__/
 
 # Local scratch / runtime state
 /.tmp/
-/.runeward-fleet
-/.runeward-release-*/
-/.runeward-test-artifacts/
+/.runebox-fleet
+/.runebox-release-*/
+/.runebox-test-artifacts/
 /shot.png
 /session-shot.png
 
-# Ledger / signing keys / runtime state (should only live under $RUNEWARD_STATE_DIR)
+# Ledger / signing keys / runtime state (should only live under $RUNEBOX_STATE_DIR)
 *.key
 *.pem
 ledger.jsonl
@@ -43,7 +43,7 @@ fleets.json
 /site/
 
 # Local profiles carry secret references — never commit user-global ones.
-/.runeward/
+/.runebox/
 
 # Local scratch notes / runbooks (not part of the published docs)
 /NOTES-*.md

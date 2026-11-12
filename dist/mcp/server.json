@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.Runeeward/runeward",
+  "name": "io.github.Runeeward/runebox",
   "description": "Agent governance harness with Docker/Kubernetes Citadels, policy, Conclave approvals, budgets, and signed Chronicles.",
   "version": "0.4.4",
   "repository": {
@@ -10,7 +10,7 @@
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/runeeward/runeward:v0.4.4",
+      "identifier": "ghcr.io/runeeward/runebox:v0.4.4",
       "transport": {
         "type": "stdio"
       },
@@ -19,43 +19,43 @@
           "type": "positional",
           "value": "mcp",
           "isRequired": true,
-          "description": "Start the runeward MCP server on stdio."
+          "description": "Start the runebox MCP server on stdio."
         }
       ],
       "environmentVariables": [
         {
-          "name": "RUNEWARD_CONFIG_DIR",
+          "name": "RUNEBOX_CONFIG_DIR",
           "description": "Directory to resolve profile TOML files from (optional; defaults to the standard search path).",
           "isRequired": false
         },
         {
-          "name": "RUNEWARD_STATE_DIR",
+          "name": "RUNEBOX_STATE_DIR",
           "description": "Directory where the tamper-evident Chronicle (audit ledger) is written (optional).",
           "isRequired": false
         },
         {
-          "name": "RUNEWARD_AUTHZ_FILE",
+          "name": "RUNEBOX_AUTHZ_FILE",
           "description": "0600 JSON principal configuration for multi-user RBAC.",
           "isRequired": false
         },
         {
-          "name": "RUNEWARD_MCP_DEFAULT_TOKEN",
+          "name": "RUNEBOX_MCP_DEFAULT_TOKEN",
           "description": "Bearer token selecting the principal for this stdio MCP process; `runebox auth login` is the local alternative.",
           "isRequired": false,
           "isSecret": true
         },
         {
-          "name": "RUNEWARD_OIDC_ISSUER",
+          "name": "RUNEBOX_OIDC_ISSUER",
           "description": "OIDC issuer used to verify signed workload JWTs.",
           "isRequired": false
         },
         {
-          "name": "RUNEWARD_OIDC_AUDIENCE",
+          "name": "RUNEBOX_OIDC_AUDIENCE",
           "description": "Required audience for OIDC workload JWTs.",
           "isRequired": false
         },
         {
-          "name": "RUNEWARD_COPY_FROM_ROOTS",
+          "name": "RUNEBOX_COPY_FROM_ROOTS",
           "description": "Colon-separated roots permitted for administrator copy_from operations.",
           "isRequired": false
         }

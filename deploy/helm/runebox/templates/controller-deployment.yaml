@@ -1,0 +1,90 @@
+{{- if .Values.controller.enabled -}}
+{{- $controllerSA := default (default (printf "%s-controller" (include "runebox.fullname" .)) .Values.serviceAccount.name) .Values.serviceAccount.controller.name -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "runebox.fullname" . }}-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "runebox.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+spec:
+  replicas: {{ .Values.controller.replicas }}
+  selector:
+    matchLabels:
+      {{- include "runebox.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: controller
+  template:
+    metadata:
+      labels:
+        {{- include "runebox.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: controller
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ $controllerSA }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: controller
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          image: {{ include "runebox.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - controller
+            - --workers={{ .Values.controller.workers }}
+            {{- if .Values.controller.allNamespaces }}
+            - --all-namespaces
+            {{- end }}
+          env:
+            - name: RUNEBOX_K8S_NAMESPACE
+              value: {{ .Release.Namespace | quote }}
+            - name: RUNEBOX_CONFIG_DIR
+              value: /etc/runebox/profiles
+            - name: RUNEBOX_STATE_DIR
+              value: {{ .Values.stateDir | quote }}
+            - name: RUNEBOX_EGRESS_IMAGE
+              value: {{ include "runebox.egressImage" . | quote }}
+            {{- with include "runebox.directVolumeClass" . }}
+            - name: RUNEBOX_K8S_DIRECT_VOLUME_CLASS
+              value: {{ . | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: profiles
+              mountPath: /etc/runebox/profiles
+              readOnly: true
+            - name: state
+              mountPath: {{ .Values.stateDir }}
+          resources:
+            {{- toYaml .Values.controller.resources | nindent 12 }}
+      volumes:
+        - name: profiles
+          {{- include "runebox.profilesVolume" . | nindent 10 }}
+        - name: state
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

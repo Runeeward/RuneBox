@@ -108,7 +108,7 @@ sha256sum --ignore-missing -c checksums.txt
 Container images are signed by digest:
 
 ```bash
-cosign verify ghcr.io/runeeward/runeward:<tag> \
+cosign verify ghcr.io/runeeward/runebox:<tag> \
   --certificate-identity-regexp '^https://github\.com/Runeeward/(runeward|RuneBox)/\.github/workflows/release\.yml@refs/.*$' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```

@@ -1,8 +1,8 @@
 {
   "servers": {
-    "runeward": {
+    "runebox": {
       "type": "stdio",
-      "command": "runeward",
+      "command": "runebox",
       "args": ["mcp"]
     }
   }

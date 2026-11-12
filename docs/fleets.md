@@ -23,9 +23,9 @@ The `runebox cohort` command is a client to a running control plane
 Select the agent and model with environment variables, e.g. `AGENT=claude`,
 `MODEL=sonnet`, `AGENT=codex MODEL=gpt-5-codex`, or `AGENT=cursor`.
 When the control plane uses a shared token or RBAC, also set
-`RUNEWARD_TOKEN` to the worker principal's token. The example drivers attach
+`RUNEBOX_TOKEN` to the worker principal's token. The example drivers attach
 it as a bearer credential and use the signed task lease returned by every
-claim; they never persist the token in `.runeward-fleet`.
+claim; they never persist the token in `.runebox-fleet`.
 
 ## Two ways to work
 
@@ -61,11 +61,11 @@ Use `add` + `run`; each prompt goes to whichever worker is free, in its own
 workspace, and they build in parallel:
 
 ```bash
-RUNEWARD_TOKEN="$DEV_TOKEN" AGENT=codex ./examples/fleet.sh up build-fleet-k8s
-RUNEWARD_TOKEN="$DEV_TOKEN" AGENT=codex ./examples/fleet.sh add "Build the auth module in auth/ with tests"
-RUNEWARD_TOKEN="$DEV_TOKEN" AGENT=codex ./examples/fleet.sh add "Build the billing module in billing/ with tests"
-RUNEWARD_TOKEN="$DEV_TOKEN" AGENT=codex ./examples/fleet.sh add "Build the CLI in cmd/ with tests"
-RUNEWARD_TOKEN="$DEV_TOKEN" AGENT=codex ./examples/fleet.sh run
+RUNEBOX_TOKEN="$DEV_TOKEN" AGENT=codex ./examples/fleet.sh up build-fleet-k8s
+RUNEBOX_TOKEN="$DEV_TOKEN" AGENT=codex ./examples/fleet.sh add "Build the auth module in auth/ with tests"
+RUNEBOX_TOKEN="$DEV_TOKEN" AGENT=codex ./examples/fleet.sh add "Build the billing module in billing/ with tests"
+RUNEBOX_TOKEN="$DEV_TOKEN" AGENT=codex ./examples/fleet.sh add "Build the CLI in cmd/ with tests"
+RUNEBOX_TOKEN="$DEV_TOKEN" AGENT=codex ./examples/fleet.sh run
 ```
 
 ## Inter-agent coordination

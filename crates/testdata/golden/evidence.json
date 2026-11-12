@@ -1,12 +1,12 @@
 {
-  "format": "runeward-evidence/v1",
+  "format": "runebox-evidence/v1",
   "generated_at": "2026-10-19T12:00:05.5Z",
-  "runeward_version": "v0.0.0-golden",
+  "runebox_version": "v0.0.0-golden",
   "policy": {
     "name": "quickstart",
-    "source": ".runeward/quickstart.toml",
-    "image": "ghcr.io/runewardd/sandbox:latest",
-    "resolved": "/abs/.runeward/quickstart.toml",
+    "source": ".runebox/quickstart.toml",
+    "image": "ghcr.io/runeeward/runebox-sandbox:latest",
+    "resolved": "/abs/.runebox/quickstart.toml",
     "sha256": "8399e57405627368722830c9ff3db81fba0afa6120a439c7a2568a5be31b8295",
     "findings": [
       {

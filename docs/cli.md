@@ -7,7 +7,7 @@ for `enter <charter>`.
 
 | Flag | Description |
 | --- | --- |
-| `-c`, `--config-dir` | Pin Charter resolution to a directory (or `$RUNEWARD_CONFIG_DIR`). |
+| `-c`, `--config-dir` | Pin Charter resolution to a directory (or `$RUNEBOX_CONFIG_DIR`). |
 | `--help` | Help for any command. |
 | `--version` | Print the version. |
 
@@ -15,35 +15,35 @@ for `enter <charter>`.
 
 | Variable | Purpose |
 | --- | --- |
-| `RUNEWARD_CONFIG_DIR` | Default Charter directory. |
-| `RUNEWARD_STATE_DIR` | Where the ledger, keys, terminal recordings, and Cohort state live. **Use a distinct value per running instance.** |
-| `RUNEWARD_API_TOKEN` | Bearer token required on every control-plane request (see `--token`). |
-| `RUNEWARD_BASE` | Control-plane base URL for the REST-client commands (`cohort`, `citadel`, `session`, `schedule`); same as `--base`, default `http://127.0.0.1:8080`. |
-| `RUNEWARD_AUTHZ_FILE` | JSON file of named RBAC principals (per-token profile/approval scopes); upgrades the single shared token to multi-principal auth. |
-| `RUNEWARD_OIDC_ISSUER` / `RUNEWARD_OIDC_AUDIENCE` | Verify OIDC bearer JWTs and map signed Rune Box tenant/role claims. |
-| `RUNEWARD_OIDC_JWKS_URL` | Optional explicit JWKS endpoint; normally discovered from the issuer. HTTPS required except on loopback. |
-| `RUNEWARD_CREDENTIALS_FILE` | Optional path for the private client credential written by `runebox auth login`. |
-| `RUNEWARD_RATE_LIMIT` | Requests/sec per client IP; defaults to `50`. Set `0`/`off` only for trusted benchmarks. |
-| `RUNEWARD_RECORD_TERMINALS` | `1` records governed terminal sessions as asciinema casts under the state dir. |
-| `RUNEWARD_AUDIT_WEBHOOK_URL` / `RUNEWARD_AUDIT_FILE` | Stream Chronicle events to a webhook and/or file sink in real time. |
-| `RUNEWARD_COPY_FROM_ROOTS` | Colon-separated allowlist restricting `copy_from`/seed source directories. |
-| `RUNEWARD_MCP_DEFAULT_TOKEN` | Selects the principal for a stdio MCP process; falls back to `runebox auth login`. |
-| `RUNEWARD_K8S_NAMESPACE` | Namespace for k8s Citadel pods (default `runeward`). |
-| `RUNEWARD_K8S_PSA_ENFORCE` | Pod Security Admission enforce level for the managed namespace (`privileged`\|`baseline`\|`restricted`; default `privileged`). |
-| `RUNEWARD_K8S_DIRECT_VOLUME_CLASS` | StorageClass whose CSI driver hands volumes to Kata as direct-assigned block devices; workspaces on Kata with Firecracker (`kata-fc`) use it so they are a real disk and can persist. See [Isolation](isolation.md#kata-with-firecracker-kata-fc). |
-| `RUNEWARD_K8S_NETWORK_POLICY` | Truthy creates a default-deny (DNS-only egress) NetworkPolicy in the managed namespace. |
-| `RUNEWARD_MICROVM_DIR` | State and image-disk cache of the native microVM backend (`host.type = "microvm"`; default `~/.runeward/microvm`). Keep it short: its Unix socket paths must fit about 100 bytes. See [Isolation](isolation.md#native-microvms-hosttype-microvm). |
-| `RUNEWARD_MICROVM_VMM` | The monitor a `microvm` Charter without `host.runtime` gets: `firecracker` or `libkrun` (default: Firecracker when configured). |
-| `RUNEWARD_MICROVM_AGENT` | The static `runeward-vmagent` binary booted as the guest's PID 1 (default: next to `runebox`, then `PATH`). |
-| `RUNEWARD_MICROVM_KERNEL` | The uncompressed guest kernel Firecracker boots. |
-| `RUNEWARD_FIRECRACKER_BIN` | The `firecracker` binary (default: `PATH`). |
-| `RUNEWARD_KRUN_HELPER` / `RUNEWARD_LIBKRUN` | The `runeward-krun` helper (default: `PATH`) and the libkrun library it loads (default `libkrun.so.1`, `libkrun.1.dylib` on macOS); libkrun must be built with block-device support. |
-| `RUNEWARD_MICROVM_DISK_SIZE` | Size of a new persistent workspace disk (sparse; default `8g`). |
-| `RUNEWARD_MICROVM_MKFS` | `mkfs.ext4` used to build image and workspace disks (`debugfs` is taken from the same directory). |
-| `RUNEWARD_DNS_RESOLVERS` | Comma-separated resolver IPs to confine DNS to under strict egress. |
-| `RUNEWARD_ENABLE_EXPERIMENTAL_BROWSER` | Set to `1` to enable the experimental browser surface in a trusted deployment; disabled by default. |
-| `RUNEWARD_ENABLE_EXPERIMENTAL_IDE` | Set to `1` to enable the optional in-Citadel browser IDE (code-server) + ticketed reverse proxy; disabled by default. See [Browser IDE](browser-ide.md). |
-| `RUNEWARD_OP_BIN` / `OP_SERVICE_ACCOUNT_TOKEN` | Locate and authenticate the 1Password CLI (`op`) that resolves `op://` Charter references; the desktop app integration works without a token. See [Charters](profiles.md#1password-op). |
+| `RUNEBOX_CONFIG_DIR` | Default Charter directory. |
+| `RUNEBOX_STATE_DIR` | Where the ledger, keys, terminal recordings, and Cohort state live. **Use a distinct value per running instance.** |
+| `RUNEBOX_API_TOKEN` | Bearer token required on every control-plane request (see `--token`). |
+| `RUNEBOX_BASE` | Control-plane base URL for the REST-client commands (`cohort`, `citadel`, `session`, `schedule`); same as `--base`, default `http://127.0.0.1:8080`. |
+| `RUNEBOX_AUTHZ_FILE` | JSON file of named RBAC principals (per-token profile/approval scopes); upgrades the single shared token to multi-principal auth. |
+| `RUNEBOX_OIDC_ISSUER` / `RUNEBOX_OIDC_AUDIENCE` | Verify OIDC bearer JWTs and map signed Rune Box tenant/role claims. |
+| `RUNEBOX_OIDC_JWKS_URL` | Optional explicit JWKS endpoint; normally discovered from the issuer. HTTPS required except on loopback. |
+| `RUNEBOX_CREDENTIALS_FILE` | Optional path for the private client credential written by `runebox auth login`. |
+| `RUNEBOX_RATE_LIMIT` | Requests/sec per client IP; defaults to `50`. Set `0`/`off` only for trusted benchmarks. |
+| `RUNEBOX_RECORD_TERMINALS` | `1` records governed terminal sessions as asciinema casts under the state dir. |
+| `RUNEBOX_AUDIT_WEBHOOK_URL` / `RUNEBOX_AUDIT_FILE` | Stream Chronicle events to a webhook and/or file sink in real time. |
+| `RUNEBOX_COPY_FROM_ROOTS` | Colon-separated allowlist restricting `copy_from`/seed source directories. |
+| `RUNEBOX_MCP_DEFAULT_TOKEN` | Selects the principal for a stdio MCP process; falls back to `runebox auth login`. |
+| `RUNEBOX_K8S_NAMESPACE` | Namespace for k8s Citadel pods (default `runebox`). |
+| `RUNEBOX_K8S_PSA_ENFORCE` | Pod Security Admission enforce level for the managed namespace (`privileged`\|`baseline`\|`restricted`; default `privileged`). |
+| `RUNEBOX_K8S_DIRECT_VOLUME_CLASS` | StorageClass whose CSI driver hands volumes to Kata as direct-assigned block devices; workspaces on Kata with Firecracker (`kata-fc`) use it so they are a real disk and can persist. See [Isolation](isolation.md#kata-with-firecracker-kata-fc). |
+| `RUNEBOX_K8S_NETWORK_POLICY` | Truthy creates a default-deny (DNS-only egress) NetworkPolicy in the managed namespace. |
+| `RUNEBOX_MICROVM_DIR` | State and image-disk cache of the native microVM backend (`host.type = "microvm"`; default `~/.runebox/microvm`). Keep it short: its Unix socket paths must fit about 100 bytes. See [Isolation](isolation.md#native-microvms-hosttype-microvm). |
+| `RUNEBOX_MICROVM_VMM` | The monitor a `microvm` Charter without `host.runtime` gets: `firecracker` or `libkrun` (default: Firecracker when configured). |
+| `RUNEBOX_MICROVM_AGENT` | The static `runebox-vmagent` binary booted as the guest's PID 1 (default: next to `runebox`, then `PATH`). |
+| `RUNEBOX_MICROVM_KERNEL` | The uncompressed guest kernel Firecracker boots. |
+| `RUNEBOX_FIRECRACKER_BIN` | The `firecracker` binary (default: `PATH`). |
+| `RUNEBOX_KRUN_HELPER` / `RUNEBOX_LIBKRUN` | The `runebox-krun` helper (default: `PATH`) and the libkrun library it loads (default `libkrun.so.1`, `libkrun.1.dylib` on macOS); libkrun must be built with block-device support. |
+| `RUNEBOX_MICROVM_DISK_SIZE` | Size of a new persistent workspace disk (sparse; default `8g`). |
+| `RUNEBOX_MICROVM_MKFS` | `mkfs.ext4` used to build image and workspace disks (`debugfs` is taken from the same directory). |
+| `RUNEBOX_DNS_RESOLVERS` | Comma-separated resolver IPs to confine DNS to under strict egress. |
+| `RUNEBOX_ENABLE_EXPERIMENTAL_BROWSER` | Set to `1` to enable the experimental browser surface in a trusted deployment; disabled by default. |
+| `RUNEBOX_ENABLE_EXPERIMENTAL_IDE` | Set to `1` to enable the optional in-Citadel browser IDE (code-server) + ticketed reverse proxy; disabled by default. See [Browser IDE](browser-ide.md). |
+| `RUNEBOX_OP_BIN` / `OP_SERVICE_ACCOUNT_TOKEN` | Locate and authenticate the 1Password CLI (`op`) that resolves `op://` Charter references; the desktop app integration works without a token. See [Charters](profiles.md#1password-op). |
 | `GITHUB_TOKEN` | Optional GitHub credential for an agent running inside a Citadel. Rune Box injects it only when the Charter explicitly references `op = "env://GITHUB_TOKEN"`; use a least-privilege token and never place it in an MCP config or committed file. Host `gh` authentication is not passed into a Citadel automatically. |
 | `OPENAI_BASE_URL` | Optional OpenAI-compatible API endpoint for agents or SDKs. It is used only when a Charter explicitly injects it; leave it unset for the provider's default endpoint. For Docker-hosted gateways use a container-reachable address such as `http://host.docker.internal:11434/v1` and allow the hostname in the Charter's network policy. |
 
@@ -57,11 +57,11 @@ and the Charter's egress policy.
 | Command | Description |
 | --- | --- |
 | `runebox auth login\|status\|logout` | Save or remove a client credential using OIDC device flow or `--token-stdin`. |
-| `runebox init [project-dir]` | Create `.runeward/quickstart.toml` without overwriting an existing policy. |
+| `runebox init [project-dir]` | Create `.runebox/quickstart.toml` without overwriting an existing policy. |
 | `runebox quickstart [project-dir]` | Prove allow, pre-execution denial, and signed audit. |
 | `runebox doctor [charter] [--json]` | Check policy, runtime, required secret sources, image, and state readiness. |
 | `runebox enter <charter> [-- cmd...]` | Create a Citadel and open a shell, or run a one-shot command. |
-| `runebox serve [--bind ADDR] [--port N] [--token ... --tls-cert ... --tls-key ...] [--allow-insecure-http] [--no-ui] [--hardened]` | Start the control plane: REST API + web dashboard (default `--bind 127.0.0.1 --port 8080`). A non-loopback `--bind` requires authentication (`--token`/`RUNEWARD_API_TOKEN` of at least 32 characters, or `RUNEWARD_AUTHZ_FILE`) and TLS, unless `--allow-insecure-http` is passed for a trusted TLS-terminating proxy; `--no-ui` serves the REST API without the dashboard. `--hardened` (or `RUNEWARD_HARDENED=1`) refuses to start unless every hardened-mode check passes. |
+| `runebox serve [--bind ADDR] [--port N] [--token ... --tls-cert ... --tls-key ...] [--allow-insecure-http] [--no-ui] [--hardened]` | Start the control plane: REST API + web dashboard (default `--bind 127.0.0.1 --port 8080`). A non-loopback `--bind` requires authentication (`--token`/`RUNEBOX_API_TOKEN` of at least 32 characters, or `RUNEBOX_AUTHZ_FILE`) and TLS, unless `--allow-insecure-http` is passed for a trusted TLS-terminating proxy; `--no-ui` serves the REST API without the dashboard. `--hardened` (or `RUNEBOX_HARDENED=1`) refuses to start unless every hardened-mode check passes. |
 | `runebox mcp [--http --tls-cert ... --tls-key ...]` | Run stdio or streamable-HTTP MCP exposing governed tools to an IDE/agent. |
 | `runebox list` | List reachable Charters. |
 | `runebox print <charter>` | Print a Charter's resolved, secret-redacted policy. |
@@ -110,8 +110,8 @@ Quote the `request_id` when reporting a refusal; it matches the server's
 ## Citadels, sessions and schedules
 
 These commands are REST clients of a running `runebox serve`. Like
-`cohort`, they take `--base` (or `$RUNEWARD_BASE`, default
-`http://127.0.0.1:8080`) and `--token` (or `$RUNEWARD_API_TOKEN`, else the
+`cohort`, they take `--base` (or `$RUNEBOX_BASE`, default
+`http://127.0.0.1:8080`) and `--token` (or `$RUNEBOX_API_TOKEN`, else the
 `runebox auth login` credential). Add `--json` to print the server's JSON
 instead of text. See [Workspaces and context](workspaces-and-context.md).
 
@@ -174,24 +174,24 @@ runebox --config-dir examples enter ns-auto
 runebox --config-dir examples enter ns-auto -- python --version
 
 # Control plane with an isolated state dir
-RUNEWARD_STATE_DIR=/tmp/rw runebox --config-dir examples serve
+RUNEBOX_STATE_DIR=/tmp/rw runebox --config-dir examples serve
 
 # Verify an exported Chronicle bundle
 runebox chronicle verify ./transcript.json
 
 # Sign and publish a policy Archive
 runebox archive keygen --out ./keys
-runebox archive push oci://ghcr.io/acme/runeward-policies:v3 \
+runebox archive push oci://ghcr.io/acme/runebox-policies:v3 \
   --policy prod.rego --engine rego --key ./keys/bundle.key
 
 # Authenticated control plane on a non-loopback bind
-RUNEWARD_API_TOKEN=$(openssl rand -hex 32) \
+RUNEBOX_API_TOKEN=$(openssl rand -hex 32) \
   runebox --config-dir examples serve --bind 0.0.0.0 --port 8443 \
   --tls-cert ./tls/server.crt --tls-key ./tls/server.key
 
 # OIDC device login for Cohort CLI and stdio MCP clients
 runebox auth login --issuer https://id.example.com \
-  --client-id runeward-cli --audience runeward
+  --client-id runebox-cli --audience runebox
 
 # Lint every Charter in a directory and unit-test a policy
 runebox --config-dir examples/safe validate --strict

@@ -23,8 +23,8 @@ Please disclose privately; do not open a public issue.
   (Kubernetes) or its own microVM (`host.type = "microvm"`: Firecracker or
   libkrun) with its own workspace. Docker environments are hardened by default: all Linux
   capabilities dropped, `no-new-privileges`, a `--pids-limit`, and default
-  memory/CPU ceilings (overridable via `RUNEWARD_SANDBOX_MEMORY`,
-  `RUNEWARD_SANDBOX_CPUS`, `RUNEWARD_SANDBOX_PIDS`; set to `0` to disable).
+  memory/CPU ceilings (overridable via `RUNEBOX_SANDBOX_MEMORY`,
+  `RUNEBOX_SANDBOX_CPUS`, `RUNEBOX_SANDBOX_PIDS`; set to `0` to disable).
   Setting `host.read_only = true` mounts the root filesystem read-only (with a
   writable `/tmp` and the writable workspace) on both Docker and Kubernetes.
   `host.seccomp` / `host.apparmor` pin a seccomp/AppArmor profile (Docker
@@ -35,13 +35,13 @@ Please disclose privately; do not open a public issue.
   across post-start checks before the Citadel is reported as running.
 - **Control-plane authentication.** `runebox serve` binds `127.0.0.1` by
   default and refuses any non-loopback `--bind` unless authentication is set (an
-  API token via `--token` / `RUNEWARD_API_TOKEN`, or an RBAC store). When set it
+  API token via `--token` / `RUNEBOX_API_TOKEN`, or an RBAC store). When set it
   is required on every request — REST, `/mcp`, the terminal WebSocket, and the
   dashboard. A non-loopback listener also refuses plaintext HTTP unless TLS is
   configured with `--tls-cert`/`--tls-key` or the operator explicitly passes
   `--allow-insecure-http` behind a trusted TLS-terminating proxy. Request bodies
   are size-capped to bound memory use.
-- **RBAC / multi-principal auth.** Setting `RUNEWARD_AUTHZ_FILE` to a JSON store
+- **RBAC / multi-principal auth.** Setting `RUNEBOX_AUTHZ_FILE` to a JSON store
   of principals (each with its own token, an allowed-profile glob list, and
   launch, approval-profile, and admin scopes) upgrades the single shared token to per-principal
   access: the server enforces which profiles a caller may launch and whether it
@@ -58,16 +58,16 @@ Please disclose privately; do not open a public issue.
   without a token so the login screen can render, but the API always requires
   one. Recovery snapshots are tenant-scoped and persisted. HTTP MCP uses the
   same per-request principal and ownership rules as REST; stdio MCP binds one
-  process to the principal selected by `RUNEWARD_MCP_DEFAULT_TOKEN` or the
+  process to the principal selected by `RUNEBOX_MCP_DEFAULT_TOKEN` or the
   credential saved by `runebox auth login`.
 - **HTTP hardening.** Responses set `nosniff`, frame denial, no-referrer, and a
   restrictive Permissions Policy. API/MCP responses are no-store and use a
   deny-all content policy; dashboard assets use the explicit dashboard CSP.
-- **OIDC authentication.** `RUNEWARD_OIDC_ISSUER` plus
-  `RUNEWARD_OIDC_AUDIENCE` enables RS256 JWT verification from the provider's
-  JWKS. Rune Box maps only signed claims: `runeward_tenant`,
-  `runeward_profiles`, `runeward_approval_profiles`,
-  `runeward_can_approve`, and `runeward_admin`. Issuer, audience, expiry,
+- **OIDC authentication.** `RUNEBOX_OIDC_ISSUER` plus
+  `RUNEBOX_OIDC_AUDIENCE` enables RS256 JWT verification from the provider's
+  JWKS. Rune Box maps only signed claims: `runebox_tenant`,
+  `runebox_profiles`, `runebox_approval_profiles`,
+  `runebox_can_approve`, and `runebox_admin`. Issuer, audience, expiry,
   not-before, algorithm, key id, and signature are checked. Non-loopback issuer
   and JWKS endpoints must use HTTPS.
 - **Signed Cohort leases.** Claim returns a short-lived HMAC-signed
@@ -83,7 +83,7 @@ Please disclose privately; do not open a public issue.
   / `rationing.max_cost_usd` caps are enforced fail-closed — once exceeded, further
   governed tool calls are denied.
 - **Attributed approvals.** Resolving an approval records *who* decided it (the
-  RBAC principal name, else `X-Runeward-Actor`, else the peer address) in the
+  RBAC principal name, else `X-Runebox-Actor`, else the peer address) in the
   audit ledger.
 - **Deny-by-default egress, enforced at L3 on both backends.** Network access is
   denied unless explicitly allowlisted. Cooperative mode points the sandbox at
@@ -94,7 +94,7 @@ Please disclose privately; do not open a public issue.
   (the sandbox joins it with `--network container:…`). In strict mode all TCP is
   redirected through the proxy regardless of proxy env, so code that ignores it
   can't bypass the allowlist. The strict path also drops non-DNS UDP (blocking
-  QUIC/HTTP3 bypass) and IPv6 egress; setting `RUNEWARD_DNS_RESOLVERS`
+  QUIC/HTTP3 bypass) and IPv6 egress; setting `RUNEBOX_DNS_RESOLVERS`
   (comma-separated IPs) additionally confines DNS (UDP+TCP :53) to those
   resolvers, closing DNS as a covert exfil channel.
 - **Credential broker.** A Charter's `[[credential]]`s are resolved by the
@@ -104,12 +104,12 @@ Please disclose privately; do not open a public issue.
   the real secret only on requests to the `[[endpoint]]` that owns it (and
   refuses it, as `placeholder-misuse`, anywhere else). Inspected endpoints are
   TLS-terminated with a per-Citadel CA the sandbox trusts (installed at
-  `/etc/runeward/ca/`, with `SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`,
+  `/etc/runebox/ca/`, with `SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`,
   `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE` and `GIT_SSL_CAINFO` pointing at a
   bundle of the image's roots plus that CA) and checked per request.
   `require-approval` requests wait in Conclave like governed tool calls, and
   every broker decision is Chronicled as tool `egress` and listed on the
-  Citadel's perimeter log. `RUNEWARD_BROKER_UPSTREAM_CA` adds private
+  Citadel's perimeter log. `RUNEBOX_BROKER_UPSTREAM_CA` adds private
   upstream roots.
 - **Endpoint binaries.** An `[[endpoint]]` with `binaries` is usable only by
   those executables: before forwarding a byte or attaching a credential, the
@@ -118,11 +118,11 @@ Please disclose privately; do not open a public issue.
   advisory, and fails closed; see [Endpoint binaries](#endpoint-binaries)
   below.
 - **In-sandbox confinement.** A Charter with `[filesystem]` or `[process]`
-  runs the agent under `runeward-supervisor` as PID 1: Landlock limits the
+  runs the agent under `runebox-supervisor` as PID 1: Landlock limits the
   agent to the listed paths, a seccomp filter blocks ptrace, namespace
   creation and similar escapes, and the agent runs as the Charter's non-root
   identity with every capability cleared. Governed execs go through
-  `runeward-supervisor exec` with the same confinement. The supervisor's
+  `runebox-supervisor exec` with the same confinement. The supervisor's
   enforcement report is Chronicled and raised on the Citadel;
   `landlock = "required"` or `[process]` refuse to start on a kernel that
   cannot enforce it (the guest kernel under Kata, gVisor's own kernel under
@@ -135,8 +135,8 @@ Please disclose privately; do not open a public issue.
   - *Kubernetes* never takes the binary from the sandbox image: an init
     container from the egress image (`deploy/Dockerfile.egress`), running as
     root with every capability dropped, copies it into a memory-backed
-    emptyDir mounted read-only at `/run/runeward/bin` and writes the config
-    documents into the root-only `/run/runeward`; under strict egress the
+    emptyDir mounted read-only at `/run/runebox/bin` and writes the config
+    documents into the root-only `/run/runebox`; under strict egress the
     iptables init container does this instead (see
     [isolation](isolation.md) for the Firecracker drive budget). Pod exec
     cannot pick a user, so the backend's own operations (workspace tar
@@ -154,11 +154,11 @@ Please disclose privately; do not open a public issue.
   token/spend budgets, plus retry-loop detection.
 - **Tamper-evident audit.** An append-only, hash-chained, ed25519-signed ledger,
   independently verifiable offline. Events can also stream in real time to a
-  webhook or file sink (`RUNEWARD_AUDIT_WEBHOOK_URL` / `RUNEWARD_AUDIT_FILE`)
+  webhook or file sink (`RUNEBOX_AUDIT_WEBHOOK_URL` / `RUNEBOX_AUDIT_FILE`)
   for SIEM ingestion, over a non-blocking queue that never stalls the ledger. A
   built-in anomaly detector flags novel egress targets, exec bursts, and denial
-  spikes (`RUNEWARD_ANOMALY_*`).
-- **Terminal session recording.** With `RUNEWARD_RECORD_TERMINALS=1`, governed
+  spikes (`RUNEBOX_ANOMALY_*`).
+- **Terminal session recording.** With `RUNEBOX_RECORD_TERMINALS=1`, governed
   terminal sessions are captured as asciinema v2 casts under the state dir and
   can be replayed with `runebox replay` as part of the audit trail.
 - **Read-only Live chat.** Conversation turns are opt-in messages published by
@@ -170,16 +170,16 @@ Please disclose privately; do not open a public issue.
   visibility; the signed Chronicle remains the authoritative action evidence.
 - **No host mounts.** `copy_from` copies into the sandbox; the host tree is never
   mounted. Request-time overrides are administrator-only. Set
-  `RUNEWARD_COPY_FROM_ROOTS` (a colon-separated allowlist) to confine which host
+  `RUNEBOX_COPY_FROM_ROOTS` (a colon-separated allowlist) to confine which host
   directories `copy_from` may read; sources outside the roots fail creation.
 - **Kubernetes multi-tenancy.** The managed namespace carries Pod Security
-  Admission labels (`RUNEWARD_K8S_PSA_ENFORCE`, or the chart's
+  Admission labels (`RUNEBOX_K8S_PSA_ENFORCE`, or the chart's
   `podSecurityStandard`), Citadel containers always drop `ALL` capabilities and
   disable privilege escalation (a supervised one adds back `SETUID`, `SETGID`
   and `CHOWN` for the supervisor, which the `baseline` standard allows, and
   runs as root until the supervisor drops to the agent, which `restricted`
   does not), and an optional default-deny NetworkPolicy
-  (DNS-only egress) isolates Citadel pods (`RUNEWARD_K8S_NETWORK_POLICY`, or the
+  (DNS-only egress) isolates Citadel pods (`RUNEBOX_K8S_NETWORK_POLICY`, or the
   chart's `networkPolicy.enabled`) so environments can't reach each other or the control
   plane laterally.
 - **Admission enforcement defaults.** The validating ClusterPolicy webhook is
@@ -223,7 +223,7 @@ Please disclose privately; do not open a public issue.
 
 !!! warning "One writer per ledger"
     The audit ledger is single-writer, protected by a file lock. Give each running
-    instance its own `RUNEWARD_STATE_DIR`. Two processes sharing one ledger produce
+    instance its own `RUNEBOX_STATE_DIR`. Two processes sharing one ledger produce
     out-of-order/duplicate records, permanently breaking the hash chain so
     verification reports tampering.
 
@@ -231,11 +231,11 @@ Please disclose privately; do not open a public issue.
     The dashboard terminal WebSocket enforces a same-origin check to prevent
     cross-site hijacking, and state-changing REST requests reject mismatched
     browser `Origin`s. Per-IP rate limiting defaults to 50 requests/sec; tune
-    `RUNEWARD_RATE_LIMIT` or explicitly set it to `off` for trusted benchmarks.
+    `RUNEBOX_RATE_LIMIT` or explicitly set it to `off` for trusted benchmarks.
     Front the control plane with TLS in production.
 
 !!! note "Experimental browser IDE"
-    With `RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1` and Charter `[ide] enabled`, serve
+    With `RUNEBOX_ENABLE_EXPERIMENTAL_IDE=1` and Charter `[ide] enabled`, serve
     reverse-proxies code-server inside the environment. That session is workspace-equivalent
     interactive access (not per-keystroke policy). Cursor/Claude Desktop/Codex
     GUIs are not embedded; GitHub Copilot is not first-class on code-server
@@ -306,9 +306,9 @@ records `audit-would-deny` and forwards. Each decision records the attributed
 `binary` and `binary_enforced` (true when enforced, false in audit mode), on
 the perimeter list and in the Chronicle.
 
-The helper is started by `runeward-supervisor` (PID 1) before the agent, as a
+The helper is started by `runebox-supervisor` (PID 1) before the agent, as a
 separate process: it pins the listed binaries, binds an abstract Unix socket
-in the Citadel's network namespace (`@runeward-attribution`, which the
+in the Citadel's network namespace (`@runebox-attribution`, which the
 strict-egress sidecar shares), drops to the agent's uid (needed to read the
 agent's `/proc/<pid>/fd` without `CAP_SYS_PTRACE`), sets `no_new_privs`,
 installs the supervisor's seccomp filter and turns non-dumpable. It has no
@@ -395,7 +395,7 @@ on the host kernel. What crosses the boundary, and why:
   `default = "deny"` and the request broker cannot be bypassed from inside
   the guest, even by its root; non-HTTP traffic has no path at all. The
   in-cell IDE is therefore unavailable.
-- **The guest agent** (`runeward-vmagent`, PID 1) is inside the boundary: a
+- **The guest agent** (`runebox-vmagent`, PID 1) is inside the boundary: a
   root process in the guest can replace or impersonate it. That only affects
   that Citadel's own exec, files and isolation evidence; the verdict is
   still capped by the monitor (it can never claim more than `vm`), the host
@@ -404,7 +404,7 @@ on the host kernel. What crosses the boundary, and why:
   an identity switch, not as the agent's root.
 - **The monitor** runs as the Rune Box user with access to `/dev/kvm`.
   Firecracker applies its built-in seccomp filters; it is not run under its
-  jailer. libkrun runs in the `runeward-krun` helper process. Neither gets a
+  jailer. libkrun runs in the `runebox-krun` helper process. Neither gets a
   network device or a shared host directory.
 - **Secrets.** Environment values (including broker placeholders) reach the
   guest over the agent's vsock stream, never on the kernel command line or
@@ -415,9 +415,9 @@ on the host kernel. What crosses the boundary, and why:
 In cooperative mode on Docker/Podman the broker runs inside the control plane,
 so resolved credentials never leave it. Strict mode and Kubernetes run the
 proxy in a sidecar, which needs the secrets to inject them. The control plane
-hands the sidecar a `runeward.egress.broker.v1` document (endpoints, resolved
+hands the sidecar a `runebox.egress.broker.v1` document (endpoints, resolved
 credential values, the placeholders already set in the Citadel, and the
-per-Citadel CA certificate and private key) through `runeward-egress
+per-Citadel CA certificate and private key) through `runebox-egress
 --broker-config <file>`:
 
 - **Docker/Podman strict mode:** a `0600` root-owned file copied into the

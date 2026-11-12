@@ -5,10 +5,10 @@
 #   curl -fsSL https://raw.githubusercontent.com/Runeeward/RuneBox/main/install.sh | sh
 #
 # Environment overrides:
-#   RUNEWARD_VERSION   release tag to install (default: latest)
-#   RUNEWARD_BIN_DIR   install directory (default: /usr/local/bin, falls back to ~/.local/bin)
-#   RUNEWARD_INSECURE_SKIP_CHECKSUM=1   skip checksums.txt verification
-#   RUNEWARD_INSECURE_SKIP_SIGNATURE=1  skip cosign verification of checksums.txt
+#   RUNEBOX_VERSION   release tag to install (default: latest)
+#   RUNEBOX_BIN_DIR   install directory (default: /usr/local/bin, falls back to ~/.local/bin)
+#   RUNEBOX_INSECURE_SKIP_CHECKSUM=1   skip checksums.txt verification
+#   RUNEBOX_INSECURE_SKIP_SIGNATURE=1  skip cosign verification of checksums.txt
 #
 set -eu
 
@@ -52,12 +52,12 @@ case "$arch" in
 esac
 
 # --- resolve version -----------------------------------------------------------
-version="${RUNEWARD_VERSION:-latest}"
+version="${RUNEBOX_VERSION:-latest}"
 if [ "$version" = "latest" ]; then
   info "Resolving latest release..."
   version=$($DL "https://api.github.com/repos/${REPO}/releases/latest" \
     | grep '"tag_name"' | head -n1 | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
-  [ -n "$version" ] || err "could not resolve the latest release tag (set RUNEWARD_VERSION)"
+  [ -n "$version" ] || err "could not resolve the latest release tag (set RUNEBOX_VERSION)"
 fi
 info "Installing Rune Box (runebox) ${version} (${os}/${arch})"
 
@@ -65,7 +65,7 @@ asset="${BIN_NAME}_${os}_${arch}.tar.gz"
 archive_bin="$BIN_NAME"
 base="https://github.com/${REPO}/releases/download/${version}"
 
-tmp=$(mktemp -d 2>/dev/null || mktemp -d -t runeward)
+tmp=$(mktemp -d 2>/dev/null || mktemp -d -t runebox)
 trap 'rm -rf "$tmp"' EXIT
 
 # --- download ------------------------------------------------------------------
@@ -84,22 +84,22 @@ fi
 # The signature is a Sigstore bundle (checksums.txt.sigstore.json); releases
 # without one are verified from the detached checksums.txt.sig/.pem pair.
 # Escape hatches (NOT recommended):
-#   - RUNEWARD_INSECURE_SKIP_SIGNATURE=1 bypasses cosign verification only.
-#   - RUNEWARD_INSECURE_SKIP_CHECKSUM=1 bypasses both signature + checksum checks.
+#   - RUNEBOX_INSECURE_SKIP_SIGNATURE=1 bypasses cosign verification only.
+#   - RUNEBOX_INSECURE_SKIP_CHECKSUM=1 bypasses both signature + checksum checks.
 # Releases are signed by release.yml in this repository, under its current name
 # (RuneBox) or its earlier name (runeward) for v0.4.0 and v0.4.1.
 identity='^https://github\.com/Runeeward/(runeward|RuneBox)/\.github/workflows/release\.yml@refs/tags/.*$'
 issuer="https://token.actions.githubusercontent.com"
-skip_checksum="${RUNEWARD_INSECURE_SKIP_CHECKSUM:-0}"
+skip_checksum="${RUNEBOX_INSECURE_SKIP_CHECKSUM:-0}"
 if [ "$skip_checksum" = "1" ]; then
-  warn "RUNEWARD_INSECURE_SKIP_CHECKSUM=1 set; skipping checksum verification"
+  warn "RUNEBOX_INSECURE_SKIP_CHECKSUM=1 set; skipping checksum verification"
 elif $DLO "$tmp/checksums.txt" "$base/checksums.txt" 2>/dev/null; then
-  skip_signature="${RUNEWARD_INSECURE_SKIP_SIGNATURE:-0}"
+  skip_signature="${RUNEBOX_INSECURE_SKIP_SIGNATURE:-0}"
   if [ "$skip_signature" = "1" ]; then
-    warn "RUNEWARD_INSECURE_SKIP_SIGNATURE=1 set; skipping checksums.txt signature verification"
+    warn "RUNEBOX_INSECURE_SKIP_SIGNATURE=1 set; skipping checksums.txt signature verification"
   else
     command -v cosign >/dev/null 2>&1 \
-      || err "cosign is required to verify the signed release manifest; install it from https://docs.sigstore.dev/cosign/system_config/installation/ (or explicitly set RUNEWARD_INSECURE_SKIP_SIGNATURE=1 to accept checksum-only verification)"
+      || err "cosign is required to verify the signed release manifest; install it from https://docs.sigstore.dev/cosign/system_config/installation/ (or explicitly set RUNEBOX_INSECURE_SKIP_SIGNATURE=1 to accept checksum-only verification)"
     info "Verifying checksums signature"
     if $DLO "$tmp/checksums.txt.sigstore.json" "$base/checksums.txt.sigstore.json" 2>/dev/null; then
       cosign verify-blob \
@@ -107,36 +107,36 @@ elif $DLO "$tmp/checksums.txt" "$base/checksums.txt" 2>/dev/null; then
         --certificate-identity-regexp "$identity" \
         --certificate-oidc-issuer "$issuer" \
         "$tmp/checksums.txt" >/dev/null \
-        || err "cosign verification failed for checksums.txt (set RUNEWARD_INSECURE_SKIP_SIGNATURE=1 to override)"
+        || err "cosign verification failed for checksums.txt (set RUNEBOX_INSECURE_SKIP_SIGNATURE=1 to override)"
     else
       $DLO "$tmp/checksums.txt.sig" "$base/checksums.txt.sig" 2>/dev/null \
-        || err "no checksums.txt signature published for $version; refusing unsigned checksums (set RUNEWARD_INSECURE_SKIP_SIGNATURE=1 to override)"
+        || err "no checksums.txt signature published for $version; refusing unsigned checksums (set RUNEBOX_INSECURE_SKIP_SIGNATURE=1 to override)"
       $DLO "$tmp/checksums.txt.pem" "$base/checksums.txt.pem" 2>/dev/null \
-        || err "no checksums.txt.pem published for $version; refusing unsigned checksums (set RUNEWARD_INSECURE_SKIP_SIGNATURE=1 to override)"
+        || err "no checksums.txt.pem published for $version; refusing unsigned checksums (set RUNEBOX_INSECURE_SKIP_SIGNATURE=1 to override)"
       cosign verify-blob \
         --certificate "$tmp/checksums.txt.pem" \
         --signature "$tmp/checksums.txt.sig" \
         --certificate-identity-regexp "$identity" \
         --certificate-oidc-issuer "$issuer" \
         "$tmp/checksums.txt" >/dev/null \
-        || err "cosign verification failed for checksums.txt (set RUNEWARD_INSECURE_SKIP_SIGNATURE=1 to override)"
+        || err "cosign verification failed for checksums.txt (set RUNEBOX_INSECURE_SKIP_SIGNATURE=1 to override)"
     fi
     info "Checksum signature OK"
   fi
   info "Verifying checksum"
   want=$(grep " $asset\$" "$tmp/checksums.txt" 2>/dev/null | awk '{print $1}' | head -n1)
-  [ -n "$want" ] || err "no checksum entry for $asset in checksums.txt (set RUNEWARD_INSECURE_SKIP_CHECKSUM=1 to override)"
+  [ -n "$want" ] || err "no checksum entry for $asset in checksums.txt (set RUNEBOX_INSECURE_SKIP_CHECKSUM=1 to override)"
   if command -v sha256sum >/dev/null 2>&1; then
     got=$(sha256sum "$tmp/$asset" | awk '{print $1}')
   elif command -v shasum >/dev/null 2>&1; then
     got=$(shasum -a 256 "$tmp/$asset" | awk '{print $1}')
   else
-    err "no sha256 tool found (need sha256sum or shasum) to verify the download; set RUNEWARD_INSECURE_SKIP_CHECKSUM=1 to override"
+    err "no sha256 tool found (need sha256sum or shasum) to verify the download; set RUNEBOX_INSECURE_SKIP_CHECKSUM=1 to override"
   fi
   [ "$got" = "$want" ] || err "checksum mismatch for $asset (expected $want, got $got)"
   info "Checksum OK"
 else
-  err "no checksums.txt published for $version; refusing to install unverified binary (set RUNEWARD_INSECURE_SKIP_CHECKSUM=1 to override)"
+  err "no checksums.txt published for $version; refusing to install unverified binary (set RUNEBOX_INSECURE_SKIP_CHECKSUM=1 to override)"
 fi
 
 # --- extract -------------------------------------------------------------------
@@ -154,7 +154,7 @@ fi
 chmod +x "$binpath"
 
 # --- choose install dir --------------------------------------------------------
-bindir="${RUNEWARD_BIN_DIR:-/usr/local/bin}"
+bindir="${RUNEBOX_BIN_DIR:-/usr/local/bin}"
 if [ ! -d "$bindir" ] || [ ! -w "$bindir" ]; then
   if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1 && [ "$bindir" = "/usr/local/bin" ]; then
     info "Installing to $bindir (using sudo)"

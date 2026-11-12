@@ -3,14 +3,14 @@
 # Claude Desktop has no self-hosted browser GUI — Open IDE is code-server;
 # run `claude` in the IDE terminal (or dashboard Terminal tab).
 #
-#   docker build --target ide-agents -f deploy/Dockerfile.ide -t runeward-ide-agents:latest .
-#   printf '%s' "$ANTHROPIC_API_KEY" > ~/.runeward-anthropic.key
-#   RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1 ./bin/runebox --config-dir examples serve
+#   docker build --target ide-agents -f deploy/Dockerfile.ide -t runebox-ide-agents:latest .
+#   printf '%s' "$ANTHROPIC_API_KEY" > ~/.runebox-anthropic.key
+#   RUNEBOX_ENABLE_EXPERIMENTAL_IDE=1 ./bin/runebox --config-dir examples serve
 #   Create charter "ide-claude" → Open IDE → terminal: claude
 
 [host]
 type    = "container"
-image   = "runeward-ide-agents:latest"
+image   = "runebox-ide-agents:latest"
 user    = "coder"
 workdir = "/workspace"
 
@@ -32,7 +32,7 @@ hostname = "*.anthropic.com"
 
 [[env]]
 name = "ANTHROPIC_API_KEY"
-file = "~/.runeward-anthropic.key"
+file = "~/.runebox-anthropic.key"
 
 [[env]]
 name  = "NODE_USE_ENV_PROXY"

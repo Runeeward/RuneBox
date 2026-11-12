@@ -1,0 +1,49 @@
+[package]
+name = "runebox-controlplane"
+description = "Governed execution core: policy, approval, guardrails, backend exec and the audit ledger for every tool call"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+runebox-auditsink.workspace = true
+runebox-backend.workspace = true
+runebox-browser.workspace = true
+runebox-charter.workspace = true
+runebox-egress.workspace = true
+runebox-fleet.workspace = true
+runebox-ledger.workspace = true
+runebox-obs.workspace = true
+runebox-policy.workspace = true
+runebox-secrets.workspace = true
+runebox-supervisor.workspace = true
+async-trait.workspace = true
+base64.workspace = true
+cap-std.workspace = true
+chrono.workspace = true
+croner.workspace = true
+hex.workspace = true
+rand.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+# The opt-in Kubernetes binaries test publishes its upstream as a Service.
+k8s-openapi.workspace = true
+kube.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
+# The opt-in Docker test's HTTPS upstream.
+rcgen.workspace = true
+rustls.workspace = true
+tokio-rustls.workspace = true

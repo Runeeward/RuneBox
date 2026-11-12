@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rune Box Governed Execution"
+  short_description: "Run agent actions inside governed Citadels"
+  default_prompt: "Use Rune Box to perform this task inside the least-privileged Charter, pause for approvals, and preserve the Chronicle."

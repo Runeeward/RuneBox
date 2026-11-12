@@ -21,28 +21,28 @@ dbg_macro = "warn"
 
 [workspace.dependencies]
 # Internal crates.
-runeward-ledger = { path = "crates/runeward-ledger" }
-runeward-charter = { path = "crates/runeward-charter" }
-runeward-policy = { path = "crates/runeward-policy" }
-runeward-secrets = { path = "crates/runeward-secrets" }
-runeward-authz = { path = "crates/runeward-authz" }
-runeward-egress = { path = "crates/runeward-egress" }
-runeward-policybundle = { path = "crates/runeward-policybundle" }
-runeward-keys = { path = "crates/runeward-keys" }
-runeward-auditsink = { path = "crates/runeward-auditsink" }
-runeward-obs = { path = "crates/runeward-obs" }
-runeward-fleet = { path = "crates/runeward-fleet" }
-runeward-browser = { path = "crates/runeward-browser" }
-runeward-termrec = { path = "crates/runeward-termrec" }
-runeward-credentials = { path = "crates/runeward-credentials" }
-runeward-backend = { path = "crates/runeward-backend" }
-runeward-controlplane = { path = "crates/runeward-controlplane" }
-runeward-mcp = { path = "crates/runeward-mcp" }
-runeward-server = { path = "crates/runeward-server" }
-runeward-supervisor = { path = "crates/runeward-supervisor" }
-runeward-attribution = { path = "crates/runeward-attribution" }
-runeward-vmagent = { path = "crates/runeward-vmagent" }
-runeward-k8s = { path = "crates/runeward-k8s" }
+runebox-ledger = { path = "crates/runebox-ledger" }
+runebox-charter = { path = "crates/runebox-charter" }
+runebox-policy = { path = "crates/runebox-policy" }
+runebox-secrets = { path = "crates/runebox-secrets" }
+runebox-authz = { path = "crates/runebox-authz" }
+runebox-egress = { path = "crates/runebox-egress" }
+runebox-policybundle = { path = "crates/runebox-policybundle" }
+runebox-keys = { path = "crates/runebox-keys" }
+runebox-auditsink = { path = "crates/runebox-auditsink" }
+runebox-obs = { path = "crates/runebox-obs" }
+runebox-fleet = { path = "crates/runebox-fleet" }
+runebox-browser = { path = "crates/runebox-browser" }
+runebox-termrec = { path = "crates/runebox-termrec" }
+runebox-credentials = { path = "crates/runebox-credentials" }
+runebox-backend = { path = "crates/runebox-backend" }
+runebox-controlplane = { path = "crates/runebox-controlplane" }
+runebox-mcp = { path = "crates/runebox-mcp" }
+runebox-server = { path = "crates/runebox-server" }
+runebox-supervisor = { path = "crates/runebox-supervisor" }
+runebox-attribution = { path = "crates/runebox-attribution" }
+runebox-vmagent = { path = "crates/runebox-vmagent" }
+runebox-k8s = { path = "crates/runebox-k8s" }
 
 # Serialization and formats.
 serde = { version = "1", features = ["derive"] }
@@ -119,9 +119,9 @@ anyhow = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 clap = { version = "4", features = ["derive", "env"] }
-# Shell completion scripts for `runeward completion`.
+# Shell completion scripts for `runebox completion`.
 clap_complete = "4"
-# Raw mode and window size for `runeward enter` (no event reader, so stdin
+# Raw mode and window size for `runebox enter` (no event reader, so stdin
 # stays with the PTY stream).
 crossterm = { version = "0.29", default-features = false, features = ["windows"] }
 
@@ -146,7 +146,7 @@ flate2 = { version = "1", default-features = false, features = ["rust_backend"] 
 cap-std = "4"
 pty-process = { version = "0.5", features = ["async"] }
 nix = { version = "0.31", features = ["socket", "user", "net"] }
-# In-sandbox confinement for runeward-supervisor (Linux only).
+# In-sandbox confinement for runebox-supervisor (Linux only).
 landlock = "0.4"
 seccompiler = "0.5"
 caps = "0.5"

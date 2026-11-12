@@ -2,10 +2,10 @@
 # contains code-server only; `ide-agents` also installs Codex and Claude Code.
 # Keep the default sandbox/agent images lean and build the target you need:
 #
-#   docker build --target ide -f deploy/Dockerfile.ide -t runeward-ide:latest .
-#   docker build --target ide-agents -f deploy/Dockerfile.ide -t runeward-ide-agents:latest .
+#   docker build --target ide -f deploy/Dockerfile.ide -t runebox-ide:latest .
+#   docker build --target ide-agents -f deploy/Dockerfile.ide -t runebox-ide-agents:latest .
 #
-# Charter: examples/ide-demo.toml  (+ RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1 on serve)
+# Charter: examples/ide-demo.toml  (+ RUNEBOX_ENABLE_EXPERIMENTAL_IDE=1 on serve)
 #
 # PID 1 stays `sleep infinity` so the control plane can Exec-start code-server
 # after create (same pattern as other long-lived helpers inside the environment).

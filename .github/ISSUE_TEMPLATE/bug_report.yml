@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a problem with runeward
+description: Report a problem with runebox
 labels: ["bug"]
 body:
   - type: markdown
@@ -12,7 +12,7 @@ body:
     attributes:
       label: What happened?
       description: A clear description of the bug and what you expected instead.
-      placeholder: When I run `runeward ...`, I expected X but got Y.
+      placeholder: When I run `runebox ...`, I expected X but got Y.
     validations:
       required: true
   - type: textarea

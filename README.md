@@ -19,7 +19,7 @@ any AI agent. Rune Box works with an existing agent or multi-agent framework rat
 a new model or orchestration stack.
 
 <p align="center">
-  <img src="docs/assets/runeward-proof.svg" alt="An agent action goes to policy: allowed actions run in the isolated sandbox, reviewed ones wait for human approval first, denied ones stop at policy, and every verdict lands in a signed audit trail" width="820" />
+  <img src="docs/assets/runebox-proof.svg" alt="An agent action goes to policy: allowed actions run in the isolated sandbox, reviewed ones wait for human approval first, denied ones stop at policy, and every verdict lands in a signed audit trail" width="820" />
 </p>
 
 ## Prove it in one command
@@ -30,7 +30,7 @@ Prerequisites: a running Docker, OrbStack, or Podman engine and the `runebox` bi
 runebox quickstart
 ```
 
-The command creates `.runeward/quickstart.toml`, checks the policy, runtime, image, and state path,
+The command creates `.runebox/quickstart.toml`, checks the policy, runtime, image, and state path,
 runs an allowed command, proves a destructive command is denied before execution, and verifies the
 signed audit trail. It never overwrites an existing policy unless `--force` is passed.
 
@@ -39,7 +39,7 @@ unset `env://` value is not presented as launch-ready.
 
 ```bash
 runebox doctor quickstart                     # explain setup problems safely
-runebox --config-dir .runeward serve          # dashboard + governed REST API
+runebox --config-dir .runebox serve          # dashboard + governed REST API
 runebox evidence export quickstart -o run.json
 runebox evidence verify run.json              # independent policy/audit verification
 ```
@@ -142,11 +142,11 @@ To build the current `main` branch, use Rust **1.95** or newer (the workspace MS
 ```bash
 git clone https://github.com/Runeeward/RuneBox
 cd RuneBox
-cargo build --release --locked -p runeward-cli --bin runebox
+cargo build --release --locked -p runebox-cli --bin runebox
 ./target/release/runebox version
 ```
 
-`cargo install --locked --path crates/runeward-cli` installs it into `~/.cargo/bin` instead.
+`cargo install --locked --path crates/runebox-cli` installs it into `~/.cargo/bin` instead.
 
 ## Use it with an agent
 
@@ -155,9 +155,9 @@ Expose governed tools to an MCP-capable IDE or agent:
 ```json
 {
   "mcpServers": {
-    "runeward": {
+    "runebox": {
       "command": "runebox",
-      "args": ["mcp", "--config-dir", ".runeward"]
+      "args": ["mcp", "--config-dir", ".runebox"]
     }
   }
 }
@@ -173,7 +173,7 @@ Adapters are included for LangChain, CrewAI, LlamaIndex, OpenAI Agents, Strands,
 and LangChain.js. See [Adapters](docs/adapters.md) and [agent groups](docs/fleets.md).
 
 The dashboard also has a read-only **Live chat** TTY for each Citadel. Agent harnesses publish
-`user`, `assistant`, `tool`, and `system` turns with `runeward_publish_conversation` (or the REST,
+`user`, `assistant`, `tool`, and `system` turns with `runebox_publish_conversation` (or the REST,
 Python, and TypeScript equivalents), and authorized teammates can follow the redacted conversation
 without terminal input access. Rune Box cannot infer private UI chat text that the agent client does
 not publish; wire the publish call into the harness turn callback. The publisher must connect to the
@@ -214,11 +214,11 @@ actions, produces exact matches, and requires a human to review and broaden them
   their tenant while attributing every operation to its actor. Static tokens and OIDC JWTs use the
   same authorization model, and embedded HTTP MCP shares the REST ownership checks.
 - Browser automation is experimental and disabled by default. Enable it only in a trusted deployment
-  with `RUNEWARD_ENABLE_EXPERIMENTAL_BROWSER=1` after reviewing the [security model](docs/security-model.md).
+  with `RUNEBOX_ENABLE_EXPERIMENTAL_BROWSER=1` after reviewing the [security model](docs/security-model.md).
   Browser-capable Charters declare `capabilities = ["browser"]`; the dashboard then exposes governed
   rendered-text and screenshot actions and their policy/egress results.
 - An optional browser IDE (code-server inside the environment + ticketed reverse proxy) is similarly experimental:
-  `RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1`, Charter `[ide]`, `Dockerfile.ide` targets
+  `RUNEBOX_ENABLE_EXPERIMENTAL_IDE=1`, Charter `[ide]`, `Dockerfile.ide` targets
   `ide` / `ide-agents`, examples `ide-demo` / `ide-claude` / `ide-codex` / `ide-cursor`.
   Limits: not per-keystroke policy; no Cursor/Claude Desktop/Codex GUIs inside the environment; no
   first-class GitHub Copilot on code-server. See [Browser IDE](docs/browser-ide.md) and the
@@ -235,7 +235,7 @@ actions, produces exact matches, and requires a human to review and broaden them
 
 Beyond per-action policy, a Charter can confine the agent process itself and keep its work:
 
-- **In-sandbox confinement.** `runeward-supervisor` runs as PID 1 in the sandbox image and launches
+- **In-sandbox confinement.** `runebox-supervisor` runs as PID 1 in the sandbox image and launches
   the agent under Landlock filesystem rules, a seccomp filter and a dropped identity, from the
   Charter's `[filesystem]` and `[process]` sections. See [Isolation](docs/isolation.md) and the
   [security model](docs/security-model.md).
@@ -246,7 +246,7 @@ Beyond per-action policy, a Charter can confine the agent process itself and kee
 - **Persistent workspaces and forks.** `[workspace] persist = true` keeps a workspace across sleep,
   wake and control-plane restarts; forks start from a copy. Agent turns, Cohort memory, handoffs
   and `[schedule]` runs build on it. See [Workspaces and context](docs/workspaces-and-context.md).
-- **Hardened mode.** `--hardened` (or `RUNEWARD_HARDENED=1`) refuses to start unless every hardening
+- **Hardened mode.** `--hardened` (or `RUNEBOX_HARDENED=1`) refuses to start unless every hardening
   check passes, and calls that never ran return a standard refusal object. See the
   [CLI reference](docs/cli.md).
 
@@ -256,24 +256,24 @@ Rune Box is a Rust Cargo workspace (`crates/`) that builds four binaries:
 
 | Binary | Runs | Crate |
 | --- | --- | --- |
-| `runebox` | CLI, control plane (`serve`), MCP server, Kubernetes controller and webhook | `runeward-cli` |
-| `runeward-egress` | Policy-enforcing egress proxy and credential broker (Linux sidecar) | `runeward-egress` |
-| `runeward-supervisor` | In-sandbox PID 1: Landlock, seccomp, dropped identity (Linux) | `runeward-supervisor` |
-| `runeward-browser` | In-sandbox headless-browser driver (Linux) | `runeward-browser` |
+| `runebox` | CLI, control plane (`serve`), MCP server, Kubernetes controller and webhook | `runebox-cli` |
+| `runebox-egress` | Policy-enforcing egress proxy and credential broker (Linux sidecar) | `runebox-egress` |
+| `runebox-supervisor` | In-sandbox PID 1: Landlock, seccomp, dropped identity (Linux) | `runebox-supervisor` |
+| `runebox-browser` | In-sandbox headless-browser driver (Linux) | `runebox-browser` |
 
 The library crates split along the control loop:
 
-- `runeward-charter`: Charter schema, loader, linter and signatures.
-- `runeward-policy`: glob/argv, CEL and Rego engines, guardrails and usage accounting;
-  `runeward-policybundle` distributes signed OCI policy bundles.
-- `runeward-controlplane`: governed execution (policy, approval, limits, backend exec, ledger),
+- `runebox-charter`: Charter schema, loader, linter and signatures.
+- `runebox-policy`: glob/argv, CEL and Rego engines, guardrails and usage accounting;
+  `runebox-policybundle` distributes signed OCI policy bundles.
+- `runebox-controlplane`: governed execution (policy, approval, limits, backend exec, ledger),
   workspaces, forks, agent turns, Cohort memory and schedules.
-- `runeward-backend`: Docker, Podman and Kubernetes sandbox backends.
-- `runeward-server` (REST, WebSockets, dashboard) and `runeward-mcp` (stdio and streamable HTTP).
-- `runeward-k8s`: `runeward.dev` CRDs, the Citadel/Cohort controller and the admission webhook.
-- `runeward-ledger`, `runeward-keys`, `runeward-auditsink`, `runeward-termrec`: the signed,
+- `runebox-backend`: Docker, Podman and Kubernetes sandbox backends.
+- `runebox-server` (REST, WebSockets, dashboard) and `runebox-mcp` (stdio and streamable HTTP).
+- `runebox-k8s`: `runebox.runeward.io` CRDs, the Citadel/Cohort controller and the admission webhook.
+- `runebox-ledger`, `runebox-keys`, `runebox-auditsink`, `runebox-termrec`: the signed,
   hash-chained audit trail, its keys, sinks and terminal recordings.
-- `runeward-authz`, `runeward-secrets`, `runeward-credentials`, `runeward-fleet`, `runeward-obs`:
+- `runebox-authz`, `runebox-secrets`, `runebox-credentials`, `runebox-fleet`, `runebox-obs`:
   RBAC/OIDC, secret sources, CLI login, the Cohort task board, and logs/metrics.
 
 Release binaries ship for Linux (static musl, amd64/arm64), macOS (amd64/arm64) and Windows

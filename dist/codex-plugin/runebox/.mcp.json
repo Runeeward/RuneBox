@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "runebox": {
+      "command": "runebox",
+      "args": ["mcp"]
+    }
+  }
+}
