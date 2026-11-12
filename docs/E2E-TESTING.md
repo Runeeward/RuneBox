@@ -982,7 +982,7 @@ curl -s $BASE/healthz                  # {"status":"ok"} — always open
 curl -s "${AUTH[@]}" $BASE/v1/charters        # array of profile names (needs $AUTH when auth is on)
 ```
 
-### 9a. Python (`rune-box`, imported as `runebox`)
+### 9a. Python (`runee-box`, imported as `runebox`)
 
 ```bash
 cd adapters/python

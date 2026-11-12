@@ -3,7 +3,7 @@
 The `OpenAI Agents SDK <https://openai.github.io/openai-agents-python/>`_
 (``pip install openai-agents``) is imported *lazily* inside
 :func:`make_runebox_tools` so the base ``runebox`` client keeps working
-without it. Install the extra with ``pip install rune-box[openai-agents]``.
+without it. Install the extra with ``pip install runee-box[openai-agents]``.
 
 Each returned tool is built with ``@function_tool``: the SDK derives its JSON
 schema from the function's type hints and docstring. Governance outcomes are
@@ -37,7 +37,7 @@ def make_runebox_tools(client: RuneboxClient) -> List[Any]:
     """Build a list of OpenAI Agents SDK ``FunctionTool`` objects bound to ``client``.
 
     Pass the result to an ``agents.Agent(tools=...)``. Requires
-    ``openai-agents`` (``pip install rune-box[openai-agents]``).
+    ``openai-agents`` (``pip install runee-box[openai-agents]``).
     """
     # Lazy import so openai-agents stays an optional extra.
     try:
@@ -45,7 +45,7 @@ def make_runebox_tools(client: RuneboxClient) -> List[Any]:
     except ImportError as exc:  # pragma: no cover - depends on optional extra
         raise ImportError(
             "The OpenAI Agents SDK is required for make_runebox_tools(). "
-            "Install it with: pip install rune-box[openai-agents]"
+            "Install it with: pip install runee-box[openai-agents]"
         ) from exc
 
     def _guard(fn):

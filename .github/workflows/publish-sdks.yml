@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/rune-box
+      url: https://pypi.org/p/runee-box
     permissions:
       id-token: write
     steps:
@@ -95,7 +95,7 @@ jobs:
         with:
           name: python-distributions
           path: dist
-      - name: Publish rune-box to PyPI
+      - name: Publish runee-box to PyPI
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           # Tag workflows may be retried after one registry succeeds and the

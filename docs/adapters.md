@@ -60,12 +60,12 @@ helpers are optional extras, imported lazily, so the base client works with
 nothing else installed.
 
 ```bash
-python -m pip install rune-box
-python -m pip install 'rune-box[langchain]'
-python -m pip install 'rune-box[crewai]'
-python -m pip install 'rune-box[llamaindex]'
-python -m pip install 'rune-box[openai-agents]'
-python -m pip install 'rune-box[strands]'
+python -m pip install runee-box
+python -m pip install 'runee-box[langchain]'
+python -m pip install 'runee-box[crewai]'
+python -m pip install 'runee-box[llamaindex]'
+python -m pip install 'runee-box[openai-agents]'
+python -m pip install 'runee-box[strands]'
 ```
 
 For repository development, use `python -m pip install -e ./adapters/python`.

@@ -2,7 +2,7 @@
 
 LangChain is imported *lazily* inside :func:`make_runebox_tools` so that the
 base ``runebox`` client keeps working without ``langchain`` installed. Install
-the extra with ``pip install rune-box[langchain]``.
+the extra with ``pip install runee-box[langchain]``.
 
 Each returned tool converts governance outcomes into a short, model-readable
 string rather than letting the exception escape, so an agent can reason about a
@@ -33,7 +33,7 @@ def make_runebox_tools(client: RuneboxClient) -> "List[BaseTool]":
     except ImportError as exc:  # pragma: no cover - depends on optional extra
         raise ImportError(
             "LangChain is required for make_runebox_tools(). "
-            "Install it with: pip install rune-box[langchain]"
+            "Install it with: pip install runee-box[langchain]"
         ) from exc
 
     def _guard(fn):

@@ -5,7 +5,7 @@
 | Install with | What it installs | Command |
 | --- | --- | --- |
 | [Homebrew](https://github.com/Runeeward/homebrew-tap) | Rune Box CLI for macOS or Linux | `brew install Runeeward/tap/runebox` |
-| [PyPI](https://pypi.org/project/rune-box/) | Python client and agent-framework adapters | `python -m pip install rune-box` |
+| [PyPI](https://pypi.org/project/runee-box/) | Python client and agent-framework adapters | `python -m pip install runee-box` |
 | [npm](https://www.npmjs.com/package/@runebox/sdk) | TypeScript client and agent-framework tools | `npm install @runebox/sdk` |
 
 For normal local use, install the CLI with Homebrew. For an agent integration, install the SDK for
@@ -34,7 +34,7 @@ Local sandboxes also require a running Docker, OrbStack, or Podman engine.
 Requires Python 3.9 or newer. The base client has no third-party runtime dependencies.
 
 ```bash
-python -m pip install rune-box
+python -m pip install runee-box
 python -c "import runebox; print(runebox.__version__)"
 ```
 

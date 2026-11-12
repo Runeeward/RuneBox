@@ -3,7 +3,7 @@
 A dependency-light Python client and agent-framework adapters for
 [Rune Box](https://github.com/Runeeward/RuneBox), the open-source
 **governance harness for AI agents** (formerly Runeward Sandbox). Install it
-as `rune-box` and import it as `runebox`.
+as `runee-box` and import it as `runebox`.
 Put policy, human approvals, isolated Citadels, Rationing, and signed Chronicles
 around an existing agent without replacing its model or framework.
 
@@ -15,12 +15,12 @@ else installed.
 ## Install
 
 ```bash
-pip install rune-box                    # core client only (no third-party deps)
-pip install "rune-box[langchain]"       # + LangChain tools
-pip install "rune-box[crewai]"          # + CrewAI tools
-pip install "rune-box[llamaindex]"      # + LlamaIndex tools
-pip install "rune-box[openai-agents]"   # + OpenAI Agents SDK tools
-pip install "rune-box[strands]"         # + Strands Agents SDK tools
+pip install runee-box                    # core client only (no third-party deps)
+pip install "runee-box[langchain]"       # + LangChain tools
+pip install "runee-box[crewai]"          # + CrewAI tools
+pip install "runee-box[llamaindex]"      # + LlamaIndex tools
+pip install "runee-box[openai-agents]"   # + OpenAI Agents SDK tools
+pip install "runee-box[strands]"         # + Strands Agents SDK tools
 ```
 
 During local development from this directory:

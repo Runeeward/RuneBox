@@ -2,7 +2,7 @@
 
 CrewAI (and its ``pydantic`` dependency) are imported *lazily* inside
 :func:`make_runebox_tools` so the base ``runebox`` client works without the
-extra. Install with ``pip install rune-box[crewai]``.
+extra. Install with ``pip install runee-box[crewai]``.
 
 Each tool is a ``crewai.tools.BaseTool`` subclass with a typed pydantic
 args-schema. Governance verdicts are surfaced as descriptive strings so the crew
@@ -35,7 +35,7 @@ def make_runebox_tools(client: RuneboxClient) -> List[Any]:
     """Build a list of CrewAI ``BaseTool`` instances bound to ``client``.
 
     Returns one tool per runebox capability. Requires ``crewai`` to be
-    installed (``pip install rune-box[crewai]``).
+    installed (``pip install runee-box[crewai]``).
     """
     # Lazy import so crewai stays an optional extra.
     try:
@@ -44,7 +44,7 @@ def make_runebox_tools(client: RuneboxClient) -> List[Any]:
     except ImportError as exc:  # pragma: no cover - depends on optional extra
         raise ImportError(
             "CrewAI is required for make_runebox_tools(). "
-            "Install it with: pip install rune-box[crewai]"
+            "Install it with: pip install runee-box[crewai]"
         ) from exc
 
     # --- argument schemas -------------------------------------------------

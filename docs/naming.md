@@ -22,7 +22,7 @@ Supporting explanation:
 | environment | What the agent runs in, in user-facing copy | Prefer it over "box" or "cell". "Sandbox" stays the familiar term for a Citadel. |
 | `runebox` | Everything technical: the CLI, the `runebox-*` crates and binaries, `RUNEBOX_*` environment variables, the `.runebox/` directory, `runebox_*` MCP tools, container labels, and `ghcr.io/runeeward/runebox*` images | Called `runeward` before v0.4.4. |
 | `runebox.runeward.io` | Kubernetes CRD API group | Was `runeward.dev` before v0.4.4. |
-| `rune-box` (PyPI, imported as `runebox`), `@runebox/sdk` (npm) | SDK packages | Were `runeward` and `@runeward/sdk` before v0.4.4. |
+| `runee-box` (PyPI, imported as `runebox`), `@runebox/sdk` (npm) | SDK packages | Were `runeward` and `@runeward/sdk` before v0.4.4. |
 
 A `.runeward/` directory from an older release is still read when no `.runebox/` exists; rename it.
 API paths and configuration fields did not change.
