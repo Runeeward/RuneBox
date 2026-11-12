@@ -68,7 +68,7 @@ def main() -> int:
         (ROOT / "adapters/typescript/package-lock.json").read_text(encoding="utf-8")
     )
 
-    init_text = (ROOT / "adapters/python/runeward/__init__.py").read_text(
+    init_text = (ROOT / "adapters/python/runebox/__init__.py").read_text(
         encoding="utf-8"
     )
     match = re.search(r'^__version__ = "([^"]+)"$', init_text, re.MULTILINE)

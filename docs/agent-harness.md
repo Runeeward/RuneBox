@@ -93,7 +93,7 @@ This prevents one agent in a shared tenant from finishing another worker's task 
 | MCP-capable agent or IDE | `runebox mcp` |
 | Browser IDE against `/workspace` (experimental) | `[ide]` + ticketed proxy — [Browser IDE](browser-ide.md) |
 | Python agent framework | `runebox` package and the relevant optional adapter |
-| TypeScript agent framework | `@runeward/sdk` and its framework subpath |
+| TypeScript agent framework | `@runebox/sdk` and its framework subpath |
 | Custom orchestrator | REST API or the dependency-light SDK client |
 | Parallel peer workers | Existing `runebox cohort` commands and `/v1/cohorts` API |
 | Live/replayable worker output | Durable agent sessions and `/v1/agent-sessions/{id}/stream` |

@@ -989,7 +989,7 @@ cd adapters/python
 pip install -e .                       # core client — pure stdlib, no runtime deps
 
 # Importing the top-level package must NOT need any framework installed:
-python -c "from runeward import RunewardClient; print('ok:', RunewardClient)"
+python -c "from runebox import RuneboxClient; print('ok:', RuneboxClient)"
 ```
 
 Smoke-test the governed surface (the client defaults to
@@ -999,9 +999,9 @@ Smoke-test the governed surface (the client defaults to
 ```bash
 python - <<'PY'
 import os
-from runeward import RunewardClient
+from runebox import RuneboxClient
 tok = os.environ.get("RUNEBOX_API_TOKEN")  # None when serving without a token
-rw = RunewardClient("http://localhost:8080", token=tok)
+rw = RuneboxClient("http://localhost:8080", token=tok)
 sbx = rw.create_sandbox("dev")
 sid = sbx["id"]
 r = rw.shell(sid, ["echo", "hello from python adapter"])
@@ -1012,22 +1012,22 @@ PY
 ```
 
 Expected: `verdict: allow exit: 0 out: hello from python adapter` and
-`audit verifies: True`. A denied action raises `RunewardDenied`; a gated one
-raises `RunewardApprovalRequired` (carrying `approval_id`) — governance is
+`audit verifies: True`. A denied action raises `RuneboxDenied`; a gated one
+raises `RuneboxApprovalRequired` (carrying `approval_id`) — governance is
 surfaced as exceptions, not swallowed. Methods mirror the MCP tools:
 `create_sandbox`, `shell`, `python`, `node`, `read_file`, `write_file`,
 `list_files`, `search_files`, `list_approvals`, `approve`, `deny`,
 `kill_sandbox`, `audit`, `verify_audit`.
 
 Framework tool factories are lazy-loaded — install only the extra you need, then
-each submodule exposes `make_runeward_tools(client)`:
+each submodule exposes `make_runebox_tools(client)`:
 
 ```bash
 pip install -e ".[langchain]"   # or: crewai | llamaindex | openai-agents | strands
 python -c "
-from runeward import RunewardClient
-from runeward.langchain_tools import make_runeward_tools
-print(len(make_runeward_tools(RunewardClient('http://localhost:8080'))), 'tools')
+from runebox import RuneboxClient
+from runebox.langchain_tools import make_runebox_tools
+print(len(make_runebox_tools(RuneboxClient('http://localhost:8080'))), 'tools')
 "
 ```
 
@@ -1035,7 +1035,7 @@ Import paths: `runeward.langchain_tools`, `runeward.crewai_tools`,
 `runeward.llamaindex_tools`, `runeward.openai_agents_tools`,
 `runeward.strands_tools`.
 
-### 9b. TypeScript (`@runeward/sdk`)
+### 9b. TypeScript (`@runebox/sdk`)
 
 ```bash
 cd adapters/typescript
@@ -1046,15 +1046,15 @@ npm run typecheck    # tsc --noEmit
 
 > The framework adapters import their optional peers dynamically, so
 > `build`/`typecheck` succeed with none of them installed — you only need a
-> framework package at runtime if you call its `makeRunewardTools`.
+> framework package at runtime if you call its `makeRuneboxTools`.
 
 Smoke-test against the running control plane (methods are camelCase):
 
 ```bash
 node --input-type=module -e "
-import { RunewardClient } from './dist/index.js';
+import { RuneboxClient } from './dist/index.js';
 const token = process.env.RUNEBOX_API_TOKEN;  // omit when serving without a token
-const rw = new RunewardClient({ baseUrl: 'http://localhost:8080', token });
+const rw = new RuneboxClient({ baseUrl: 'http://localhost:8080', token });
 const sbx = await rw.createSandbox('dev');
 const r = await rw.shell(sbx.id, ['echo', 'hello from ts adapter']);
 console.log(r.verdict, r.exit_code, r.stdout.trim());
@@ -1069,14 +1069,14 @@ Framework factories live at subpath exports and are `async` (dynamic
 ```bash
 npm install ai zod          # Vercel AI SDK; or @langchain/core zod, or @strands-agents/sdk zod
 node --input-type=module -e "
-import { RunewardClient, makeRunewardTools } from './dist/index.js';   // ai-tools re-exported from root
-const tools = await makeRunewardTools(new RunewardClient({ baseUrl: 'http://localhost:8080' }));
+import { RuneboxClient, makeRuneboxTools } from './dist/index.js';   // ai-tools re-exported from root
+const tools = await makeRuneboxTools(new RuneboxClient({ baseUrl: 'http://localhost:8080' }));
 console.log(Object.keys(tools));
 "
 ```
 
-Subpaths: `@runeward/sdk/ai-tools` (re-exported at root), `@runeward/sdk/langchain-tools`,
-`@runeward/sdk/strands-tools`. See [Adapters](adapters.md) and `adapters/README.md`.
+Subpaths: `@runebox/sdk/ai-tools` (re-exported at root), `@runebox/sdk/langchain-tools`,
+`@runebox/sdk/strands-tools`. See [Adapters](adapters.md) and `adapters/README.md`.
 
 ---
 
@@ -1835,15 +1835,15 @@ Full walkthrough (air-gapped, still-audited fleets): [Bring your own model](byo-
 ```bash
 # Python: cleartext http:// to a non-loopback host is refused unless opted in.
 python3 - <<'PY'
-from runeward import RunewardClient
+from runebox import RuneboxClient
 try:
-    RunewardClient(base_url="http://10.0.0.5:8080")            # refused
+    RuneboxClient(base_url="http://10.0.0.5:8080")            # refused
 except Exception as e:
     print("refused:", e)
-RunewardClient(base_url="http://10.0.0.5:8080", allow_insecure=True)  # explicit opt-in
-RunewardClient(base_url="http://localhost:8080")               # loopback is fine
+RuneboxClient(base_url="http://10.0.0.5:8080", allow_insecure=True)  # explicit opt-in
+RuneboxClient(base_url="http://localhost:8080")               # loopback is fine
 PY
-# TypeScript: new RunewardClient({ baseUrl, allowInsecure: true }); env
+# TypeScript: new RuneboxClient({ baseUrl, allowInsecure: true }); env
 # RUNEBOX_ALLOW_INSECURE_HTTP=1 opts in for both. Sandbox/approval IDs are now
 # percent-encoded in request paths.
 ```

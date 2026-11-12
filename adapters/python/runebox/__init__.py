@@ -1,10 +1,10 @@
-"""runeward — Python client and agent-framework adapters for Rune Box, the
+"""runebox — Python client and agent-framework adapters for Rune Box, the
 open-source governance harness for AI agents.
 
-The core :class:`RunewardClient` depends only on the standard library. The
-framework helpers live in :mod:`runeward.langchain_tools`,
-:mod:`runeward.crewai_tools`, :mod:`runeward.llamaindex_tools`,
-:mod:`runeward.openai_agents_tools`, and :mod:`runeward.strands_tools`; each
+The core :class:`RuneboxClient` depends only on the standard library. The
+framework helpers live in :mod:`runebox.langchain_tools`,
+:mod:`runebox.crewai_tools`, :mod:`runebox.llamaindex_tools`,
+:mod:`runebox.openai_agents_tools`, and :mod:`runebox.strands_tools`; each
 imports its framework lazily, so importing this package never requires those
 extras to be installed.
 """
@@ -18,11 +18,11 @@ from .client import (
     PerimeterDecision,
     Refusal,
     RefusedError,
-    RunewardApprovalRequired,
-    RunewardClient,
-    RunewardAuthorizationError,
-    RunewardDenied,
-    RunewardError,
+    RuneboxApprovalRequired,
+    RuneboxClient,
+    RuneboxAuthorizationError,
+    RuneboxDenied,
+    RuneboxError,
     Sandbox,
     Schedule,
     ScheduleFiring,
@@ -30,11 +30,11 @@ from .client import (
 )
 
 __all__ = [
-    "RunewardClient",
-    "RunewardError",
-    "RunewardDenied",
-    "RunewardAuthorizationError",
-    "RunewardApprovalRequired",
+    "RuneboxClient",
+    "RuneboxError",
+    "RuneboxDenied",
+    "RuneboxAuthorizationError",
+    "RuneboxApprovalRequired",
     "RefusedError",
     "Refusal",
     "Sandbox",

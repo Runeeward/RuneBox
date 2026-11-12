@@ -1,8 +1,8 @@
 /**
- * Strands Agents SDK tool wrappers around {@link RunewardClient}.
+ * Strands Agents SDK tool wrappers around {@link RuneboxClient}.
  *
  * `@strands-agents/sdk` and `zod` are **optional peer dependencies** — this
- * module imports them at call time inside {@link makeRunewardTools} so the core
+ * module imports them at call time inside {@link makeRuneboxTools} so the core
  * client stays dependency-free. Install them where you use the tools:
  *
  * ```bash
@@ -20,17 +20,17 @@
  * pause for a human.
  */
 
-import { RunewardApprovalRequired, RunewardClient, RunewardDenied } from "./client.js";
+import { RuneboxApprovalRequired, RuneboxClient, RuneboxDenied } from "./client.js";
 
 /** Turn a governance error into a model-friendly instruction; rethrow otherwise. */
 function describeGovernance(err: unknown): string {
-  if (err instanceof RunewardDenied) {
+  if (err instanceof RuneboxDenied) {
     return (
       `DENIED by policy: ${err.reason}. Do not retry this action; choose a ` +
       `different, allowed approach or tell the human it was blocked.`
     );
   }
-  if (err instanceof RunewardApprovalRequired) {
+  if (err instanceof RuneboxApprovalRequired) {
     return (
       `APPROVAL REQUIRED (approval_id=${err.approvalId}): ` +
       `${err.reason || "a human must sign off before this runs"}. ` +
@@ -52,20 +52,20 @@ async function guarded<T>(fn: () => Promise<T>): Promise<string> {
 
 /**
  * Build an array of Strands Agents SDK tools bound to `client`, named to match
- * the runeward MCP tools. Pass them to `new Agent({ tools })`.
+ * the runebox MCP tools. Pass them to `new Agent({ tools })`.
  *
  * @example
  * ```ts
  * import { Agent } from "@strands-agents/sdk";
- * import { RunewardClient } from "@runeward/sdk";
- * import { makeRunewardTools } from "@runeward/sdk/strands-tools";
+ * import { RuneboxClient } from "@runebox/sdk";
+ * import { makeRuneboxTools } from "@runebox/sdk/strands-tools";
  *
- * const tools = await makeRunewardTools(new RunewardClient());
+ * const tools = await makeRuneboxTools(new RuneboxClient());
  * const agent = new Agent({ tools });
  * await agent.invoke("Create a dev Citadel, run `node --version`, then tear it down.");
  * ```
  */
-export async function makeRunewardTools(client: RunewardClient) {
+export async function makeRuneboxTools(client: RuneboxClient) {
   // Dynamic imports keep `@strands-agents/sdk` and `zod` as optional peers. The
   // `as string` specifier makes these fully dynamic so tsc does not require the
   // packages to be installed to build this file.
@@ -74,9 +74,9 @@ export async function makeRunewardTools(client: RunewardClient) {
 
   return [
     tool({
-      name: "runeward_create_citadel",
+      name: "runebox_create_citadel",
       description:
-        "Provision a governed Citadel from a runeward Charter (e.g. 'dev'). Returns Citadel metadata including its id.",
+        "Provision a governed Citadel from a runebox Charter (e.g. 'dev'). Returns Citadel metadata including its id.",
       inputSchema: z.object({
         profile: z.string().describe("Charter name, e.g. 'dev' or 'governed'."),
       }),
@@ -85,7 +85,7 @@ export async function makeRunewardTools(client: RunewardClient) {
     }),
 
     tool({
-      name: "runeward_shell",
+      name: "runebox_shell",
       description:
         "Run a shell command (as an argv array, e.g. ['ls','-la']) in a Citadel. Returns verdict, exit_code, stdout, stderr.",
       inputSchema: z.object({
@@ -98,7 +98,7 @@ export async function makeRunewardTools(client: RunewardClient) {
     }),
 
     tool({
-      name: "runeward_python",
+      name: "runebox_python",
       description: "Run a Python code snippet inside the Citadel.",
       inputSchema: z.object({
         sandbox: z.string(),
@@ -109,7 +109,7 @@ export async function makeRunewardTools(client: RunewardClient) {
     }),
 
     tool({
-      name: "runeward_node",
+      name: "runebox_node",
       description: "Run a Node.js code snippet inside the Citadel.",
       inputSchema: z.object({
         sandbox: z.string(),
@@ -120,7 +120,7 @@ export async function makeRunewardTools(client: RunewardClient) {
     }),
 
     tool({
-      name: "runeward_read_file",
+      name: "runebox_read_file",
       description: "Read a file's contents from the Citadel.",
       inputSchema: z.object({
         sandbox: z.string(),
@@ -131,7 +131,7 @@ export async function makeRunewardTools(client: RunewardClient) {
     }),
 
     tool({
-      name: "runeward_write_file",
+      name: "runebox_write_file",
       description: "Write content to a file in the Citadel.",
       inputSchema: z.object({
         sandbox: z.string(),
@@ -143,7 +143,7 @@ export async function makeRunewardTools(client: RunewardClient) {
     }),
 
     tool({
-      name: "runeward_list_files",
+      name: "runebox_list_files",
       description: "List a directory in the Citadel.",
       inputSchema: z.object({
         sandbox: z.string(),
@@ -154,7 +154,7 @@ export async function makeRunewardTools(client: RunewardClient) {
     }),
 
     tool({
-      name: "runeward_search_files",
+      name: "runebox_search_files",
       description: "Search for a query string under a path in the Citadel.",
       inputSchema: z.object({
         sandbox: z.string(),
@@ -166,14 +166,14 @@ export async function makeRunewardTools(client: RunewardClient) {
     }),
 
     tool({
-      name: "runeward_list_conclave",
+      name: "runebox_list_conclave",
       description: "List pending human-in-the-loop Conclave requests.",
       inputSchema: z.object({}),
       callback: () => guarded(() => client.listApprovals()),
     }),
 
     tool({
-      name: "runeward_kill_citadel",
+      name: "runebox_kill_citadel",
       description: "Tear down a Citadel when the task is finished.",
       inputSchema: z.object({
         sandbox: z.string(),

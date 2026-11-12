@@ -43,7 +43,7 @@ def main() -> int:
         "Python project version",
     )
     replace_one(
-        ROOT / "adapters/python/runeward/__init__.py",
+        ROOT / "adapters/python/runebox/__init__.py",
         r'^__version__ = "[^"]+"$',
         f'__version__ = "{version}"',
         "Python import version",

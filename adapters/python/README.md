@@ -1,9 +1,9 @@
-# runeward (Python SDK for Rune Box)
+# runebox (Python SDK for Rune Box)
 
 A dependency-light Python client and agent-framework adapters for
 [Rune Box](https://github.com/Runeeward/RuneBox), the open-source
-**governance harness for AI agents** (formerly Runeward Sandbox). The package
-and import name stay `runeward`.
+**governance harness for AI agents** (formerly Runeward Sandbox). Install it
+as `rune-box` and import it as `runebox`.
 Put policy, human approvals, isolated Citadels, Rationing, and signed Chronicles
 around an existing agent without replacing its model or framework.
 
@@ -15,12 +15,12 @@ else installed.
 ## Install
 
 ```bash
-pip install runeward                    # core client only (no third-party deps)
-pip install "runeward[langchain]"       # + LangChain tools
-pip install "runeward[crewai]"          # + CrewAI tools
-pip install "runeward[llamaindex]"      # + LlamaIndex tools
-pip install "runeward[openai-agents]"   # + OpenAI Agents SDK tools
-pip install "runeward[strands]"         # + Strands Agents SDK tools
+pip install rune-box                    # core client only (no third-party deps)
+pip install "rune-box[langchain]"       # + LangChain tools
+pip install "rune-box[crewai]"          # + CrewAI tools
+pip install "rune-box[llamaindex]"      # + LlamaIndex tools
+pip install "rune-box[openai-agents]"   # + OpenAI Agents SDK tools
+pip install "rune-box[strands]"         # + Strands Agents SDK tools
 ```
 
 During local development from this directory:
@@ -35,9 +35,9 @@ Start the control plane first (`runebox serve`, default
 `http://localhost:8080`), then:
 
 ```python
-from runeward import RunewardClient, RunewardDenied, RunewardApprovalRequired
+from runebox import RuneboxClient, RuneboxDenied, RuneboxApprovalRequired
 
-rw = RunewardClient("http://localhost:8080")  # uses RUNEWARD_API_TOKEN when set
+rw = RuneboxClient("http://localhost:8080")  # uses RUNEBOX_API_TOKEN when set
 
 sbx = rw.create_sandbox("dev")          # -> {"id": "sbx_...", "backend": "docker", ...}
 sid = sbx["id"]
@@ -51,7 +51,7 @@ print(rw.python(sid, "exec(open('/workspace/main.py').read())")["stdout"])  # "4
 rw.kill_sandbox(sid)                    # always tear down when done
 ```
 
-Use `allow_insecure=True` (or `RUNEWARD_ALLOW_INSECURE_HTTP=1`) only when you must call a non-loopback `http://` control-plane endpoint.
+Use `allow_insecure=True` (or `RUNEBOX_ALLOW_INSECURE_HTTP=1`) only when you must call a non-loopback `http://` control-plane endpoint.
 
 ### Handling governance verdicts
 
@@ -62,12 +62,12 @@ explicitly — a denial must **not** be blindly retried, and an approval gate mu
 ```python
 try:
     rw.shell(sid, ["rm", "-rf", "/"])
-except RunewardDenied as e:
+except RuneboxDenied as e:
     print("blocked by policy:", e.reason)     # do NOT retry the same action
 
 try:
     rw.write_file(sid, "/etc/hosts", "127.0.0.1 example")
-except RunewardApprovalRequired as e:
+except RuneboxApprovalRequired as e:
     print("needs a human:", e.approval_id)     # pause; ask an operator to approve/deny
 ```
 
@@ -78,12 +78,12 @@ When the server proves a call never ran, its body carries a standard
 that are not policy, authorization or approval outcomes (bad request,
 unknown resource, `session_busy`, `version_conflict`, rate limits, budgets,
 an unmet isolation floor), raises `RefusedError`. Every error, including
-`RunewardDenied`, `RunewardAuthorizationError` and
-`RunewardApprovalRequired`, exposes `request_id` (the server's
+`RuneboxDenied`, `RuneboxAuthorizationError` and
+`RuneboxApprovalRequired`, exposes `request_id` (the server's
 `X-Request-Id`) and `refusal`:
 
 ```python
-from runeward import RefusedError, RunewardError
+from runebox import RefusedError, RuneboxError
 
 try:
     rw.agent_turn(session_id, ["claude", "-p", "next step"])
@@ -91,7 +91,7 @@ except RefusedError as e:
     print(e.reason, e.retryable, e.message, e.request_id)  # e.g. "request", False, ...
     if e.retryable:
         ...  # safe to send the identical request again later
-except RunewardError as e:
+except RuneboxError as e:
     print("failed; quote this id to the operator:", e.request_id)
 ```
 
@@ -173,35 +173,35 @@ assert rw.verify_audit()        # verify the tamper-evident hash chain
 ## LangChain
 
 ```python
-from runeward import RunewardClient
-from runeward.langchain_tools import make_runeward_tools
+from runebox import RuneboxClient
+from runebox.langchain_tools import make_runebox_tools
 
-tools = make_runeward_tools(RunewardClient("http://localhost:8080"))
+tools = make_runebox_tools(RuneboxClient("http://localhost:8080"))
 # Pass `tools` to any LangChain agent / AgentExecutor.
 ```
 
 The Python framework tools use the same stable concept names as MCP, including
-`runeward_create_citadel`, `runeward_kill_citadel`, and
-`runeward_list_conclave`. Governance verdicts are returned as descriptive
+`runebox_create_citadel`, `runebox_kill_citadel`, and
+`runebox_list_conclave`. Governance verdicts are returned as descriptive
 strings so the agent can reason about a denial or an approval gate.
 
 ## CrewAI
 
 ```python
-from runeward import RunewardClient
-from runeward.crewai_tools import make_runeward_tools
+from runebox import RuneboxClient
+from runebox.crewai_tools import make_runebox_tools
 
-tools = make_runeward_tools(RunewardClient("http://localhost:8080"))
+tools = make_runebox_tools(RuneboxClient("http://localhost:8080"))
 # Attach `tools` to a crewai.Agent(tools=tools, ...).
 ```
 
 ## LlamaIndex
 
 ```python
-from runeward import RunewardClient
-from runeward.llamaindex_tools import make_runeward_tools
+from runebox import RuneboxClient
+from runebox.llamaindex_tools import make_runebox_tools
 
-tools = make_runeward_tools(RunewardClient("http://localhost:8080"))
+tools = make_runebox_tools(RuneboxClient("http://localhost:8080"))
 # Pass `tools` to a FunctionAgent / ReActAgent / AgentRunner.
 ```
 
@@ -212,10 +212,10 @@ derived from each function's type hints and docstring.
 
 ```python
 from agents import Agent, Runner
-from runeward import RunewardClient
-from runeward.openai_agents_tools import make_runeward_tools
+from runebox import RuneboxClient
+from runebox.openai_agents_tools import make_runebox_tools
 
-tools = make_runeward_tools(RunewardClient("http://localhost:8080"))
+tools = make_runebox_tools(RuneboxClient("http://localhost:8080"))
 agent = Agent(name="builder", instructions="Use the sandbox tools.", tools=tools)
 result = Runner.run_sync(agent, "Create a dev sandbox, run `node --version`, then tear it down.")
 ```
@@ -227,10 +227,10 @@ function's type hints and docstring.
 
 ```python
 from strands import Agent
-from runeward import RunewardClient
-from runeward.strands_tools import make_runeward_tools
+from runebox import RuneboxClient
+from runebox.strands_tools import make_runebox_tools
 
-tools = make_runeward_tools(RunewardClient("http://localhost:8080"))
+tools = make_runebox_tools(RuneboxClient("http://localhost:8080"))
 agent = Agent(tools=tools)
 agent("Create a dev sandbox, run `node --version`, then tear it down.")
 ```

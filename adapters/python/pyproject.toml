@@ -3,7 +3,7 @@ requires = ["hatchling>=1.26"]
 build-backend = "hatchling.build"
 
 [project]
-name = "runeward"
+name = "rune-box"
 version = "0.4.4"
 description = "Python SDK for Rune Box, the open-source governance harness for AI agents: policy, approvals, isolation, budgets, persistent workspaces and signed evidence."
 readme = "README.md"
@@ -46,17 +46,17 @@ openai-agents = ["openai-agents>=0.0.1"]
 strands = ["strands-agents>=1.0"]
 
 [tool.hatch.build]
-# The monorepo root ignores the compiled `/runeward` binary. Hatch applies
+# The monorepo root ignores the compiled `/runebox` binary. Hatch applies
 # that VCS pattern relative to this nested project too, so explicitly retain
 # the Python package directory in source and wheel distributions.
-artifacts = ["/runeward"]
+artifacts = ["/runebox"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["runeward"]
+packages = ["runebox"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-  "/runeward",
+  "/runebox",
   "/tests",
   "/LICENSE",
   "/README.md",

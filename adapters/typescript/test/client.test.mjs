@@ -2,15 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  RunewardApprovalRequired,
-	RunewardAuthorizationError,
-  RunewardClient,
-  RunewardDenied,
+  RuneboxApprovalRequired,
+	RuneboxAuthorizationError,
+  RuneboxClient,
+  RuneboxDenied,
 } from "../dist/index.js";
 
 test("the SDK preserves existing concepts and governance verdicts", async () => {
   assert.throws(
-    () => new RunewardClient({ baseUrl: "http://control.example.com" }),
+    () => new RuneboxClient({ baseUrl: "http://control.example.com" }),
     /refusing insecure http/,
   );
 
@@ -25,7 +25,7 @@ test("the SDK preserves existing concepts and governance verdicts", async () => 
   };
 
   try {
-    const created = await new RunewardClient().createSandbox("dev");
+    const created = await new RuneboxClient().createSandbox("dev");
     assert.equal(created.id, "cit_123");
     assert.equal(requests[0].url, "http://localhost:8080/v1/citadels");
     assert.deepEqual(JSON.parse(requests[0].init.body), { profile: "dev" });
@@ -33,9 +33,9 @@ test("the SDK preserves existing concepts and governance verdicts", async () => 
     globalThis.fetch = originalFetch;
   }
 
-  assert.equal(new RunewardDenied("blocked").status, 403);
-  assert.equal(new RunewardApprovalRequired("apr_123").status, 202);
-  assert.equal(new RunewardAuthorizationError("wrong owner").status, 403);
+  assert.equal(new RuneboxDenied("blocked").status, 403);
+  assert.equal(new RuneboxApprovalRequired("apr_123").status, 202);
+  assert.equal(new RuneboxAuthorizationError("wrong owner").status, 403);
 });
 
 test("run lineage and Cohort completion use the v1 endpoints", async () => {
@@ -48,7 +48,7 @@ test("run lineage and Cohort completion use the v1 endpoints", async () => {
   };
 
   try {
-    const client = new RunewardClient();
+    const client = new RuneboxClient();
     assert.equal((await client.listRuns())[0].id, "run-1");
     await client.completeTask("cohort/1", "task/1", "signed-lease", "done");
     assert.equal(
@@ -73,7 +73,7 @@ test("conversation turns publish to the Citadel live feed", async () => {
     return new Response(JSON.stringify({ id: 1, role: "assistant" }), { status: 201 });
   };
   try {
-    const client = new RunewardClient();
+    const client = new RuneboxClient();
     await client.publishConversation("cit/1", "assistant", "Working on it", "run-1");
     assert.equal(requests[0].url, "http://localhost:8080/v1/citadels/cit%2F1/conversation");
     assert.deepEqual(JSON.parse(requests[0].init.body), {

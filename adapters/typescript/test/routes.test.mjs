@@ -3,11 +3,11 @@ import test from "node:test";
 
 import {
   RefusedError,
-  RunewardApprovalRequired,
-  RunewardAuthorizationError,
-  RunewardClient,
-  RunewardDenied,
-  RunewardError,
+  RuneboxApprovalRequired,
+  RuneboxAuthorizationError,
+  RuneboxClient,
+  RuneboxDenied,
+  RuneboxError,
   parseRefusal,
 } from "../dist/index.js";
 
@@ -25,7 +25,7 @@ async function withFetch(responses, fn) {
     return new Response(JSON.stringify(payload), { status, headers: { "x-request-id": requestId } });
   };
   try {
-    return await fn(new RunewardClient(), requests);
+    return await fn(new RuneboxClient(), requests);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -35,7 +35,7 @@ test("refused calls throw RefusedError with the request id", async () => {
   await withFetch([[404, { error: "sandbox not found", code: "not_found", refusal: refusal("request", "sandbox not found") }, "rid-1"]], async (client) => {
     await assert.rejects(client.getSandbox("nope"), (err) => {
       assert.ok(err instanceof RefusedError);
-      assert.ok(err instanceof RunewardError);
+      assert.ok(err instanceof RuneboxError);
       assert.equal(err.status, 404);
       assert.equal(err.reason, "request");
       assert.equal(err.retryable, false);
@@ -67,11 +67,11 @@ test("governance errors keep their types and carry the refusal", async () => {
     [500, { error: "internal server error", code: "internal_error", request_id: "r500" }, ""],
   ], async (client) => {
     await assert.rejects(client.shell("c1", ["rm", "-rf", "/"]), (err) =>
-      err instanceof RunewardDenied && err.reason === "no deletes" && err.requestId === "r9" && err.refusal.reason === "policy");
-    await assert.rejects(client.getSandbox("c1"), (err) => err instanceof RunewardAuthorizationError && err.requestId === "r10");
-    await assert.rejects(client.shell("c1", ["x"]), (err) => err instanceof RunewardApprovalRequired && err.approvalId === "apr-1");
+      err instanceof RuneboxDenied && err.reason === "no deletes" && err.requestId === "r9" && err.refusal.reason === "policy");
+    await assert.rejects(client.getSandbox("c1"), (err) => err instanceof RuneboxAuthorizationError && err.requestId === "r10");
+    await assert.rejects(client.shell("c1", ["x"]), (err) => err instanceof RuneboxApprovalRequired && err.approvalId === "apr-1");
     await assert.rejects(client.getSandbox("c1"), (err) =>
-      err instanceof RunewardError && !(err instanceof RefusedError) && err.refusal === undefined && err.requestId === "r500");
+      err instanceof RuneboxError && !(err instanceof RefusedError) && err.refusal === undefined && err.requestId === "r500");
   });
   assert.equal(parseRefusal({}), undefined);
   assert.equal(parseRefusal({ refusal: "x" }), undefined);
@@ -124,7 +124,7 @@ test("workspace and agent-session routes", async () => {
     assert.equal(r[7].url, "/v1/agent-sessions?cohort_id=co-1");
     await client.agentSessionEvents("as-1", 7);
     assert.equal(r[8].url, "/v1/agent-sessions/as-1/events?after=7");
-    await assert.rejects(client.startAgentSession("c1", ["x"]), RunewardApprovalRequired);
+    await assert.rejects(client.startAgentSession("c1", ["x"]), RuneboxApprovalRequired);
   });
 });
 
@@ -157,7 +157,7 @@ test("schedule routes", async () => {
     await client.getSchedule("s1");
     assert.equal(r[7].url, "/v1/schedules/s1");
   });
-  const client = new RunewardClient();
+  const client = new RuneboxClient();
   assert.throws(() => client.createSchedule(["x"], { every: "1m" }), /exactly one of citadel and cohort/);
   assert.throws(() => client.createSchedule(["x"], { citadel: "c", cron: "* * * * *", every: "1m" }), /exactly one of cron and every/);
 });
