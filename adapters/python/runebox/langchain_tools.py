@@ -1,8 +1,8 @@
-"""LangChain tool wrappers around :class:`RunewardClient`.
+"""LangChain tool wrappers around :class:`RuneboxClient`.
 
-LangChain is imported *lazily* inside :func:`make_runeward_tools` so that the
-base ``runeward`` client keeps working without ``langchain`` installed. Install
-the extra with ``pip install runeward[langchain]``.
+LangChain is imported *lazily* inside :func:`make_runebox_tools` so that the
+base ``runebox`` client keeps working without ``langchain`` installed. Install
+the extra with ``pip install rune-box[langchain]``.
 
 Each returned tool converts governance outcomes into a short, model-readable
 string rather than letting the exception escape, so an agent can reason about a
@@ -14,16 +14,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, List
 
-from .client import RunewardApprovalRequired, RunewardClient, RunewardDenied
+from .client import RuneboxApprovalRequired, RuneboxClient, RuneboxDenied
 
 if TYPE_CHECKING:  # only for type checkers; not evaluated at runtime
     from langchain_core.tools import BaseTool
 
 
-def make_runeward_tools(client: RunewardClient) -> "List[BaseTool]":
+def make_runebox_tools(client: RuneboxClient) -> "List[BaseTool]":
     """Build a list of LangChain tools bound to ``client``.
 
-    Returns ``StructuredTool`` instances covering the runeward tool surface:
+    Returns ``StructuredTool`` instances covering the runebox tool surface:
     create/kill Citadel, shell, python, node, file read/write/list/search, and
     list-Conclave.
     """
@@ -32,8 +32,8 @@ def make_runeward_tools(client: RunewardClient) -> "List[BaseTool]":
         from langchain_core.tools import StructuredTool
     except ImportError as exc:  # pragma: no cover - depends on optional extra
         raise ImportError(
-            "LangChain is required for make_runeward_tools(). "
-            "Install it with: pip install runeward[langchain]"
+            "LangChain is required for make_runebox_tools(). "
+            "Install it with: pip install rune-box[langchain]"
         ) from exc
 
     def _guard(fn):
@@ -43,13 +43,13 @@ def make_runeward_tools(client: RunewardClient) -> "List[BaseTool]":
             try:
                 result = fn(*args, **kwargs)
                 return result if isinstance(result, str) else str(result)
-            except RunewardDenied as denied:
+            except RuneboxDenied as denied:
                 return (
                     f"DENIED by policy: {denied.reason}. "
                     "Do not retry this action; choose a different, allowed approach "
                     "or tell the human it was blocked."
                 )
-            except RunewardApprovalRequired as approval:
+            except RuneboxApprovalRequired as approval:
                 return (
                     f"APPROVAL REQUIRED (approval_id={approval.approval_id}): "
                     f"{approval.reason or 'a human must sign off before this runs'}. "
@@ -102,52 +102,52 @@ def make_runeward_tools(client: RunewardClient) -> "List[BaseTool]":
     return [
         StructuredTool.from_function(
             func=create_citadel,
-            name="runeward_create_citadel",
-            description="Provision a governed Citadel from a runeward Charter (e.g. 'dev'). Returns the Citadel metadata including its id.",
+            name="runebox_create_citadel",
+            description="Provision a governed Citadel from a runebox Charter (e.g. 'dev'). Returns the Citadel metadata including its id.",
         ),
         StructuredTool.from_function(
             func=shell,
-            name="runeward_shell",
+            name="runebox_shell",
             description="Run a shell command (as an argv list, e.g. ['ls','-la']) in a Citadel. Returns verdict, exit_code, stdout, stderr.",
         ),
         StructuredTool.from_function(
             func=python,
-            name="runeward_python",
+            name="runebox_python",
             description="Run a Python code snippet inside the Citadel.",
         ),
         StructuredTool.from_function(
             func=node,
-            name="runeward_node",
+            name="runebox_node",
             description="Run a Node.js code snippet inside the Citadel.",
         ),
         StructuredTool.from_function(
             func=read_file,
-            name="runeward_read_file",
+            name="runebox_read_file",
             description="Read a file's contents from the Citadel.",
         ),
         StructuredTool.from_function(
             func=write_file,
-            name="runeward_write_file",
+            name="runebox_write_file",
             description="Write content to a file in the Citadel.",
         ),
         StructuredTool.from_function(
             func=list_files,
-            name="runeward_list_files",
+            name="runebox_list_files",
             description="List a directory in the Citadel.",
         ),
         StructuredTool.from_function(
             func=search_files,
-            name="runeward_search_files",
+            name="runebox_search_files",
             description="Search for a query string under a path in the Citadel.",
         ),
         StructuredTool.from_function(
             func=list_conclave,
-            name="runeward_list_conclave",
+            name="runebox_list_conclave",
             description="List pending human-in-the-loop Conclave requests.",
         ),
         StructuredTool.from_function(
             func=kill_citadel,
-            name="runeward_kill_citadel",
+            name="runebox_kill_citadel",
             description="Tear down a Citadel when the task is finished.",
         ),
     ]

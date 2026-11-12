@@ -7,14 +7,14 @@ import unittest
 import urllib.error
 from unittest import mock
 
-from runeward import (
+from runebox import (
     Refusal,
     RefusedError,
-    RunewardAuthorizationError,
-    RunewardApprovalRequired,
-    RunewardClient,
-    RunewardDenied,
-    RunewardError,
+    RuneboxAuthorizationError,
+    RuneboxApprovalRequired,
+    RuneboxClient,
+    RuneboxDenied,
+    RuneboxError,
 )
 
 
@@ -48,16 +48,16 @@ class _Response:
         return self._body
 
 
-class RunewardClientTests(unittest.TestCase):
+class RuneboxClientTests(unittest.TestCase):
     def test_rejects_insecure_remote_http(self) -> None:
         with self.assertRaisesRegex(ValueError, "refusing insecure http"):
-            RunewardClient("http://control.example.com")
+            RuneboxClient("http://control.example.com")
 
-    @mock.patch("runeward.client.urllib.request.urlopen")
+    @mock.patch("runebox.client.urllib.request.urlopen")
     def test_create_sandbox_uses_existing_citadel_endpoint(self, urlopen: mock.Mock) -> None:
         urlopen.return_value = _Response(201, {"id": "cit_123", "profile": "dev"})
 
-        created = RunewardClient().create_sandbox("dev")
+        created = RuneboxClient().create_sandbox("dev")
 
         self.assertEqual(created["id"], "cit_123")
         request = urlopen.call_args.args[0]
@@ -65,23 +65,23 @@ class RunewardClientTests(unittest.TestCase):
         self.assertEqual(json.loads(request.data), {"profile": "dev"})
 
     def test_governance_verdicts_remain_typed(self) -> None:
-        with self.assertRaises(RunewardAuthorizationError):
-            RunewardClient._raise_for_status(403, {"code": "authz_denied", "error": "wrong owner"})
-        with self.assertRaises(RunewardDenied):
-            RunewardClient._raise_for_status(403, {"reason": "blocked"})
-        with self.assertRaises(RunewardApprovalRequired):
-            RunewardClient._raise_for_status(
+        with self.assertRaises(RuneboxAuthorizationError):
+            RuneboxClient._raise_for_status(403, {"code": "authz_denied", "error": "wrong owner"})
+        with self.assertRaises(RuneboxDenied):
+            RuneboxClient._raise_for_status(403, {"reason": "blocked"})
+        with self.assertRaises(RuneboxApprovalRequired):
+            RuneboxClient._raise_for_status(
                 202,
                 {"approval_id": "apr_123", "reason": "human review"},
             )
 
-    @mock.patch("runeward.client.urllib.request.urlopen")
+    @mock.patch("runebox.client.urllib.request.urlopen")
     def test_run_and_signed_lease_endpoints(self, urlopen: mock.Mock) -> None:
         urlopen.side_effect = [
             _Response(200, {"runs": [{"id": "run-1"}]}),
             _Response(200, {"ok": True}),
         ]
-        client = RunewardClient()
+        client = RuneboxClient()
 
         self.assertEqual(client.list_runs()[0]["id"], "run-1")
         client.complete_task("cohort/1", "task/1", "signed-lease", "done")
@@ -96,10 +96,10 @@ class RunewardClientTests(unittest.TestCase):
             {"owner": "", "lease_token": "signed-lease", "result": "done"},
         )
 
-    @mock.patch("runeward.client.urllib.request.urlopen")
+    @mock.patch("runebox.client.urllib.request.urlopen")
     def test_publish_conversation_uses_citadel_feed(self, urlopen: mock.Mock) -> None:
         urlopen.return_value = _Response(201, {"id": 1, "role": "assistant"})
-        client = RunewardClient()
+        client = RuneboxClient()
         client.publish_conversation("cit/1", "assistant", "Working on it", "run-1")
         request = urlopen.call_args.args[0]
         self.assertEqual(
@@ -119,17 +119,17 @@ def _refusal(reason: str, message: str, request_id: str = "rid-1",
 
 
 class RefusalTests(unittest.TestCase):
-    @mock.patch("runeward.client.urllib.request.urlopen")
+    @mock.patch("runebox.client.urllib.request.urlopen")
     def test_not_found_raises_refused_error_with_request_id(self, urlopen: mock.Mock) -> None:
         urlopen.side_effect = _http_error(404, {
             "error": "sandbox not found", "code": "not_found",
             "refusal": _refusal("request", "sandbox not found"),
         }, request_id="rid-1")
-        client = RunewardClient()
+        client = RuneboxClient()
         with self.assertRaises(RefusedError) as ctx:
             client.get_sandbox("nope")
         err = ctx.exception
-        self.assertIsInstance(err, RunewardError)
+        self.assertIsInstance(err, RuneboxError)
         self.assertEqual(err.status, 404)
         self.assertEqual(err.reason, "request")
         self.assertFalse(err.retryable)
@@ -141,35 +141,35 @@ class RefusalTests(unittest.TestCase):
 
     def test_rate_limit_is_retryable(self) -> None:
         with self.assertRaises(RefusedError) as ctx:
-            RunewardClient._raise_for_status(429, {
+            RuneboxClient._raise_for_status(429, {
                 "error": "rate limited", "code": "rate_limited",
                 "refusal": _refusal("capacity", "rate limited", retryable=True),
             })
         self.assertTrue(ctx.exception.retryable)
         self.assertEqual(ctx.exception.request_id, "rid-1")
 
-    @mock.patch("runeward.client.urllib.request.urlopen")
+    @mock.patch("runebox.client.urllib.request.urlopen")
     def test_policy_denial_keeps_type_and_carries_refusal(self, urlopen: mock.Mock) -> None:
         urlopen.side_effect = _http_error(403, {
             "verdict": "deny", "reason": "no deletes",
             "refusal": _refusal("policy", "no deletes", request_id="rid-9"),
         }, request_id="rid-9")
-        with self.assertRaises(RunewardDenied) as ctx:
-            RunewardClient().shell("cit-1", ["rm", "-rf", "/"])
+        with self.assertRaises(RuneboxDenied) as ctx:
+            RuneboxClient().shell("cit-1", ["rm", "-rf", "/"])
         self.assertEqual(ctx.exception.reason, "no deletes")
         self.assertEqual(ctx.exception.request_id, "rid-9")
         self.assertIsNotNone(ctx.exception.refusal)
         self.assertEqual(ctx.exception.refusal.reason, "policy")
 
     def test_authz_and_approval_carry_request_id(self) -> None:
-        with self.assertRaises(RunewardAuthorizationError) as ctx:
-            RunewardClient._raise_for_status(403, {
+        with self.assertRaises(RuneboxAuthorizationError) as ctx:
+            RuneboxClient._raise_for_status(403, {
                 "error": "nope", "code": "authz_denied",
                 "refusal": _refusal("permission", "nope"),
             }, request_id="hdr-1")
         self.assertEqual(ctx.exception.request_id, "hdr-1")
-        with self.assertRaises(RunewardApprovalRequired) as ctx2:
-            RunewardClient._raise_for_status(202, {
+        with self.assertRaises(RuneboxApprovalRequired) as ctx2:
+            RuneboxClient._raise_for_status(202, {
                 "verdict": "require-approval", "approval_id": "apr-1",
                 "refusal": _refusal("approval", "needs review", request_id="rid-2"),
             })
@@ -177,8 +177,8 @@ class RefusalTests(unittest.TestCase):
         self.assertEqual(ctx2.exception.approval_id, "apr-1")
 
     def test_error_without_refusal_stays_plain(self) -> None:
-        with self.assertRaises(RunewardError) as ctx:
-            RunewardClient._raise_for_status(500, {
+        with self.assertRaises(RuneboxError) as ctx:
+            RuneboxClient._raise_for_status(500, {
                 "error": "internal server error", "code": "internal_error", "request_id": "r500",
             })
         self.assertNotIsInstance(ctx.exception, RefusedError)
@@ -212,8 +212,8 @@ class _Recorder:
 class NewRouteTests(unittest.TestCase):
     def run_call(self, status: int, payload: dict, call):  # noqa: ANN001
         rec = _Recorder((status, payload))
-        with mock.patch("runeward.client.urllib.request.urlopen", rec):
-            client = RunewardClient()
+        with mock.patch("runebox.client.urllib.request.urlopen", rec):
+            client = RuneboxClient()
             result = call(client)
             self.assertEqual(client.last_request_id, "ok-1")
         return result, rec.last()
@@ -274,16 +274,16 @@ class NewRouteTests(unittest.TestCase):
         def raise_busy(request, timeout=None):  # noqa: ANN001
             raise _http_error(409, {"error": "agent session is busy", "code": "session_busy",
                                     "refusal": _refusal("request", "agent session is busy")})
-        with mock.patch("runeward.client.urllib.request.urlopen", raise_busy):
+        with mock.patch("runebox.client.urllib.request.urlopen", raise_busy):
             with self.assertRaises(RefusedError) as ctx:
-                RunewardClient().agent_turn("as-1", ["x"])
+                RuneboxClient().agent_turn("as-1", ["x"])
         self.assertEqual(ctx.exception.code, "session_busy")
 
     def test_approval_gate_on_agent_route_still_raises(self) -> None:
         rec = _Recorder((202, {"verdict": "require-approval", "approval_id": "apr-1"}))
-        with mock.patch("runeward.client.urllib.request.urlopen", rec):
-            with self.assertRaises(RunewardApprovalRequired):
-                RunewardClient().start_agent_session("c1", ["x"])
+        with mock.patch("runebox.client.urllib.request.urlopen", rec):
+            with self.assertRaises(RuneboxApprovalRequired):
+                RuneboxClient().start_agent_session("c1", ["x"])
 
     def test_schedule_routes(self) -> None:
         _, req = self.run_call(201, {"id": "s1"}, lambda c: c.create_schedule(
@@ -295,9 +295,9 @@ class NewRouteTests(unittest.TestCase):
             ["x"], cohort="co-1", cron="0 * * * *"))
         self.assertEqual(req, ("POST", "/v1/cohorts/co-1/schedules", {"command": ["x"], "cron": "0 * * * *"}))
         with self.assertRaises(ValueError):
-            RunewardClient().create_schedule(["x"], citadel="c1", cron="* * * * *", every="1m")
+            RuneboxClient().create_schedule(["x"], citadel="c1", cron="* * * * *", every="1m")
         with self.assertRaises(ValueError):
-            RunewardClient().create_schedule(["x"], every="1m")
+            RuneboxClient().create_schedule(["x"], every="1m")
         for kwargs, path in (({}, "/v1/schedules"), ({"citadel": "c1"}, "/v1/citadels/c1/schedules"),
                              ({"cohort": "co-1"}, "/v1/cohorts/co-1/schedules")):
             items, req = self.run_call(200, {"schedules": [{"id": "s1"}]},

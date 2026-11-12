@@ -1,8 +1,8 @@
 /**
- * @runeward/sdk — TypeScript client and agent-framework tools for Rune Box,
+ * @runebox/sdk — TypeScript client and agent-framework tools for Rune Box,
  * the open-source governance harness for AI agents.
  *
- * The core {@link RunewardClient} has no runtime dependencies (uses global
+ * The core {@link RuneboxClient} has no runtime dependencies (uses global
  * `fetch`). The AI SDK tool wrappers in `./ai-tools` require the optional peer
  * dependencies `ai` and `zod`; the LangChain.js wrappers in `./langchain-tools`
  * require `@langchain/core` and `zod`; the Strands wrappers in `./strands-tools`
@@ -10,17 +10,17 @@
  */
 
 export {
-  RunewardClient,
-  RunewardError,
-  RunewardDenied,
-	RunewardAuthorizationError,
-  RunewardApprovalRequired,
+  RuneboxClient,
+  RuneboxError,
+  RuneboxDenied,
+	RuneboxAuthorizationError,
+  RuneboxApprovalRequired,
   RefusedError,
   parseRefusal,
 } from "./client.js";
 
 export type {
-  RunewardClientOptions,
+  RuneboxClientOptions,
   Sandbox,
   Profile,
   ExecResult,
@@ -50,4 +50,4 @@ export type {
   MemorySearchOptions,
 } from "./client.js";
 
-export { makeRunewardTools } from "./ai-tools.js";
+export { makeRuneboxTools } from "./ai-tools.js";

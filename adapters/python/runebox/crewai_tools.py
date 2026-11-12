@@ -1,8 +1,8 @@
-"""CrewAI tool wrappers around :class:`RunewardClient`.
+"""CrewAI tool wrappers around :class:`RuneboxClient`.
 
 CrewAI (and its ``pydantic`` dependency) are imported *lazily* inside
-:func:`make_runeward_tools` so the base ``runeward`` client works without the
-extra. Install with ``pip install runeward[crewai]``.
+:func:`make_runebox_tools` so the base ``runebox`` client works without the
+extra. Install with ``pip install rune-box[crewai]``.
 
 Each tool is a ``crewai.tools.BaseTool`` subclass with a typed pydantic
 args-schema. Governance verdicts are surfaced as descriptive strings so the crew
@@ -13,17 +13,17 @@ from __future__ import annotations
 
 from typing import Any, List
 
-from .client import RunewardApprovalRequired, RunewardClient, RunewardDenied
+from .client import RuneboxApprovalRequired, RuneboxClient, RuneboxDenied
 
 
-def _format_denied(exc: RunewardDenied) -> str:
+def _format_denied(exc: RuneboxDenied) -> str:
     return (
         f"DENIED by policy: {exc.reason}. Do not retry this action; choose a "
         "different, allowed approach or report the block to the human."
     )
 
 
-def _format_approval(exc: RunewardApprovalRequired) -> str:
+def _format_approval(exc: RuneboxApprovalRequired) -> str:
     return (
         f"APPROVAL REQUIRED (approval_id={exc.approval_id}): "
         f"{exc.reason or 'a human must sign off before this runs'}. "
@@ -31,11 +31,11 @@ def _format_approval(exc: RunewardApprovalRequired) -> str:
     )
 
 
-def make_runeward_tools(client: RunewardClient) -> List[Any]:
+def make_runebox_tools(client: RuneboxClient) -> List[Any]:
     """Build a list of CrewAI ``BaseTool`` instances bound to ``client``.
 
-    Returns one tool per runeward capability. Requires ``crewai`` to be
-    installed (``pip install runeward[crewai]``).
+    Returns one tool per runebox capability. Requires ``crewai`` to be
+    installed (``pip install rune-box[crewai]``).
     """
     # Lazy import so crewai stays an optional extra.
     try:
@@ -43,8 +43,8 @@ def make_runeward_tools(client: RunewardClient) -> List[Any]:
         from pydantic import BaseModel, Field
     except ImportError as exc:  # pragma: no cover - depends on optional extra
         raise ImportError(
-            "CrewAI is required for make_runeward_tools(). "
-            "Install it with: pip install runeward[crewai]"
+            "CrewAI is required for make_runebox_tools(). "
+            "Install it with: pip install rune-box[crewai]"
         ) from exc
 
     # --- argument schemas -------------------------------------------------
@@ -88,111 +88,111 @@ def make_runeward_tools(client: RunewardClient) -> List[Any]:
     # --- tool definitions -------------------------------------------------
 
     class CreateCitadelTool(BaseTool):
-        name: str = "runeward_create_citadel"
-        description: str = "Provision a governed Citadel from a runeward Charter. Returns Citadel metadata including its id."
+        name: str = "runebox_create_citadel"
+        description: str = "Provision a governed Citadel from a runebox Charter. Returns Citadel metadata including its id."
         args_schema: type = CreateCitadelArgs
 
         def _run(self, profile: str) -> str:
             try:
                 return str(client.create_sandbox(profile))
-            except RunewardDenied as e:
+            except RuneboxDenied as e:
                 return _format_denied(e)
-            except RunewardApprovalRequired as e:
+            except RuneboxApprovalRequired as e:
                 return _format_approval(e)
 
     class ShellTool(BaseTool):
-        name: str = "runeward_shell"
+        name: str = "runebox_shell"
         description: str = "Run a shell command (argv list) in a Citadel. Returns verdict, exit_code, stdout, stderr."
         args_schema: type = ShellArgs
 
         def _run(self, sandbox: str, command: List[str], workdir: str = "") -> str:
             try:
                 return str(client.shell(sandbox, command, workdir))
-            except RunewardDenied as e:
+            except RuneboxDenied as e:
                 return _format_denied(e)
-            except RunewardApprovalRequired as e:
+            except RuneboxApprovalRequired as e:
                 return _format_approval(e)
 
     class PythonTool(BaseTool):
-        name: str = "runeward_python"
+        name: str = "runebox_python"
         description: str = "Run a Python code snippet inside the Citadel."
         args_schema: type = CodeArgs
 
         def _run(self, sandbox: str, code: str) -> str:
             try:
                 return str(client.python(sandbox, code))
-            except RunewardDenied as e:
+            except RuneboxDenied as e:
                 return _format_denied(e)
-            except RunewardApprovalRequired as e:
+            except RuneboxApprovalRequired as e:
                 return _format_approval(e)
 
     class NodeTool(BaseTool):
-        name: str = "runeward_node"
+        name: str = "runebox_node"
         description: str = "Run a Node.js code snippet inside the Citadel."
         args_schema: type = CodeArgs
 
         def _run(self, sandbox: str, code: str) -> str:
             try:
                 return str(client.node(sandbox, code))
-            except RunewardDenied as e:
+            except RuneboxDenied as e:
                 return _format_denied(e)
-            except RunewardApprovalRequired as e:
+            except RuneboxApprovalRequired as e:
                 return _format_approval(e)
 
     class ReadFileTool(BaseTool):
-        name: str = "runeward_read_file"
+        name: str = "runebox_read_file"
         description: str = "Read a file's contents from the Citadel."
         args_schema: type = ReadArgs
 
         def _run(self, sandbox: str, path: str) -> str:
             try:
                 return client.read_file(sandbox, path)
-            except RunewardDenied as e:
+            except RuneboxDenied as e:
                 return _format_denied(e)
-            except RunewardApprovalRequired as e:
+            except RuneboxApprovalRequired as e:
                 return _format_approval(e)
 
     class WriteFileTool(BaseTool):
-        name: str = "runeward_write_file"
+        name: str = "runebox_write_file"
         description: str = "Write content to a file in the Citadel."
         args_schema: type = WriteArgs
 
         def _run(self, sandbox: str, path: str, content: str) -> str:
             try:
                 return f"wrote {client.write_file(sandbox, path, content)} bytes to {path}"
-            except RunewardDenied as e:
+            except RuneboxDenied as e:
                 return _format_denied(e)
-            except RunewardApprovalRequired as e:
+            except RuneboxApprovalRequired as e:
                 return _format_approval(e)
 
     class ListFilesTool(BaseTool):
-        name: str = "runeward_list_files"
+        name: str = "runebox_list_files"
         description: str = "List a directory in the Citadel."
         args_schema: type = ListArgs
 
         def _run(self, sandbox: str, path: str) -> str:
             try:
                 return client.list_files(sandbox, path)
-            except RunewardDenied as e:
+            except RuneboxDenied as e:
                 return _format_denied(e)
-            except RunewardApprovalRequired as e:
+            except RuneboxApprovalRequired as e:
                 return _format_approval(e)
 
     class SearchFilesTool(BaseTool):
-        name: str = "runeward_search_files"
+        name: str = "runebox_search_files"
         description: str = "Search for a query string under a path in the Citadel."
         args_schema: type = SearchArgs
 
         def _run(self, sandbox: str, query: str, path: str) -> str:
             try:
                 return client.search_files(sandbox, query, path)
-            except RunewardDenied as e:
+            except RuneboxDenied as e:
                 return _format_denied(e)
-            except RunewardApprovalRequired as e:
+            except RuneboxApprovalRequired as e:
                 return _format_approval(e)
 
     class ListConclaveTool(BaseTool):
-        name: str = "runeward_list_conclave"
+        name: str = "runebox_list_conclave"
         description: str = "List pending human-in-the-loop Conclave requests."
         args_schema: type = NoArgs
 
@@ -200,7 +200,7 @@ def make_runeward_tools(client: RunewardClient) -> List[Any]:
             return str(client.list_approvals())
 
     class KillCitadelTool(BaseTool):
-        name: str = "runeward_kill_citadel"
+        name: str = "runebox_kill_citadel"
         description: str = "Tear down a Citadel when the task is finished."
         args_schema: type = CitadelArgs
 
