@@ -3504,6 +3504,7 @@ dependencies = [
  "reqwest 0.12.28",
  "runebox-charter",
  "runebox-egress",
+ "runebox-keys",
  "runebox-supervisor",
  "runebox-vmagent",
  "rustls",
@@ -3622,6 +3623,7 @@ dependencies = [
  "runebox-charter",
  "runebox-egress",
  "runebox-fleet",
+ "runebox-keys",
  "runebox-ledger",
  "runebox-obs",
  "runebox-policy",
@@ -3643,6 +3645,7 @@ name = "runebox-credentials"
 version = "0.4.4"
 dependencies = [
  "chrono",
+ "runebox-keys",
  "runebox-ledger",
  "serde",
  "serde_json",
@@ -3743,6 +3746,7 @@ dependencies = [
  "hex",
  "serde_json",
  "sha2 0.11.1",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 

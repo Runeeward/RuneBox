@@ -298,6 +298,18 @@ fn evidence_round_trips_and_verifies() {
     assert_eq!(built, doc);
 }
 
+/// Evidence exported by v0.4.3 (`runeward-evidence/v1`, `runeward_version`)
+/// still decodes and verifies.
+#[test]
+fn legacy_evidence_verifies() {
+    let mut doc = evidence::read(golden("evidence-v0.4.3.json").as_slice()).expect("read");
+    assert_eq!(doc.format, "runeward-evidence/v1");
+    assert_eq!(doc.runebox_version, "v0.0.0-golden");
+    // Same deliberate policy-hash mismatch as `evidence.json`.
+    doc.policy.sha256 = hex::encode(sha2::Sha256::digest(doc.policy.resolved.as_bytes()));
+    assert_eq!(evidence::verify(&doc).expect("verify"), 6);
+}
+
 #[test]
 fn scrub_outputs_match() {
     #[derive(serde::Deserialize)]

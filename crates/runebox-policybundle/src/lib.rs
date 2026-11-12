@@ -64,6 +64,19 @@ pub const ANNOTATION_KEY_ID: &str = "runebox.runeward.io/key-id";
 /// Domain-separation tag of the v1 signing payload.
 const SIGNING_PAYLOAD_PREFIX: &str = "runebox.policy.bundle.v1";
 
+// Pulls accept the tags bundles pushed by v0.4.3 and earlier carried under
+// the `runeward` name, so those signed bundles keep verifying. Pushes write
+// only the current tags.
+/// Signature annotations accepted on pull, current first.
+const ACCEPTED_SIGNATURE_ANNOTATIONS: [&str; 2] = [ANNOTATION_SIGNATURE, "runeward.dev/signature"];
+/// Signing payload tags accepted on pull, current first.
+const ACCEPTED_PAYLOAD_PREFIXES: [&str; 2] = [SIGNING_PAYLOAD_PREFIX, "runeward.policy.bundle.v1"];
+/// Layer media types accepted on pull: (Rego, CEL) from v0.4.3 and earlier.
+const LEGACY_MEDIA_TYPE_LAYERS: (&str, &str) = (
+    "application/vnd.runeward.policy.layer.v1.rego",
+    "application/vnd.runeward.policy.layer.v1.cel+toml",
+);
+
 /// Policy engine a bundle targets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Engine {
@@ -95,6 +108,8 @@ impl Engine {
         match media_type {
             MEDIA_TYPE_LAYER_REGO => Ok(Self::Rego),
             MEDIA_TYPE_LAYER_CEL => Ok(Self::Cel),
+            m if m == LEGACY_MEDIA_TYPE_LAYERS.0 => Ok(Self::Rego),
+            m if m == LEGACY_MEDIA_TYPE_LAYERS.1 => Ok(Self::Cel),
             other => Err(Error::UnknownLayerMediaType(other.to_owned())),
         }
     }
@@ -254,11 +269,11 @@ struct ConfigIn {
 
 /// Builds the canonical signed bytes from the config and layer digests.
 fn signing_payload(config: &Descriptor, layer: &Descriptor) -> Vec<u8> {
-    format!(
-        "{SIGNING_PAYLOAD_PREFIX}\nconfig={}\nlayer={}",
-        config.digest, layer.digest
-    )
-    .into_bytes()
+    payload_with_prefix(SIGNING_PAYLOAD_PREFIX, config, layer)
+}
+
+fn payload_with_prefix(prefix: &str, config: &Descriptor, layer: &Descriptor) -> Vec<u8> {
+    format!("{prefix}\nconfig={}\nlayer={}", config.digest, layer.digest).into_bytes()
 }
 
 /// Removes an optional `oci://` prefix from a reference.
@@ -429,15 +444,20 @@ fn verify_signature(
     layer: &Descriptor,
     key: &VerifyingKey,
 ) -> Result<(), Error> {
-    let sig_b64 = manifest
-        .annotations
-        .get(ANNOTATION_SIGNATURE)
-        .filter(|s| !s.is_empty())
+    let sig_b64 = ACCEPTED_SIGNATURE_ANNOTATIONS
+        .iter()
+        .find_map(|a| manifest.annotations.get(*a).filter(|s| !s.is_empty()))
         .ok_or(Error::Unsigned)?;
     let raw = STANDARD.decode(sig_b64).map_err(Error::DecodeSignature)?;
     let signature = Signature::from_slice(&raw).map_err(|_| Error::BadSignature)?;
-    key.verify(&signing_payload(&manifest.config, layer), &signature)
-        .map_err(|_| Error::BadSignature)
+    ACCEPTED_PAYLOAD_PREFIXES
+        .iter()
+        .any(|p| {
+            key.verify(&payload_with_prefix(p, &manifest.config, layer), &signature)
+                .is_ok()
+        })
+        .then_some(())
+        .ok_or(Error::BadSignature)
 }
 
 /// Parses a base64 ed25519 public key; surrounding whitespace is ignored.

@@ -37,6 +37,15 @@ fn go_signature_verifies() {
     assert_eq!(verify_key(), golden_key().verifying_key());
 }
 
+/// A signature written by v0.4.3 (`runeward.profile.sig.v1`) still verifies.
+#[test]
+fn legacy_v043_signature_verifies() {
+    let sig = Signature::parse(&golden("signed.toml.sig.v0.4.3")).expect("parse sig");
+    assert_eq!(sig.format, "runeward.profile.sig.v1");
+    sig.verify(&golden("signed.toml"), &verify_key())
+        .expect("v0.4.3 signature verifies");
+}
+
 #[test]
 fn flipped_byte_fails() {
     let sig = Signature::parse(&golden("signed.toml.sig")).expect("parse sig");

@@ -69,9 +69,11 @@ pub(crate) fn user_cache_dir() -> PathBuf {
     std::env::temp_dir()
 }
 
-/// The directory snapshots are written to.
+/// The directory snapshots are written to (under the pre-v0.4.4
+/// `runeward` cache directory while only that exists).
 pub(crate) fn snapshot_dir() -> PathBuf {
-    user_cache_dir().join("runebox").join("snapshots")
+    let cache = user_cache_dir();
+    runebox_keys::renamed_path(cache.join("runebox"), cache.join("runeward")).join("snapshots")
 }
 
 #[cfg(test)]

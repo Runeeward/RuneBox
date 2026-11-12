@@ -10,6 +10,9 @@ use base64::engine::general_purpose::STANDARD;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use sha2::{Digest, Sha256};
 
+mod rename;
+pub use rename::renamed_path;
+
 /// Length of an encoded public key.
 pub const PUBLIC_KEY_LEN: usize = 32;
 /// Length of an encoded private key (`seed || public`).

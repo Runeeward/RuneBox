@@ -206,7 +206,7 @@ impl Store {
 
 /// The credentials file path: `RUNEBOX_CREDENTIALS_FILE` (trimmed) when
 /// set, otherwise `runebox/credentials.json` under the user config
-/// directory.
+/// directory (`runeward/` while only the pre-v0.4.4 directory exists).
 pub fn path() -> Result<PathBuf, CredentialsError> {
     if let Some(p) = env::var_os(ENV_FILE) {
         let s = p.to_string_lossy();
@@ -215,7 +215,9 @@ pub fn path() -> Result<PathBuf, CredentialsError> {
             return Ok(PathBuf::from(trimmed));
         }
     }
-    Ok(user_config_dir()?.join("runebox").join("credentials.json"))
+    let config = user_config_dir()?;
+    let dir = runebox_keys::renamed_path(config.join("runebox"), config.join("runeward"));
+    Ok(dir.join("credentials.json"))
 }
 
 /// Reads the login at [`path()`]; see [`Store::load`].

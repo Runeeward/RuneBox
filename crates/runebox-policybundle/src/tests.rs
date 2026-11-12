@@ -446,3 +446,41 @@ async fn unreachable_registry_is_an_error() {
         "{err}"
     );
 }
+
+/// A bundle signed by v0.4.3 (`runeward.policy.bundle.v1` payload, the
+/// `runeward.dev/signature` annotation, `runeward` layer media type) still
+/// verifies.
+#[test]
+fn legacy_v043_signature_verifies() {
+    let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../testdata/golden/");
+    let raw = fs::read_to_string(format!("{root}policy-bundle-v0.4.3.json")).expect("fixture");
+    let fx: HashMap<String, String> = serde_json::from_str(&raw).expect("parse fixture");
+    let public = decode_public_key(&fx["public_key"]).expect("public key");
+
+    let bundle =
+        Bundle::new(Engine::Rego, "package runeward\n").with_query("data.runeward.decision");
+    let config = Descriptor::of(MEDIA_TYPE_CONFIG, &bundle.config_bytes().expect("config"));
+    let layer = Descriptor::of(LEGACY_MEDIA_TYPE_LAYERS.0, &bundle.policy);
+    assert_eq!(
+        payload_with_prefix("runeward.policy.bundle.v1", &config, &layer),
+        fx["payload"].as_bytes()
+    );
+    let manifest = Manifest {
+        config,
+        layers: vec![layer.clone()],
+        annotations: BTreeMap::from([(
+            "runeward.dev/signature".to_owned(),
+            fx["signature"].clone(),
+        )]),
+        ..Manifest::default()
+    };
+    verify_signature(&manifest, &layer, &public).expect("legacy signature verifies");
+    assert_eq!(
+        Engine::from_layer_media_type(&layer.media_type).expect("engine"),
+        Engine::Rego
+    );
+
+    let mut tampered = manifest.clone();
+    tampered.config.digest = layer.digest.clone();
+    assert!(verify_signature(&tampered, &layer, &public).is_err());
+}

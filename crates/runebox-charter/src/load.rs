@@ -199,22 +199,9 @@ fn search_dirs(opts: &Options, lookup: impl Fn(&str) -> Option<String>) -> Vec<P
 }
 
 /// `<wd>/.runebox`, or the pre-v0.4.4 `<wd>/.runeward` while only the old
-/// directory exists. Remove the fallback once v0.4.3 projects have moved.
+/// directory exists.
 fn project_config_dir(wd: &Path) -> PathBuf {
-    let dir = wd.join(".runebox");
-    let old = wd.join(".runeward");
-    if !dir.exists() && old.is_dir() {
-        static WARN: std::sync::Once = std::sync::Once::new();
-        WARN.call_once(|| {
-            eprintln!(
-                "runebox: using {}; rename it to {}",
-                old.display(),
-                dir.display()
-            );
-        });
-        return old;
-    }
-    dir
+    runebox_keys::renamed_path(wd.join(".runebox"), wd.join(".runeward"))
 }
 
 /// The user's home directory as Go's `os.UserHomeDir` finds it.

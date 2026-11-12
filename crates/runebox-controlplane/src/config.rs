@@ -137,12 +137,14 @@ fn fleet_lease(v: &str) -> Duration {
         .map_or(default, Duration::from_nanos)
 }
 
-/// `$RUNEBOX_STATE_DIR`, else `<user cache dir>/runebox`.
+/// `$RUNEBOX_STATE_DIR`, else `<user cache dir>/runebox` (or the pre-v0.4.4
+/// `<user cache dir>/runeward` while only that exists).
 fn default_state_dir(env: Option<String>) -> PathBuf {
     if let Some(d) = env.filter(|d| !d.is_empty()) {
         return PathBuf::from(d);
     }
-    user_cache_dir().join("runebox")
+    let cache = user_cache_dir();
+    runebox_keys::renamed_path(cache.join("runebox"), cache.join("runeward"))
 }
 
 /// Go's `os.UserCacheDir`, falling back to the temp dir.
@@ -205,6 +207,7 @@ mod tests {
         assert!(c.ignore_client_usage && c.chromium_sandbox);
         assert_eq!(c.state_dir, Some(PathBuf::from("/tmp/x")));
         assert_eq!(default_state_dir(Some("/x".into())), PathBuf::from("/x"));
-        assert!(default_state_dir(None).ends_with("runebox"));
+        let dir = default_state_dir(None);
+        assert!(dir.ends_with("runebox") || dir.ends_with("runeward"));
     }
 }

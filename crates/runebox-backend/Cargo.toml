@@ -15,6 +15,7 @@ runebox-charter.workspace = true
 runebox-egress.workspace = true
 runebox-supervisor.workspace = true
 runebox-vmagent.workspace = true
+runebox-keys.workspace = true
 async-trait.workspace = true
 cap-std.workspace = true
 chrono.workspace = true

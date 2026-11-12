@@ -14,6 +14,10 @@ use crate::sign::Bundle;
 /// Format identifier written into every document.
 pub const FORMAT: &str = "runebox-evidence/v1";
 
+/// Formats [`verify`] accepts: the current one, then the `runeward` name
+/// v0.4.3 and earlier wrote, so their evidence still verifies.
+const ACCEPTED_FORMATS: [&str; 2] = [FORMAT, "runeward-evidence/v1"];
+
 /// A portable policy-lint finding captured at export time.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct Finding {
@@ -81,6 +85,8 @@ go_struct!(Document {
     "format" => format: Str,
     "generated_at" => generated_at: Time,
     "runebox_version" => runebox_version: Str,
+    // The field name v0.4.3 and earlier wrote.
+    "runeward_version" => runebox_version: Str,
     "policy" => policy: Policy,
     "chronicle" => chronicle: Bundle,
 });
@@ -142,7 +148,7 @@ pub fn read<R: Read>(r: R) -> Result<Document, EvidenceError> {
 /// Checks the document format, policy digest, event hash chain, and every
 /// event signature. Returns the number of verified events.
 pub fn verify(doc: &Document) -> Result<usize, EvidenceError> {
-    if doc.format != FORMAT {
+    if !ACCEPTED_FORMATS.contains(&doc.format.as_str()) {
         return Err(EvidenceError::UnsupportedFormat(doc.format.clone()));
     }
     if sha256_hex(&doc.policy.resolved) != doc.policy.sha256 {
