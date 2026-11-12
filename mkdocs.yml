@@ -8,8 +8,8 @@ copyright: Copyright &copy; 2026 The runeward Authors
 
 theme:
   name: material
-  logo: assets/runeward-logo.png
-  favicon: assets/runeward-logo.png
+  logo: assets/runebox-logo.png
+  favicon: assets/runebox-logo.png
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default

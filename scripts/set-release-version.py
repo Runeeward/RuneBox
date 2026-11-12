@@ -61,7 +61,7 @@ def main() -> int:
     write_json(lock_path, lock)
 
     replace_one(
-        ROOT / "crates/runeward-mcp/src/lib.rs",
+        ROOT / "crates/runebox-mcp/src/lib.rs",
         r'^pub const VERSION: &str = "[^"]+";$',
         f'pub const VERSION: &str = "{version}";',
         "MCP implementation version",
@@ -70,22 +70,22 @@ def main() -> int:
     manifest_path = ROOT / "dist/mcp/server.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["version"] = version
-    manifest["packages"][0]["identifier"] = f"ghcr.io/runeeward/runeward:v{version}"
+    manifest["packages"][0]["identifier"] = f"ghcr.io/runeeward/runebox:v{version}"
     write_json(manifest_path, manifest)
 
-    plugin_path = ROOT / "dist/codex-plugin/runeward/.codex-plugin/plugin.json"
+    plugin_path = ROOT / "dist/codex-plugin/runebox/.codex-plugin/plugin.json"
     plugin = json.loads(plugin_path.read_text(encoding="utf-8"))
     plugin["version"] = version
     write_json(plugin_path, plugin)
 
     replace_one(
-        ROOT / "deploy/helm/runeward/Chart.yaml",
+        ROOT / "deploy/helm/runebox/Chart.yaml",
         r"^version: [^\s]+$",
         f"version: {version}",
         "Helm chart version",
     )
     replace_one(
-        ROOT / "deploy/helm/runeward/Chart.yaml",
+        ROOT / "deploy/helm/runebox/Chart.yaml",
         r'^appVersion: "[^"]+"$',
         f'appVersion: "{version}"',
         "Helm app version",

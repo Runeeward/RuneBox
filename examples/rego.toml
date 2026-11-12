@@ -15,12 +15,12 @@ type    = "container"
 image   = "debian:stable-slim"
 workdir = "/workspace"
 
-# The decision entrypoint is data.runeward.decision by default. The rule may
+# The decision entrypoint is data.runebox.decision by default. The rule may
 # return a bare string verdict or an object {"verdict": ..., "reason": ...}.
 # OPA v1 uses Rego v1 syntax (the `if` keyword; no `import future.keywords`).
 [rego]
 module = """
-package runeward
+package runebox
 
 default decision := {"verdict": "allow"}
 

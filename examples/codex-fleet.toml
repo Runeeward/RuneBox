@@ -4,14 +4,14 @@
 # in their assigned sandbox, then mark it done. Launch/task operations are
 # policy-audited; inner agent commands remain sandbox/network/resource constrained.
 #
-#   printf '%s' "$OPENAI_API_KEY" > ~/.runeward-openai.key
+#   printf '%s' "$OPENAI_API_KEY" > ~/.runebox-openai.key
 #   runebox --config-dir examples serve
 #   POST /v1/fleets {"profile":"codex-fleet"}   # provisions 3 sandboxes + seeds the board
 #   then: claim -> codex exec -> complete (see the worker loop in the runbook)
 
 [host]
 type    = "container"
-image   = "ghcr.io/runeeward/runeward-agent:latest"
+image   = "ghcr.io/runeeward/runebox-agent:latest"
 user    = "agent"
 workdir = "/workspace"
 
@@ -20,7 +20,7 @@ replicas = 3
 task_board = [
   "write fib.py that prints the first 10 Fibonacci numbers, then run it",
   "write primes.py that prints primes below 50, then run it",
-  "write reverse.py that reverses the string 'runeward' and prints it, then run it",
+  "write reverse.py that reverses the string 'runebox' and prints it, then run it",
   "write factorial.py that prints 10! and run it",
 ]
 
@@ -53,11 +53,11 @@ loop_threshold  = 12
 # `codex exec` authenticates from CODEX_API_KEY (not OPENAI_API_KEY); inject both.
 [[env]]
 name = "CODEX_API_KEY"
-file = "~/.runeward-openai.key"
+file = "~/.runebox-openai.key"
 
 [[env]]
 name = "OPENAI_API_KEY"
-file = "~/.runeward-openai.key"
+file = "~/.runebox-openai.key"
 
 [chronicle]
 redact = true

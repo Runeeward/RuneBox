@@ -3,8 +3,8 @@
 **Adapters make Rune Box's governed tools a first-class citizen in the agent
 frameworks you already use.** Instead of hand-rolling HTTP calls to the control
 plane, you import a small client (or a ready-made set of framework "tools") and
-hand them to your agent. The agent then calls `runeward_shell`,
-`runeward_python`, `runeward_read_file`, … exactly as it would any other tool —
+hand them to your agent. The agent then calls `runebox_shell`,
+`runebox_python`, `runebox_read_file`, … exactly as it would any other tool —
 but every call is routed through the full governance path:
 
 ```
@@ -20,7 +20,7 @@ or escalated to a human; and everything is recorded in a tamper-evident Chronicl
   adapter at all — point the client at the Rune Box MCP server (`runebox mcp`).
   See the [REST API](rest-api.md) and the `dist/mcp/` manifest.
 - **Building a Python agent** with LangChain, CrewAI, LlamaIndex, the OpenAI
-  Agents SDK, or Strands? Use the [`runeward` Python package](#python-runeward).
+  Agents SDK, or Strands? Use the [`runebox` Python package](#python-runebox).
 - **Building a TypeScript agent** on the Vercel AI SDK, LangChain.js, or Strands?
   Use the [`@runebox/sdk` package](#typescript-runeboxsdk).
 - **Rolling your own?** Both `RuneboxClient`s are thin, typed wrappers over the
@@ -33,8 +33,8 @@ governed tool set: `create_sandbox`, `shell`, `python`, `node`,
 `read_file`/`write_file`/`list_files`/`search_files`,
 `list_approvals`/`approve`/`deny`, `kill_sandbox`, plus `audit`/`verify_audit`.
 (The client method names keep their original spellings even though the matching
-MCP tools are now `runeward_create_citadel`, `runeward_kill_citadel`, and
-`runeward_list_conclave`.)
+MCP tools are now `runebox_create_citadel`, `runebox_kill_citadel`, and
+`runebox_list_conclave`.)
 
 ## The governance contract every adapter preserves
 
@@ -49,11 +49,11 @@ model-readable strings on the framework tools:
   `approval_id`; don't route around the gate.
 
 !!! note "Authentication"
-    If `runebox serve` is started with a token (`--token` / `RUNEWARD_API_TOKEN`)
+    If `runebox serve` is started with a token (`--token` / `RUNEBOX_API_TOKEN`)
     or RBAC, pass it to the client — `RuneboxClient(..., token="...")` in Python
     or `new RuneboxClient({ token: "..." })` in TypeScript.
 
-## Python (`runeward`)
+## Python (`runebox`)
 
 The core client uses **only the Python standard library** (`urllib`). Framework
 helpers are optional extras, imported lazily, so the base client works with
@@ -92,7 +92,7 @@ rw.kill_sandbox(sbx["id"])
 ### Framework tools
 
 Each framework module exposes a single `make_runebox_tools(client)` factory that
-returns that framework's native tool objects, all named `runeward_*`:
+returns that framework's native tool objects, all named `runebox_*`:
 
 ```python
 from runebox import RuneboxClient

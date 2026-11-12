@@ -1,6 +1,6 @@
 # A runnable "autonomous agent" contract for the LIVE Pattern-B demo: an agent
 # gets a real toolchain (python3 / node / curl) inside an isolated sandbox.
-# Calls made through Runeward's tool APIs are policy-gated and signed; processes
+# Calls made through Rune Box's tool APIs are policy-gated and signed; processes
 # already inside the sandbox remain constrained by network and resource controls.
 #
 #   runebox --config-dir examples serve
@@ -8,7 +8,7 @@
 
 [host]
 type    = "container"
-image   = "ghcr.io/runeeward/runeward-sandbox:latest" # published quickstart image
+image   = "ghcr.io/runeeward/runebox-sandbox:latest" # published quickstart image
 workdir = "/workspace"
 
 # Deny everything on the network except the model/API + code host we name.

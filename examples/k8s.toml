@@ -2,11 +2,11 @@
 # flow and the k8s backend walkthrough in docs/E2E-TESTING.md.
 #
 #   ./bin/runebox up
-#   kubectl -n runeward create configmap runeward-profiles --from-file=examples/
+#   kubectl -n runebox create configmap runebox-profiles --from-file=examples/
 #   kubectl apply -f - <<'EOF'
-#   apiVersion: runeward.dev/v1alpha1
+#   apiVersion: runebox.runeward.io/v1alpha1
 #   kind: Sandbox
-#   metadata: { name: demo, namespace: runeward }
+#   metadata: { name: demo, namespace: runebox }
 #   spec: { profile: k8s }
 #   EOF
 

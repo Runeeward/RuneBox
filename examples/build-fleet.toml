@@ -4,15 +4,15 @@
 # Codex (OpenAI), or Claude - selected by the driver (AGENT=cursor|codex|claude).
 #
 #   # drop whichever key(s) you use (missing ones are simply skipped):
-#   printf '%s' "$CURSOR_API_KEY"    > ~/.runeward-cursor.key
-#   printf '%s' "$OPENAI_API_KEY"    > ~/.runeward-openai.key
-#   printf '%s' "$ANTHROPIC_API_KEY" > ~/.runeward-anthropic.key
+#   printf '%s' "$CURSOR_API_KEY"    > ~/.runebox-cursor.key
+#   printf '%s' "$OPENAI_API_KEY"    > ~/.runebox-openai.key
+#   printf '%s' "$ANTHROPIC_API_KEY" > ~/.runebox-anthropic.key
 #   runebox --config-dir examples serve
 #   AGENT=claude MODEL=sonnet ./examples/fleet.sh build "Build a FastAPI todo API with tests"
 
 [host]
 type    = "container"
-image   = "ghcr.io/runeeward/runeward-agent:latest"
+image   = "ghcr.io/runeeward/runebox-agent:latest"
 user    = "agent"
 workdir = "/workspace"
 # Optional: start every worker from a copy of an existing scaffold/repo.
@@ -93,19 +93,19 @@ loop_threshold  = 12
 # you only need to create the key(s) for the agent(s) you actually use.
 [[env]]
 name = "CURSOR_API_KEY"
-file = "~/.runeward-cursor.key"
+file = "~/.runebox-cursor.key"
 
 [[env]]
 name = "CODEX_API_KEY"
-file = "~/.runeward-openai.key"
+file = "~/.runebox-openai.key"
 
 [[env]]
 name = "OPENAI_API_KEY"
-file = "~/.runeward-openai.key"
+file = "~/.runebox-openai.key"
 
 [[env]]
 name = "ANTHROPIC_API_KEY"
-file = "~/.runeward-anthropic.key"
+file = "~/.runebox-anthropic.key"
 
 # Node-based CLIs (Cursor, Claude Code) honor the egress proxy in cooperative mode.
 [[env]]

@@ -5,15 +5,15 @@
 # inner agent commands remain sandbox/network/resource constrained.
 #
 # Prereqs (see the runbook):
-#   docker build -f deploy/Dockerfile.egress  -t runeward-egress:latest .
-#   printf '%s' "$CURSOR_API_KEY" > ~/.runeward-cursor.key
-#   export RUNEWARD_KUBE_CONTEXT=orbstack RUNEWARD_K8S_NAMESPACE=runeward
+#   docker build -f deploy/Dockerfile.egress  -t runebox-egress:latest .
+#   printf '%s' "$CURSOR_API_KEY" > ~/.runebox-cursor.key
+#   export RUNEBOX_KUBE_CONTEXT=orbstack RUNEBOX_K8S_NAMESPACE=runebox
 #   runebox --config-dir examples serve
 #   POST /v1/fleets {"profile":"cursor-fleet-k8s"}
 
 [host]
 type    = "k8s"
-image   = "ghcr.io/runeeward/runeward-agent:latest"
+image   = "ghcr.io/runeeward/runebox-agent:latest"
 workdir = "/workspace"
 # Optional: seed every agent's workspace with a COPY of a starting repo/scaffold.
 # copy_from = "~/Documents/my-app-scaffold"
@@ -30,7 +30,7 @@ task_board = [
 ]
 
 # Deny-by-default egress; only Cursor's endpoints are reachable. On k8s this runs
-# an egress sidecar (needs runeward-egress in the cluster). For bypass-proof L3
+# an egress sidecar (needs runebox-egress in the cluster). For bypass-proof L3
 # enforcement that an uncooperative process can't skip, add: enforce = "strict".
 [network]
 default = "deny"
@@ -78,7 +78,7 @@ loop_threshold  = 12
 # The Cursor CLI authenticates from CURSOR_API_KEY.
 [[env]]
 name = "CURSOR_API_KEY"
-file = "~/.runeward-cursor.key"
+file = "~/.runebox-cursor.key"
 
 # The Cursor CLI is Node-based; make it honor the egress proxy in cooperative mode.
 [[env]]

@@ -2,11 +2,11 @@
 set -euo pipefail
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-work=$(mktemp -d "${TMPDIR:-/tmp}/runeward-kind-e2e.XXXXXX")
+work=$(mktemp -d "${TMPDIR:-/tmp}/runebox-kind-e2e.XXXXXX")
 base=http://127.0.0.1:18081
-context=${RUNEWARD_KUBE_CONTEXT:-$(kubectl config current-context)}
-namespace=${RUNEWARD_K8S_NAMESPACE:-runeward-e2e-kind}
-binary=${RUNEWARD_E2E_BINARY:-$repo_root/bin/runeward}
+context=${RUNEBOX_KUBE_CONTEXT:-$(kubectl config current-context)}
+namespace=${RUNEBOX_K8S_NAMESPACE:-runebox-e2e-kind}
+binary=${RUNEBOX_E2E_BINARY:-$repo_root/bin/runebox}
 server_pid=""
 cohort_id=""
 namespace_created=false
@@ -35,10 +35,10 @@ trap cleanup EXIT
 
 command -v kubectl >/dev/null || fail "kubectl is required"
 command -v jq >/dev/null || fail "jq is required"
-[[ "$context" == kind-* ]] || fail "context $context is not a kind context; set RUNEWARD_KUBE_CONTEXT=kind-<name>"
+[[ "$context" == kind-* ]] || fail "context $context is not a kind context; set RUNEBOX_KUBE_CONTEXT=kind-<name>"
 kubectl --context "$context" get nodes >/dev/null || fail "cannot reach Kubernetes context $context"
 if kubectl --context "$context" get namespace "$namespace" >/dev/null 2>&1; then
-  fail "namespace $namespace already exists; set RUNEWARD_K8S_NAMESPACE to a fresh test namespace"
+  fail "namespace $namespace already exists; set RUNEBOX_K8S_NAMESPACE to a fresh test namespace"
 fi
 
 mkdir -p "$work/charters" "$work/state"
@@ -68,14 +68,14 @@ EOF
 chmod 600 "$work/authz.json"
 
 if [[ ! -x "$binary" ]]; then
-  (cd "$repo_root" && cargo build --release --locked -p runeward-cli --bin runebox \
+  (cd "$repo_root" && cargo build --release --locked -p runebox-cli --bin runebox \
     && cp target/release/runebox "$binary")
 fi
 
-RUNEWARD_AUTHZ_FILE="$work/authz.json" \
-RUNEWARD_STATE_DIR="$work/state" \
-RUNEWARD_KUBE_CONTEXT="$context" \
-RUNEWARD_K8S_NAMESPACE="$namespace" \
+RUNEBOX_AUTHZ_FILE="$work/authz.json" \
+RUNEBOX_STATE_DIR="$work/state" \
+RUNEBOX_KUBE_CONTEXT="$context" \
+RUNEBOX_K8S_NAMESPACE="$namespace" \
   "$binary" --config-dir "$work/charters" serve --bind 127.0.0.1 --port 18081 --no-ui >"$work/server.log" 2>&1 &
 server_pid=$!
 for _ in $(seq 1 40); do
@@ -123,8 +123,8 @@ expect_status 200 tok-ops POST "/v1/cohorts/$cohort_id/tasks/$task_two/complete"
 expect_status 200 tok-dev GET "/v1/cohorts/$cohort_id/tasks"
 [[ $(jq '[.tasks[] | select(.state == "done")] | length' "$work/response.json") == 2 ]] || fail "both tasks did not complete"
 
-pod_count=$(kubectl --context "$context" -n "$namespace" get pods -l runeward.profile=kind-cohort -o json | jq '.items | length')
-pvc_count=$(kubectl --context "$context" -n "$namespace" get pvc -l runeward.profile=kind-cohort -o json | jq '.items | length')
+pod_count=$(kubectl --context "$context" -n "$namespace" get pods -l runebox.profile=kind-cohort -o json | jq '.items | length')
+pvc_count=$(kubectl --context "$context" -n "$namespace" get pvc -l runebox.profile=kind-cohort -o json | jq '.items | length')
 [[ "$pod_count" == 2 ]] || fail "expected two worker Pods, found $pod_count"
 [[ "$pvc_count" == 2 ]] || fail "expected two worker PVCs, found $pvc_count"
 

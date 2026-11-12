@@ -3,11 +3,11 @@
 # multi-key model - Cursor, Codex (OpenAI), or Claude - picked by the driver.
 # The SAME examples/fleet.sh drives it (it only speaks REST):
 #
-#   docker build -f deploy/Dockerfile.egress -t runeward-egress:latest .
-#   printf '%s' "$OPENAI_API_KEY"    > ~/.runeward-openai.key       # only the ones you use
-#   printf '%s' "$ANTHROPIC_API_KEY" > ~/.runeward-anthropic.key
-#   printf '%s' "$CURSOR_API_KEY"    > ~/.runeward-cursor.key
-#   export RUNEWARD_KUBE_CONTEXT=orbstack RUNEWARD_K8S_NAMESPACE=runeward
+#   docker build -f deploy/Dockerfile.egress -t runebox-egress:latest .
+#   printf '%s' "$OPENAI_API_KEY"    > ~/.runebox-openai.key       # only the ones you use
+#   printf '%s' "$ANTHROPIC_API_KEY" > ~/.runebox-anthropic.key
+#   printf '%s' "$CURSOR_API_KEY"    > ~/.runebox-cursor.key
+#   export RUNEBOX_KUBE_CONTEXT=orbstack RUNEBOX_K8S_NAMESPACE=runebox
 #   runebox --config-dir examples serve
 #   AGENT=claude MODEL=sonnet ./examples/fleet.sh build "Build a FastAPI todo API with tests"
 #
@@ -16,7 +16,7 @@
 
 [host]
 type    = "k8s"
-image   = "ghcr.io/runeeward/runeward-agent:latest"
+image   = "ghcr.io/runeeward/runebox-agent:latest"
 workdir = "/workspace"
 # copy_from = "~/Documents/my-app-scaffold"
 
@@ -68,12 +68,12 @@ hostname = "anysphere-binaries.s3.us-east-1.amazonaws.com"
 # In a cluster there is no host.docker.internal. Two clean options:
 #   1. Run the model as an in-cluster Service (e.g. an Ollama Deployment+Service),
 #      allow its DNS name below, and point the agent at it via
-#      OPENAI_BASE_URL=http://ollama.runeward.svc.cluster.local:11434/v1
+#      OPENAI_BASE_URL=http://ollama.runebox.svc.cluster.local:11434/v1
 #   2. Fully air-gapped: run the model INSIDE the pod and keep default="deny"
 #      with NO allow rules - the fleet then builds with zero internet egress.
 # [[network.rule]]
 # verdict  = "allow"
-# hostname = "ollama.runeward.svc.cluster.local"
+# hostname = "ollama.runebox.svc.cluster.local"
 
 [[policy]]
 tool    = "shell"
@@ -96,19 +96,19 @@ loop_threshold  = 12
 
 [[env]]
 name = "CURSOR_API_KEY"
-file = "~/.runeward-cursor.key"
+file = "~/.runebox-cursor.key"
 
 [[env]]
 name = "CODEX_API_KEY"
-file = "~/.runeward-openai.key"
+file = "~/.runebox-openai.key"
 
 [[env]]
 name = "OPENAI_API_KEY"
-file = "~/.runeward-openai.key"
+file = "~/.runebox-openai.key"
 
 [[env]]
 name = "ANTHROPIC_API_KEY"
-file = "~/.runeward-anthropic.key"
+file = "~/.runebox-anthropic.key"
 
 [[env]]
 name  = "NODE_USE_ENV_PROXY"

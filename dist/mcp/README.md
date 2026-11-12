@@ -1,21 +1,21 @@
-# Publishing runeward to MCP registries
+# Publishing runebox to MCP registries
 
 [`server.json`](./server.json) is the [Model Context Protocol registry][mcp-reg]
-manifest for runeward. It declares the server's reverse-DNS name
-(`io.github.Runeeward/runeward`), its source repository, and two ways to run
+manifest for runebox. It declares the server's reverse-DNS name
+(`io.github.Runeeward/runebox`), its source repository, and two ways to run
 it:
 
 - a **stdio package** — `runebox mcp` shipped as the OCI image
-  `ghcr.io/runeeward/runeward`, and
+  `ghcr.io/runeeward/runebox`, and
 - an optional **streamable HTTP remote** at `http://localhost:8080/mcp` (served
   by `runebox serve`).
 
 The MCP tools this server exposes are documented in
 [`../skill/SKILL.md`](../skill/SKILL.md):
-`runeward_create_citadel`, `runeward_shell`, `runeward_python`,
-`runeward_node`, `runeward_read_file`, `runeward_write_file`,
-`runeward_list_files`, `runeward_search_files`, `runeward_list_conclave`,
-`runeward_kill_citadel`.
+`runebox_create_citadel`, `runebox_shell`, `runebox_python`,
+`runebox_node`, `runebox_read_file`, `runebox_write_file`,
+`runebox_list_files`, `runebox_search_files`, `runebox_list_conclave`,
+`runebox_kill_citadel`.
 
 ## Validate and publish to the registry
 
@@ -44,10 +44,10 @@ membership in `Runeeward` must be **public** for GitHub auth to grant it
 Bump `version` on every release and keep it in sync with the OCI image tag under
 `packages[].version`.
 
-## Configure runeward as an MCP server in a client
+## Configure runebox as an MCP server in a client
 
 The published registry entry is just discovery metadata — clients still need a
-local `mcpServers` config to actually launch the server. runeward runs as a
+local `mcpServers` config to actually launch the server. runebox runs as a
 stdio server via `runebox mcp`.
 
 ### Claude Desktop
@@ -58,11 +58,11 @@ Edit `claude_desktop_config.json`
 ```json
 {
   "mcpServers": {
-    "runeward": {
+    "runebox": {
       "command": "runebox",
       "args": ["mcp"],
       "env": {
-        "RUNEWARD_CONFIG_DIR": "/absolute/path/to/your/profiles"
+        "RUNEBOX_CONFIG_DIR": "/absolute/path/to/your/profiles"
       }
     }
   }
@@ -76,7 +76,7 @@ Add to `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (project):
 ```json
 {
   "mcpServers": {
-    "runeward": {
+    "runebox": {
       "command": "runebox",
       "args": ["mcp"]
     }
@@ -85,10 +85,10 @@ Add to `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (project):
 ```
 
 `command` must be on your `PATH` (install a release, or build it with
-`cargo build --release --locked -p runeward-cli --bin runebox` and install
+`cargo build --release --locked -p runebox-cli --bin runebox` and install
 `target/release/runebox`, or point
 `command` at the absolute path of the built binary). `env` is optional; set
-`RUNEWARD_CONFIG_DIR` to pin profile resolution and `RUNEWARD_STATE_DIR` to pin
+`RUNEBOX_CONFIG_DIR` to pin profile resolution and `RUNEBOX_STATE_DIR` to pin
 where the audit ledger is written.
 
 ### Streamable HTTP remote (alternative)

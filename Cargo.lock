@@ -3425,7 +3425,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-attribution"
+name = "runebox-attribution"
 version = "0.4.4"
 dependencies = [
  "hex",
@@ -3440,7 +3440,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-auditsink"
+name = "runebox-auditsink"
 version = "0.4.4"
 dependencies = [
  "chrono",
@@ -3451,7 +3451,7 @@ dependencies = [
  "prost",
  "reqwest 0.12.28",
  "reqwest 0.13.5",
- "runeward-ledger",
+ "runebox-ledger",
  "rustls",
  "serde_json",
  "tempfile",
@@ -3462,7 +3462,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-authz"
+name = "runebox-authz"
 version = "0.4.4"
 dependencies = [
  "axum",
@@ -3481,7 +3481,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-backend"
+name = "runebox-backend"
 version = "0.4.4"
 dependencies = [
  "async-trait",
@@ -3503,10 +3503,11 @@ dependencies = [
  "rand 0.10.3",
  "regex",
  "reqwest 0.12.28",
- "runeward-charter",
- "runeward-egress",
- "runeward-supervisor",
- "runeward-vmagent",
+ "runebox-charter",
+ "runebox-egress",
+ "runebox-keys",
+ "runebox-supervisor",
+ "runebox-vmagent",
  "rustls",
  "serde",
  "serde_json",
@@ -3520,7 +3521,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-browser"
+name = "runebox-browser"
 version = "0.4.4"
 dependencies = [
  "base64 0.23.1",
@@ -3530,7 +3531,7 @@ dependencies = [
  "httparse",
  "hyper",
  "hyper-util",
- "runeward-ledger",
+ "runebox-ledger",
  "rustls",
  "serde",
  "serde_json",
@@ -3543,12 +3544,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-charter"
+name = "runebox-charter"
 version = "0.4.4"
 dependencies = [
  "base64 0.23.1",
  "ed25519-dalek",
- "runeward-keys",
+ "runebox-keys",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -3559,7 +3560,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-cli"
+name = "runebox-cli"
 version = "0.4.4"
 dependencies = [
  "anyhow",
@@ -3577,20 +3578,20 @@ dependencies = [
  "nix",
  "rand 0.10.3",
  "reqwest 0.12.28",
- "runeward-authz",
- "runeward-backend",
- "runeward-charter",
- "runeward-controlplane",
- "runeward-credentials",
- "runeward-k8s",
- "runeward-ledger",
- "runeward-mcp",
- "runeward-obs",
- "runeward-policy",
- "runeward-policybundle",
- "runeward-secrets",
- "runeward-server",
- "runeward-termrec",
+ "runebox-authz",
+ "runebox-backend",
+ "runebox-charter",
+ "runebox-controlplane",
+ "runebox-credentials",
+ "runebox-k8s",
+ "runebox-ledger",
+ "runebox-mcp",
+ "runebox-obs",
+ "runebox-policy",
+ "runebox-policybundle",
+ "runebox-secrets",
+ "runebox-server",
+ "runebox-termrec",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -3603,7 +3604,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-controlplane"
+name = "runebox-controlplane"
 version = "0.4.4"
 dependencies = [
  "async-trait",
@@ -3617,17 +3618,18 @@ dependencies = [
  "rand 0.10.3",
  "rcgen",
  "regex",
- "runeward-auditsink",
- "runeward-backend",
- "runeward-browser",
- "runeward-charter",
- "runeward-egress",
- "runeward-fleet",
- "runeward-ledger",
- "runeward-obs",
- "runeward-policy",
- "runeward-secrets",
- "runeward-supervisor",
+ "runebox-auditsink",
+ "runebox-backend",
+ "runebox-browser",
+ "runebox-charter",
+ "runebox-egress",
+ "runebox-fleet",
+ "runebox-keys",
+ "runebox-ledger",
+ "runebox-obs",
+ "runebox-policy",
+ "runebox-secrets",
+ "runebox-supervisor",
  "rustls",
  "serde",
  "serde_json",
@@ -3640,11 +3642,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-credentials"
+name = "runebox-credentials"
 version = "0.4.4"
 dependencies = [
  "chrono",
- "runeward-ledger",
+ "runebox-keys",
+ "runebox-ledger",
  "serde",
  "serde_json",
  "tempfile",
@@ -3652,7 +3655,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-egress"
+name = "runebox-egress"
 version = "0.4.4"
 dependencies = [
  "base64 0.23.1",
@@ -3666,9 +3669,9 @@ dependencies = [
  "nix",
  "rand 0.10.3",
  "rcgen",
- "runeward-attribution",
- "runeward-charter",
- "runeward-secrets",
+ "runebox-attribution",
+ "runebox-charter",
+ "runebox-secrets",
  "rustls",
  "serde",
  "serde_json",
@@ -3684,7 +3687,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-fleet"
+name = "runebox-fleet"
 version = "0.4.4"
 dependencies = [
  "base64 0.23.1",
@@ -3692,7 +3695,7 @@ dependencies = [
  "hex",
  "hmac",
  "rand 0.10.3",
- "runeward-ledger",
+ "runebox-ledger",
  "serde",
  "serde_json",
  "sha2 0.11.1",
@@ -3702,7 +3705,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-k8s"
+name = "runebox-k8s"
 version = "0.4.4"
 dependencies = [
  "async-trait",
@@ -3718,9 +3721,9 @@ dependencies = [
  "kube",
  "rand 0.10.3",
  "rcgen",
- "runeward-backend",
- "runeward-charter",
- "runeward-controlplane",
+ "runebox-backend",
+ "runebox-charter",
+ "runebox-controlplane",
  "rustls",
  "schemars",
  "serde",
@@ -3736,7 +3739,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-keys"
+name = "runebox-keys"
 version = "0.4.4"
 dependencies = [
  "base64 0.23.1",
@@ -3744,20 +3747,21 @@ dependencies = [
  "hex",
  "serde_json",
  "sha2 0.11.1",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 
 [[package]]
-name = "runeward-krun"
+name = "runebox-krun"
 version = "0.4.4"
 dependencies = [
  "libc",
- "runeward-vmagent",
+ "runebox-vmagent",
  "serde_json",
 ]
 
 [[package]]
-name = "runeward-ledger"
+name = "runebox-ledger"
 version = "0.4.4"
 dependencies = [
  "base64 0.23.1",
@@ -3767,7 +3771,7 @@ dependencies = [
  "hex",
  "rand 0.10.3",
  "regex",
- "runeward-keys",
+ "runebox-keys",
  "serde",
  "serde_json",
  "sha2 0.11.1",
@@ -3776,7 +3780,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-mcp"
+name = "runebox-mcp"
 version = "0.4.4"
 dependencies = [
  "async-trait",
@@ -3790,14 +3794,14 @@ dependencies = [
  "hyper-util",
  "rcgen",
  "rmcp",
- "runeward-authz",
- "runeward-backend",
- "runeward-browser",
- "runeward-charter",
- "runeward-controlplane",
- "runeward-credentials",
- "runeward-ledger",
- "runeward-policy",
+ "runebox-authz",
+ "runebox-backend",
+ "runebox-browser",
+ "runebox-charter",
+ "runebox-controlplane",
+ "runebox-credentials",
+ "runebox-ledger",
+ "runebox-policy",
  "rustls",
  "serde",
  "serde_json",
@@ -3813,13 +3817,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-obs"
+name = "runebox-obs"
 version = "0.4.4"
 dependencies = [
  "chrono",
  "prometheus",
  "reqwest 0.12.28",
- "runeward-ledger",
+ "runebox-ledger",
  "serde",
  "serde_json",
  "tokio",
@@ -3828,15 +3832,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-policy"
+name = "runebox-policy"
 version = "0.4.4"
 dependencies = [
  "cel-interpreter",
  "cel-parser",
  "prometheus",
  "regorus",
- "runeward-charter",
- "runeward-policybundle",
+ "runebox-charter",
+ "runebox-policybundle",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -3845,7 +3849,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-policybundle"
+name = "runebox-policybundle"
 version = "0.4.4"
 dependencies = [
  "base64 0.23.1",
@@ -3856,7 +3860,7 @@ dependencies = [
  "oci-client",
  "rand 0.10.3",
  "regex",
- "runeward-keys",
+ "runebox-keys",
  "rustls",
  "serde",
  "serde_json",
@@ -3867,7 +3871,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-secrets"
+name = "runebox-secrets"
 version = "0.4.4"
 dependencies = [
  "axum",
@@ -3885,7 +3889,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-server"
+name = "runebox-server"
 version = "0.4.4"
 dependencies = [
  "async-trait",
@@ -3901,17 +3905,17 @@ dependencies = [
  "hyper-util",
  "rand 0.10.3",
  "rcgen",
- "runeward-authz",
- "runeward-backend",
- "runeward-browser",
- "runeward-charter",
- "runeward-controlplane",
- "runeward-egress",
- "runeward-fleet",
- "runeward-ledger",
- "runeward-obs",
- "runeward-policy",
- "runeward-termrec",
+ "runebox-authz",
+ "runebox-backend",
+ "runebox-browser",
+ "runebox-charter",
+ "runebox-controlplane",
+ "runebox-egress",
+ "runebox-fleet",
+ "runebox-ledger",
+ "runebox-obs",
+ "runebox-policy",
+ "runebox-termrec",
  "rustls",
  "serde",
  "serde_json",
@@ -3928,15 +3932,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-supervisor"
+name = "runebox-supervisor"
 version = "0.4.4"
 dependencies = [
  "caps",
  "landlock",
  "libc",
  "nix",
- "runeward-attribution",
- "runeward-charter",
+ "runebox-attribution",
+ "runebox-charter",
  "seccompiler",
  "serde",
  "serde_json",
@@ -3946,11 +3950,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-termrec"
+name = "runebox-termrec"
 version = "0.4.4"
 dependencies = [
  "chrono",
- "runeward-ledger",
+ "runebox-ledger",
  "serde",
  "serde_json",
  "tempfile",
@@ -3958,7 +3962,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "runeward-vmagent"
+name = "runebox-vmagent"
 version = "0.4.4"
 dependencies = [
  "nix",

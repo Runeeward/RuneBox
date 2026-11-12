@@ -6,7 +6,7 @@ policy_default = "deny"
 
 [host]
 type      = "container"
-image     = "ghcr.io/runeeward/runeward-agent:latest"
+image     = "ghcr.io/runeeward/runebox-agent:latest"
 user      = "agent"
 workdir   = "/workspace"
 read_only = true
@@ -26,7 +26,7 @@ verdict  = "allow"
 hostname = "api.openai.com"
 
 # Launch the real agent. The intentionally permissive flags are safe here
-# because Runeward is the outer sandbox and governance boundary.
+# because Rune Box is the outer sandbox and governance boundary.
 [[policy]]
 tool       = "shell"
 match_argv = "codex"
@@ -88,11 +88,11 @@ value = "/tmp/.cache"
 
 [[env]]
 name = "CODEX_API_KEY"
-file = "~/.runeward-openai.key"
+file = "~/.runebox-openai.key"
 
 [[env]]
 name = "OPENAI_API_KEY"
-file = "~/.runeward-openai.key"
+file = "~/.runebox-openai.key"
 
 [chronicle]
 redact = true

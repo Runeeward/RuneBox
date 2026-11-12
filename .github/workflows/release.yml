@@ -14,7 +14,7 @@ on:
         description: >-
           release publishes the tag. dry-run builds, scans and signs everything
           from the selected branch but publishes nothing. sandbox-image builds
-          the selected branch's runeward-sandbox image and publishes it as
+          the selected branch's runebox-sandbox image and publishes it as
           sha-<commit> and latest. runtime-images does the same for the agent,
           sandbox and IDE images without publishing binaries or SDK packages.
         required: true
@@ -56,11 +56,11 @@ jobs:
     steps:
       - id: images
         run: |
-          all='[{"name":"runeward","suffix":"","file":"deploy/Dockerfile","target":""},{"name":"runeward-egress","suffix":"-egress","file":"deploy/Dockerfile.egress","target":""},{"name":"runeward-agent","suffix":"-agent","file":"deploy/Dockerfile.agent","target":""},{"name":"runeward-sandbox","suffix":"-sandbox","file":"deploy/Dockerfile.sandbox","target":""},{"name":"runeward-ide","suffix":"-ide","file":"deploy/Dockerfile.ide","target":"ide"},{"name":"runeward-ide-agents","suffix":"-ide-agents","file":"deploy/Dockerfile.ide","target":"ide-agents"},{"name":"runeward-csi-directvolume","suffix":"-csi-directvolume","file":"deploy/Dockerfile.csi-directvolume","target":""}]'
+          all='[{"name":"runebox","suffix":"","file":"deploy/Dockerfile","target":""},{"name":"runebox-egress","suffix":"-egress","file":"deploy/Dockerfile.egress","target":""},{"name":"runebox-agent","suffix":"-agent","file":"deploy/Dockerfile.agent","target":""},{"name":"runebox-sandbox","suffix":"-sandbox","file":"deploy/Dockerfile.sandbox","target":""},{"name":"runebox-ide","suffix":"-ide","file":"deploy/Dockerfile.ide","target":"ide"},{"name":"runebox-ide-agents","suffix":"-ide-agents","file":"deploy/Dockerfile.ide","target":"ide-agents"},{"name":"runebox-csi-directvolume","suffix":"-csi-directvolume","file":"deploy/Dockerfile.csi-directvolume","target":""}]'
           if [ "${MODE}" = sandbox-image ]; then
-            echo "images=$(jq -c '[.[] | select(.name == "runeward-sandbox")]' <<<"$all")" >> "$GITHUB_OUTPUT"
+            echo "images=$(jq -c '[.[] | select(.name == "runebox-sandbox")]' <<<"$all")" >> "$GITHUB_OUTPUT"
           elif [ "${MODE}" = runtime-images ]; then
-            echo "images=$(jq -c '[.[] | select(.name == "runeward-agent" or .name == "runeward-sandbox" or .name == "runeward-ide" or .name == "runeward-ide-agents")]' <<<"$all")" >> "$GITHUB_OUTPUT"
+            echo "images=$(jq -c '[.[] | select(.name == "runebox-agent" or .name == "runebox-sandbox" or .name == "runebox-ide" or .name == "runebox-ide-agents")]' <<<"$all")" >> "$GITHUB_OUTPUT"
           else
             echo "images=${all}" >> "$GITHUB_OUTPUT"
           fi
@@ -133,7 +133,7 @@ jobs:
   # - macOS: Apple's toolchain targets both architectures from one runner.
   # - Windows: MSVC, CLI only.
   #
-  # runeward-egress, runeward-supervisor and runeward-browser run inside
+  # runebox-egress, runebox-supervisor and runebox-browser run inside
   # Linux sandboxes and Pods, so they ship for Linux only.
   binaries:
     name: binaries (${{ matrix.os }}/${{ matrix.arch }})
@@ -150,12 +150,12 @@ jobs:
             arch: amd64
             runner: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            bins: runebox runeward-egress runeward-supervisor runeward-browser
+            bins: runebox runebox-egress runebox-supervisor runebox-browser
           - os: linux
             arch: arm64
             runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-musl
-            bins: runebox runeward-egress runeward-supervisor runeward-browser
+            bins: runebox runebox-egress runebox-supervisor runebox-browser
           - os: darwin
             arch: amd64
             runner: macos-latest
@@ -196,11 +196,11 @@ jobs:
           BINS: ${{ matrix.bins }}
         run: |
           # build.rs stamps this into `runebox version`.
-          export RUNEWARD_VERSION="${RELEASE_REF#v}"
+          export RUNEBOX_VERSION="${RELEASE_REF#v}"
           args=()
           for bin in ${BINS}; do
             case "$bin" in
-              runebox) args+=(-p runeward-cli --bin runebox) ;;
+              runebox) args+=(-p runebox-cli --bin runebox) ;;
               *) args+=(-p "$bin" --bin "$bin") ;;
             esac
           done
@@ -424,7 +424,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Formula/runebox.rb
           # The formula under its old name would shadow the rename.
-          git rm -q --ignore-unmatch Formula/runeward.rb
+          git rm -q --ignore-unmatch Formula/runebox.rb
           if git diff --cached --quiet; then
             echo "formula unchanged"
             exit 0
@@ -459,10 +459,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.SOURCE_REF }}
-      # Images keep the runeward name after the repository rename to RuneBox.
+      # Images keep the runebox name after the repository rename to RuneBox.
       # GHCR only accepts lowercase paths; the org name is mixed-case.
       - name: Compute lowercase image name
-        run: echo "IMAGE=${GITHUB_REPOSITORY_OWNER,,}/runeward${{ matrix.image.suffix }}" >> "$GITHUB_ENV"
+        run: echo "IMAGE=${GITHUB_REPOSITORY_OWNER,,}/runebox${{ matrix.image.suffix }}" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
         with:
@@ -493,7 +493,7 @@ jobs:
         if: ${{ env.MODE != 'dry-run' }}
         with:
           # "--" separates the image name from the arch, so one image's pattern
-          # never matches another image whose name extends it (runeward-egress).
+          # never matches another image whose name extends it (runebox-egress).
           name: digests-${{ matrix.image.name }}--${{ matrix.platform.arch }}
           path: digests/*
           if-no-files-found: error
@@ -501,7 +501,7 @@ jobs:
 
   # Keyless (Fulcio/Rekor) signature over each manifest list by digest.
   # Signing the digest covers every tag that points at it. Verify with:
-  #   cosign verify ghcr.io/runeeward/runeward:<tag> \
+  #   cosign verify ghcr.io/runeeward/runebox:<tag> \
   #     --certificate-identity-regexp '^https://github\.com/Runeeward/(runeward|RuneBox)/\.github/workflows/release\.yml@refs/.*$' \
   #     --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
   images-merge:
@@ -520,7 +520,7 @@ jobs:
     steps:
       - name: Compute image name and tag
         run: |
-          echo "IMAGE=${GITHUB_REPOSITORY_OWNER,,}/runeward${{ matrix.image.suffix }}" >> "$GITHUB_ENV"
+          echo "IMAGE=${GITHUB_REPOSITORY_OWNER,,}/runebox${{ matrix.image.suffix }}" >> "$GITHUB_ENV"
           # Image-only modes publish a branch build, never a version tag.
           if [ "${MODE}" = sandbox-image ] || [ "${MODE}" = runtime-images ]; then
             echo "TAG=sha-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
@@ -572,7 +572,7 @@ jobs:
       - name: Package Helm chart
         run: |
           mkdir -p dist-chart
-          helm package deploy/helm/runeward --destination dist-chart \
+          helm package deploy/helm/runebox --destination dist-chart \
             --version "${RELEASE_REF#v}" --app-version "${RELEASE_REF#v}"
       - name: Attach chart to release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
@@ -599,8 +599,8 @@ jobs:
           version="${RELEASE_REF#v}"
           mkdir -p dist-plugin
           tar --exclude='__pycache__' --exclude='*.pyc' \
-            -czf "dist-plugin/runeward-codex-plugin_${version}.tar.gz" \
-            -C dist/codex-plugin runeward
+            -czf "dist-plugin/runebox-codex-plugin_${version}.tar.gz" \
+            -C dist/codex-plugin runebox
       - name: Attach Codex plugin to release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:

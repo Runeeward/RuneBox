@@ -24,11 +24,11 @@ These names are the canonical identifiers across the product: the CLI commands
 (`runebox cohort`, `runebox chronicle`, `runebox charter`, `runebox
 archive`), the REST paths (`/v1/citadels`, `/v1/cohorts`, `/v1/conclave`,
 `/v1/chronicle`, `/v1/charters`, and the per-Citadel `/perimeter`), the MCP tool
-names (`runeward_create_citadel`, `runeward_create_cohort`,
-`runeward_list_conclave`, …), the Kubernetes CRD kinds (`Citadel`, `Cohort`),
+names (`runebox_create_citadel`, `runebox_create_cohort`,
+`runebox_list_conclave`, …), the Kubernetes CRD kinds (`Citadel`, `Cohort`),
 and the Charter TOML tables (`[cohort]`, `[chronicle]`, `[rationing]`) all use
 this vocabulary. Two things deliberately keep their historical spellings for
-stability: the `runeward` crate, package and tool names, and the JSON wire field
+stability: the `runebox` crate, package and tool names, and the JSON wire field
 keys inside request/response bodies (e.g. `{"profile": "…"}`, the `sandbox`
 argument to an MCP tool) along with the language SDK method names. `policy` (the
 concept and its `[[policy]]` table) and `snapshot` are unchanged.
@@ -95,7 +95,7 @@ third party can confirm nothing was altered or dropped.
 
 !!! warning "One writer per ledger"
     The ledger is single-writer (guarded by a file lock). Run each instance with
-    its own `RUNEWARD_STATE_DIR`; two processes sharing one ledger will break the
+    its own `RUNEBOX_STATE_DIR`; two processes sharing one ledger will break the
     hash chain and verification will report tampering.
 
 ## Cohorts (fleets)
@@ -116,14 +116,14 @@ denied and logged.
 - A Citadel is never a mount of your project. `copy_from` makes a one-time
   copy; use `runebox export` to retrieve results.
 - These names are the real identifiers, not display-only aliases: scripts call
-  `/v1/citadels`, `runebox cohort`, and the `runeward_create_citadel` MCP tool.
+  `/v1/citadels`, `runebox cohort`, and the `runebox_create_citadel` MCP tool.
   Only the JSON body field keys (e.g. `profile`, `sandbox`) and SDK method names
   keep their historical spellings; `[[policy]]` is unchanged.
 - An Oracle result is advisory. It evaluates the supplied action against a
   Charter; the live action is still subject to current policy, approval, and
   guardrails.
 - A Chronicle is single-writer. Give every Rune Box instance its own
-  `RUNEWARD_STATE_DIR`; sharing it breaks ledger verification.
+  `RUNEBOX_STATE_DIR`; sharing it breaks ledger verification.
 - Cohort members have separate workspaces. Use the Command Board for
   coordination rather than assuming that a change made by one worker appears
   in another worker's filesystem.

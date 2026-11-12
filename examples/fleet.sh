@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Drive a runeward fleet by prompt. Push prompts at runtime and the workers build
-# them, using whichever agent you pick. runeward provisions the governed pods and
+# Drive a runebox fleet by prompt. Push prompts at runtime and the workers build
+# them, using whichever agent you pick. runebox provisions the governed pods and
 # the shared task board; this script is the "worker" that runs the agent.
 #
 # Pick the agent + model with env vars:
 #   AGENT=cursor|codex|claude   (default: cursor)
 #   MODEL=<slug>                (optional; e.g. sonnet, gpt-5-codex, opus-4.8)
-#   RUNEWARD_BASE=http://127.0.0.1:8080
-#   RUNEWARD_TOKEN=<principal token>  (required when serve uses RBAC/auth)
+#   RUNEBOX_BASE=http://127.0.0.1:8080
+#   RUNEBOX_TOKEN=<principal token>  (required when serve uses RBAC/auth)
 #
 # Commands:
 #   fleet.sh up [profile]        create a fleet (default profile: build-fleet), remember its id
@@ -21,15 +21,15 @@
 #   fleet.sh down                kill the fleet and forget it
 set -euo pipefail
 
-BASE="${RUNEWARD_BASE:-http://127.0.0.1:8080}"
+BASE="${RUNEBOX_BASE:-http://127.0.0.1:8080}"
 AGENT="${AGENT:-cursor}"
 MODEL="${MODEL:-}"
-STATE=".runeward-fleet"
-if [ -n "${RUNEWARD_AUTHZ_FILE:-}" ] && [ -z "${RUNEWARD_TOKEN:-}" ]; then
-  echo "error: RUNEWARD_TOKEN must select a principal when RUNEWARD_AUTHZ_FILE is set" >&2
+STATE=".runebox-fleet"
+if [ -n "${RUNEBOX_AUTHZ_FILE:-}" ] && [ -z "${RUNEBOX_TOKEN:-}" ]; then
+  echo "error: RUNEBOX_TOKEN must select a principal when RUNEBOX_AUTHZ_FILE is set" >&2
   exit 1
 fi
-TOKEN="${RUNEWARD_TOKEN:-${RUNEWARD_API_TOKEN:-}}"
+TOKEN="${RUNEBOX_TOKEN:-${RUNEBOX_API_TOKEN:-}}"
 AUTH=()
 if [ -n "$TOKEN" ]; then AUTH=(-H "Authorization: Bearer $TOKEN"); fi
 
@@ -56,7 +56,7 @@ worker() { # sandbox-id, owner: claim+build until the board is empty
   local sb="$1" owner="$2" claim tid prompt lease task_owner body
   while :; do
     claim=$(api -sf "$BASE/v1/cohorts/$(fid)/claim" -d "{\"owner\":\"$owner\"}") \
-      || die "task claim failed for $owner (check RUNEWARD_TOKEN and Cohort access)"
+      || die "task claim failed for $owner (check RUNEBOX_TOKEN and Cohort access)"
     [ "$(echo "$claim" | jq -r '.claimed')" = "true" ] || break
     tid=$(echo "$claim" | jq -r '.task.id')
     prompt=$(echo "$claim" | jq -r '.task.payload')

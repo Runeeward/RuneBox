@@ -2,8 +2,8 @@
 #
 # Unlike examples/browser.toml (which uses a plain Chromium image and only
 # supports the one-shot /browser render), the stateful session API
-# (/browser/sessions ...) needs the `runeward-browser` CDP driver ON PATH inside
-# the sandbox. This profile therefore uses the runeward-sandbox image, which
+# (/browser/sessions ...) needs the `runebox-browser` CDP driver ON PATH inside
+# the sandbox. This profile therefore uses the runebox-sandbox image, which
 # ships both Chromium and the driver (see deploy/Dockerfile.sandbox).
 #
 #   runebox --config-dir examples serve
@@ -12,13 +12,13 @@
 # The walkthrough uses data: URLs so no egress is required; browser traffic that
 # does leave the sandbox is still governed by the deny-by-default allowlist.
 # Browser automation is experimental and disabled by default; set
-# RUNEWARD_ENABLE_EXPERIMENTAL_BROWSER=1 only in a trusted test deployment.
+# RUNEBOX_ENABLE_EXPERIMENTAL_BROWSER=1 only in a trusted test deployment.
 
 capabilities = ["browser", "python", "node"]
 
 [host]
 type    = "container"
-image   = "ghcr.io/runeeward/runeward-sandbox:latest"
+image   = "ghcr.io/runeeward/runebox-sandbox:latest"
 workdir = "/workspace"
 
 # Deny-by-default egress. data: URLs need no network; add allow rules for any

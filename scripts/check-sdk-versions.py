@@ -76,7 +76,7 @@ def main() -> int:
         raise SystemExit("could not find Python __version__")
     import_version = match.group(1)
 
-    mcp_text = (ROOT / "crates/runeward-mcp/src/lib.rs").read_text(encoding="utf-8")
+    mcp_text = (ROOT / "crates/runebox-mcp/src/lib.rs").read_text(encoding="utf-8")
     mcp_match = re.search(r'^pub const VERSION: &str = "([^"]+)";$', mcp_text, re.MULTILINE)
     if mcp_match is None:
         raise SystemExit("could not find MCP implementation version")
@@ -86,12 +86,12 @@ def main() -> int:
     )
     manifest_version = manifest["version"]
 
-    plugin_root = ROOT / "dist/codex-plugin/runeward"
+    plugin_root = ROOT / "dist/codex-plugin/runebox"
     plugin = json.loads(
         (plugin_root / ".codex-plugin/plugin.json").read_text(encoding="utf-8")
     )
 
-    chart_text = (ROOT / "deploy/helm/runeward/Chart.yaml").read_text(encoding="utf-8")
+    chart_text = (ROOT / "deploy/helm/runebox/Chart.yaml").read_text(encoding="utf-8")
     chart_match = re.search(r'^version: ([^\s]+)$', chart_text, re.MULTILINE)
     if chart_match is None:
         raise SystemExit("could not find Helm chart version")
@@ -152,10 +152,10 @@ def main() -> int:
     if plugin.get("skills") != "./skills/" or plugin.get("mcpServers") != "./.mcp.json":
         raise SystemExit("Codex plugin component paths are invalid")
     plugin_mcp = json.loads((plugin_root / ".mcp.json").read_text(encoding="utf-8"))
-    runeward_mcp = plugin_mcp.get("mcpServers", {}).get("runeward", {})
-    if runeward_mcp.get("command") != "runebox" or runeward_mcp.get("args") != ["mcp"]:
+    runebox_mcp = plugin_mcp.get("mcpServers", {}).get("runebox", {})
+    if runebox_mcp.get("command") != "runebox" or runebox_mcp.get("args") != ["mcp"]:
         raise SystemExit("Codex plugin MCP command must run `runebox mcp`")
-    skill_path = plugin_root / "skills/runeward-governed-execution/SKILL.md"
+    skill_path = plugin_root / "skills/runebox-governed-execution/SKILL.md"
     skill_text = skill_path.read_text(encoding="utf-8")
     frontmatter = re.match(r"^---\n(?P<body>.*?)\n---", skill_text, re.DOTALL)
     if frontmatter is None:

@@ -96,11 +96,11 @@ isolation_signals = probe:ok,kernel:separate,hypervisor:cpu-flag,claim:vm,host:h
 
 Every Kata runtime boots a hardware VM, so its name claims `vm`, like
 `kata-fc` and `krun`; the claim is only what an unprobed sandbox reports
-(`RUNEWARD_ISOLATION_PROBE=off`) and what a downgrade is measured against.
+(`RUNEBOX_ISOLATION_PROBE=off`) and what a downgrade is measured against.
 The verdict always comes from the evidence.
 
 The probe detects misconfiguration, not a hostile image: it trusts the
-image's `/bin/sh`. `RUNEWARD_ISOLATION_PROBE=off` skips it and trusts the
+image's `/bin/sh`. `RUNEBOX_ISOLATION_PROBE=off` skips it and trusts the
 runtime name; the evidence then records `probe:disabled`.
 
 On Kubernetes the server and controller need `get` on `nodes` and
@@ -112,7 +112,7 @@ without them the node kernel is unknown and VM runtimes report `container`.
 A VM runtime turns the sandbox's container limits into a guest. Kata sizes
 the guest as its configured `default_memory` and `default_vcpus` **plus**
 the container's memory and CPU limits, so the default limits
-(`RUNEWARD_SANDBOX_MEMORY=4g`, `RUNEWARD_SANDBOX_CPUS=2`) become a guest of
+(`RUNEBOX_SANDBOX_MEMORY=4g`, `RUNEBOX_SANDBOX_CPUS=2`) become a guest of
 6144 MiB and 3 vCPUs. When that does not fit on the engine host the
 hypervisor never starts, and the engine only reports a shim timeout.
 
@@ -120,18 +120,18 @@ Before it asks Docker or Podman for a sandbox under a VM runtime (Kata,
 krun, Firecracker), the backend computes
 
 ```
-guest memory = sandbox memory limit + RUNEWARD_VM_OVERHEAD_MEMORY  (default 2048m)
-guest vCPUs  = ceil(sandbox CPU limit) + ceil(RUNEWARD_VM_OVERHEAD_CPUS)  (default 1)
+guest memory = sandbox memory limit + RUNEBOX_VM_OVERHEAD_MEMORY  (default 2048m)
+guest vCPUs  = ceil(sandbox CPU limit) + ceil(RUNEBOX_VM_OVERHEAD_CPUS)  (default 1)
 ```
 
 where the sandbox limits are the Charter's `[rationing] memory` / `cpus`,
-else `RUNEWARD_SANDBOX_MEMORY` / `RUNEWARD_SANDBOX_CPUS`. It compares them
+else `RUNEBOX_SANDBOX_MEMORY` / `RUNEBOX_SANDBOX_CPUS`. It compares them
 with the engine host's total memory and CPUs (`docker info` `MemTotal` /
 `NCPU`, `podman info` `Host.MemTotal` / `Host.CPUs`, read once when the
 backend starts) and refuses the sandbox when either is larger, naming the
 sizes and what to lower. The overhead defaults are Kata's shipped
 `default_memory = 2048` and `default_vcpus = 1`; set the two
-`RUNEWARD_VM_OVERHEAD_*` variables to match your runtime's configuration
+`RUNEBOX_VM_OVERHEAD_*` variables to match your runtime's configuration
 (`0`/`off` for none, for example for a runtime that sizes the guest from
 the limit alone). When the engine does not report its capacity, nothing is
 refused. The check passing does not guarantee a boot: the host also needs
@@ -168,7 +168,7 @@ behind (on Kubernetes: the Pod, ConfigMap, Secret, NetworkPolicy or PVC).
 
 ## The in-sandbox supervisor and the runtime
 
-`runeward-supervisor` (`[filesystem]`, `[process]`) confines the agent with
+`runebox-supervisor` (`[filesystem]`, `[process]`) confines the agent with
 whatever kernel the sandbox sees: the host's under runc, the guest kernel
 under Kata (any hypervisor), gVisor's own kernel under runsc. It probes
 Landlock when it starts: `best-effort` uses the best ABI that kernel offers
@@ -238,7 +238,7 @@ On a KVM host (Debian 13 cloud VM, 2 vCPUs, 3.8 GiB RAM, host kernel
   QEMU, the evidence recorded `host:hypervisor-mismatch=cloud-hypervisor->qemu`.
 - With the default limits the VM never started (6144 MiB guest on a
   3.8 GiB host; the engine reported `timed out waiting for QMP ready`);
-  with `RUNEWARD_SANDBOX_MEMORY=512m RUNEWARD_SANDBOX_CPUS=1` it booted.
+  with `RUNEBOX_SANDBOX_MEMORY=512m RUNEBOX_SANDBOX_CPUS=1` it booted.
   The backend now refuses the first case up front.
 - runc on the same host reports verdict `container`: the host is itself a
   VM, so the `hypervisor` CPU flag is present even for runc, but the guest
@@ -307,7 +307,7 @@ with the Firecracker CI kernel `6.1.155`, and libkrun 1.19.6 (built with
 confirmed on the host, ran exec, TTY, files and workspace export, had no
 route around the egress proxy, kept the workspace disk across sleep and
 wake, and left nothing behind on destroy. A supervised, read-only sandbox
-from the `runeward-sandbox` image (about 110 s to pull and build its disk the
+from the `runebox-sandbox` image (about 110 s to pull and build its disk the
 first time, 2 s afterwards) ran its execs as the image user under the
 supervisor's seccomp filter. Details in
 [Native microVMs](#native-microvms-hosttype-microvm).
@@ -443,20 +443,20 @@ device. The simplest way is the Helm chart's build of Kata's
 `csi-kata-directvolume` driver:
 
 ```sh
-helm upgrade --install runeward deploy/helm/runeward \
+helm upgrade --install runebox deploy/helm/runebox \
   --set sandbox.directVolumeDriver.enabled=true \
   --set-json 'sandbox.directVolumeDriver.nodeSelector={"katacontainers.io/kata-runtime":"true"}'
 ```
 
 It runs the driver as a DaemonSet on the Kata nodes, creates the
-`runeward-kata-directvolume` StorageClass and points
-`RUNEWARD_K8S_DIRECT_VOLUME_CLASS` at it. Persistent workspaces of runtimes
+`runebox-kata-directvolume` StorageClass and points
+`RUNEBOX_K8S_DIRECT_VOLUME_CLASS` at it. Persistent workspaces of runtimes
 without a shared filesystem then use that class and the guest mounts a real
 ext4 disk; disposable ones keep the guest tmpfs, which spares a drive slot.
-The disks live in `/var/lib/runeward/direct-volumes` on the node they were
+The disks live in `/var/lib/runebox/direct-volumes` on the node they were
 created on, so a woken workspace is scheduled back to that node.
 
-The image (`runeward-csi-directvolume`, built from
+The image (`runebox-csi-directvolume`, built from
 `deploy/Dockerfile.csi-directvolume`) is Kata 4.3.0's driver with three
 changes:
 
@@ -477,7 +477,7 @@ changes:
   removes a disk whose volume record is already gone.
 
 To bring your own driver instead, set `sandbox.directVolumeStorageClass` (or
-`RUNEWARD_K8S_DIRECT_VOLUME_CLASS`) to its StorageClass; it needs the first
+`RUNEBOX_K8S_DIRECT_VOLUME_CLASS`) to its StorageClass; it needs the first
 two changes above.
 
 **Firecracker has five drive slots per pod.** Every container root
@@ -543,13 +543,13 @@ The opt-in test creates a sandbox under a runtime and asserts that the
 evidence proves `vm`:
 
 ```sh
-RUNEWARD_TEST_VM_RUNTIME=io.containerd.kata-qemu.v2 \
-RUNEWARD_TEST_VM_HYPERVISOR=qemu \
-cargo test -p runeward-backend --test vm_runtime -- --nocapture
+RUNEBOX_TEST_VM_RUNTIME=io.containerd.kata-qemu.v2 \
+RUNEBOX_TEST_VM_HYPERVISOR=qemu \
+cargo test -p runebox-backend --test vm_runtime -- --nocapture
 ```
 
-`RUNEWARD_TEST_VM_ENGINE=docker|podman|k8s` picks the engine,
-`RUNEWARD_TEST_VM_IMAGE` overrides `alpine`, and `RUNEWARD_TEST_DOCKER=1`
+`RUNEBOX_TEST_VM_ENGINE=docker|podman|k8s` picks the engine,
+`RUNEBOX_TEST_VM_IMAGE` overrides `alpine`, and `RUNEBOX_TEST_DOCKER=1`
 also checks that the default runtime reports `container`.
 
 ## Native microVMs (`host.type = "microvm"`)
@@ -559,10 +559,10 @@ engine, no Kata, no Kubernetes. Two monitors share one guest design:
 
 | `host.runtime`   | Monitor | Guest kernel | Hosts |
 |------------------|---------|--------------|-------|
-| `firecracker`    | Firecracker (`firecracker --no-api --config-file`) | the operator's (`RUNEWARD_MICROVM_KERNEL`) | Linux with `/dev/kvm` |
-| `libkrun` (`krun`) | libkrun, loaded by the `runeward-krun` helper | libkrunfw's bundled kernel | Linux with `/dev/kvm`; macOS on Apple silicon (see [macOS](#macos)) |
+| `firecracker`    | Firecracker (`firecracker --no-api --config-file`) | the operator's (`RUNEBOX_MICROVM_KERNEL`) | Linux with `/dev/kvm` |
+| `libkrun` (`krun`) | libkrun, loaded by the `runebox-krun` helper | libkrunfw's bundled kernel | Linux with `/dev/kvm`; macOS on Apple silicon (see [macOS](#macos)) |
 
-An empty `host.runtime` takes `RUNEWARD_MICROVM_VMM`, else Firecracker when
+An empty `host.runtime` takes `RUNEBOX_MICROVM_VMM`, else Firecracker when
 it is configured, else libkrun.
 
 ```toml
@@ -592,11 +592,11 @@ minimum = "vm"
   outside), and the tree becomes an ext4 disk. The real owners and modes
   (setuid bits, root-only files) are written into the disk with `debugfs`, so
   the build never needs root. The disk is cached by manifest digest under
-  `RUNEWARD_MICROVM_DIR/images` and shared, **read-only**, by every VM of that
+  `RUNEBOX_MICROVM_DIR/images` and shared, **read-only**, by every VM of that
   image; a tag that cannot be resolved (registry unreachable) falls back to
   the disk it last resolved to. gzip and uncompressed layers are supported;
   zstd layers are refused.
-- **Guest.** `runeward-vmagent`, a static binary, is the guest's PID 1:
+- **Guest.** `runebox-vmagent`, a static binary, is the guest's PID 1:
   Firecracker boots it as the initramfs `/init`, libkrun serves it as
   `/init.krun` from host memory on an otherwise empty root (libkrun's own
   init is disabled), so the agent never sits on the image disk and any image
@@ -614,7 +614,7 @@ minimum = "vm"
   started. Commands and file operations run in a helper process that drops to
   the sandbox user first, so a link planted in the workspace cannot redirect
   a write into a root-owned file.
-- **Workspace.** A per-sandbox ext4 disk image (`RUNEWARD_MICROVM_DISK_SIZE`,
+- **Workspace.** A per-sandbox ext4 disk image (`RUNEBOX_MICROVM_DISK_SIZE`,
   default `8g`, sparse) at the workspace directory. A fresh disk takes the
   owner and mode of the image's directory there, or the sandbox user when the
   image has none.
@@ -626,7 +626,7 @@ minimum = "vm"
   directory: disk, sockets, logs.
 - **Sizing.** The guest gets the sandbox's memory limit (at least 256 MiB)
   and its CPU limit rounded up to whole vCPUs; the operator defaults
-  (`RUNEWARD_SANDBOX_MEMORY`, `RUNEWARD_SANDBOX_CPUS`) apply as on Docker.
+  (`RUNEBOX_SANDBOX_MEMORY`, `RUNEBOX_SANDBOX_CPUS`) apply as on Docker.
 
 ### Egress: no network device
 
@@ -682,31 +682,31 @@ Observed on the KVM test host (Debian 13, kernel `6.12.100+deb13-cloud-amd64`,
 ### Setting up a host
 
 1. The static guest agent:
-   `cargo build --release --target x86_64-unknown-linux-musl -p runeward-vmagent`
+   `cargo build --release --target x86_64-unknown-linux-musl -p runebox-vmagent`
    (`aarch64-unknown-linux-musl` on arm64), then
-   `RUNEWARD_MICROVM_AGENT=/path/to/runeward-vmagent` (or put it next to the
+   `RUNEBOX_MICROVM_AGENT=/path/to/runebox-vmagent` (or put it next to the
    `runebox` binary).
 2. e2fsprogs 1.43 or later (`mkfs.ext4` and `debugfs`; Debian's `e2fsprogs`,
-   or `RUNEWARD_MICROVM_MKFS`).
+   or `RUNEBOX_MICROVM_MKFS`).
 3. Access to `/dev/kvm` for the user running Rune Box (the `kvm` group).
 4. Firecracker: a release binary
    (`https://github.com/firecracker-microvm/firecracker/releases`, checked
    against its `.sha256.txt`) as `firecracker` on `PATH` or
-   `RUNEWARD_FIRECRACKER_BIN`, and an uncompressed guest kernel with virtio
+   `RUNEBOX_FIRECRACKER_BIN`, and an uncompressed guest kernel with virtio
    MMIO block and vsock, ext4, overlayfs, devtmpfs and initramfs support as
-   `RUNEWARD_MICROVM_KERNEL` (the Firecracker CI kernels qualify; tested:
+   `RUNEBOX_MICROVM_KERNEL` (the Firecracker CI kernels qualify; tested:
    `firecracker-ci/v1.15/x86_64/vmlinux-6.1.155`, sha256
    `e20e46d0c36c55c0d1014eb20576171b3f3d922260d9f792017aeff53af3d4f2`).
 5. libkrun: libkrun 1.19 or later **built with block-device support**
    (`make BLK=1`; distribution packages may lack it, and the helper refuses
-   such a build), libkrunfw next to it, the `runeward-krun` helper
-   (`cargo build --release -p runeward-krun`) on `PATH` or
-   `RUNEWARD_KRUN_HELPER`, and `RUNEWARD_LIBKRUN` pointing at
+   such a build), libkrunfw next to it, the `runebox-krun` helper
+   (`cargo build --release -p runebox-krun`) on `PATH` or
+   `RUNEBOX_KRUN_HELPER`, and `RUNEBOX_LIBKRUN` pointing at
    `libkrun.so.1` when it is not on the loader path.
 
-Settings: `RUNEWARD_MICROVM_DIR` (state and cache, default
-`~/.runeward/microvm`; keep it short, Unix socket paths are limited to about
-100 bytes), `RUNEWARD_MICROVM_VMM`, `RUNEWARD_MICROVM_DISK_SIZE`, and the
+Settings: `RUNEBOX_MICROVM_DIR` (state and cache, default
+`~/.runebox/microvm`; keep it short, Unix socket paths are limited to about
+100 bytes), `RUNEBOX_MICROVM_VMM`, `RUNEBOX_MICROVM_DISK_SIZE`, and the
 paths above. Opening the backend fails with a message naming what is missing.
 
 ### macOS
@@ -721,15 +721,15 @@ Firecracker is Linux-only. A macOS host needs:
   and its Linux sysroot are not needed) and libkrunfw built from the
   release's `libkrunfw-prebuilt-aarch64.tgz`
   (`cc -fPIC -DABI_VERSION=5 -shared -o libkrunfw.5.dylib kernel.c`), side by
-  side; `RUNEWARD_LIBKRUN` names `libkrun.1.dylib` and the helper finds
+  side; `RUNEBOX_LIBKRUN` names `libkrun.1.dylib` and the helper finds
   libkrunfw next to it;
-- the `runeward-krun` helper signed with the hypervisor entitlement:
-  `codesign --force -s - --entitlements hvf.plist runeward-krun`, where
+- the `runebox-krun` helper signed with the hypervisor entitlement:
+  `codesign --force -s - --entitlements hvf.plist runebox-krun`, where
   `hvf.plist` sets `com.apple.security.hypervisor` to true;
-- an `aarch64-unknown-linux-musl` build of `runeward-vmagent`;
+- an `aarch64-unknown-linux-musl` build of `runebox-vmagent`;
 - e2fsprogs (`mkfs.ext4` and `debugfs`, for example Homebrew's `e2fsprogs`
-  via `RUNEWARD_MICROVM_MKFS`);
-- `RUNEWARD_MICROVM_DIR` on a case-sensitive volume (Linux root filesystems
+  via `RUNEBOX_MICROVM_MKFS`);
+- `RUNEBOX_MICROVM_DIR` on a case-sensitive volume (Linux root filesystems
   contain names that differ only in case), for example a case-sensitive APFS
   disk image.
 
@@ -742,21 +742,21 @@ The end-to-end test passed: verdict `vm` from `kernel:separate` (guest
 on arm64) with `host:hypervisor=libkrun`, exec and a TTY, files and export,
 no route around the proxy, allowed and denied egress, the workspace across
 sleep and wake, and nothing left on destroy. The supervised, read-only
-`runeward-sandbox` sandbox passed too (its first disk build took about 11
+`runebox-sandbox` sandbox passed too (its first disk build took about 11
 minutes through the container stand-in on a busy machine).
 
 ### Verifying on a KVM host
 
 ```sh
-RUNEWARD_TEST_MICROVM=firecracker \
-RUNEWARD_MICROVM_DIR=/var/lib/rw-microvm \
-RUNEWARD_MICROVM_AGENT=/opt/runeward/runeward-vmagent \
-RUNEWARD_MICROVM_KERNEL=/opt/runeward/vmlinux-6.1.155 \
-cargo test -p runeward-backend --test microvm_e2e -- --nocapture
+RUNEBOX_TEST_MICROVM=firecracker \
+RUNEBOX_MICROVM_DIR=/var/lib/rw-microvm \
+RUNEBOX_MICROVM_AGENT=/opt/runebox/runebox-vmagent \
+RUNEBOX_MICROVM_KERNEL=/opt/runebox/vmlinux-6.1.155 \
+cargo test -p runebox-backend --test microvm_e2e -- --nocapture
 ```
 
-(`RUNEWARD_TEST_MICROVM=libkrun` with `RUNEWARD_KRUN_HELPER` and
-`RUNEWARD_LIBKRUN` for libkrun.) It creates a sandbox from
+(`RUNEBOX_TEST_MICROVM=libkrun` with `RUNEBOX_KRUN_HELPER` and
+`RUNEBOX_LIBKRUN` for libkrun.) It creates a sandbox from
 `curlimages/curl` with a deny-by-default policy allowing `example.com` and a
 persistent workspace, and checks the `vm` verdict, exec (status, streams,
 environment, a TTY), projected files and the workspace export, that the guest
@@ -764,8 +764,8 @@ has no network interface and no route around the proxy, that the allowed
 host answers through the proxy and a denied one gets a 403, that the
 workspace survives sleep and wake while `/tmp` does not, and that destroying
 the sandbox leaves no monitor process, socket or file.
-`RUNEWARD_TEST_MICROVM_SUPERVISED=1` adds a read-only sandbox from the
-`runeward-sandbox` image under the in-sandbox supervisor: governed execs run
+`RUNEBOX_TEST_MICROVM_SUPERVISED=1` adds a read-only sandbox from the
+`runebox-sandbox` image under the in-sandbox supervisor: governed execs run
 as the image's `sandbox` user with the supervisor's seccomp filter (Landlock
 reports `unsupported`: neither guest kernel has it), the enforcement report is
 read back, the root refuses writes while `/tmp` and the workspace accept

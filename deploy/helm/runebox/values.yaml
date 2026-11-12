@@ -1,0 +1,163 @@
+# Default values for the runebox chart.
+
+image:
+  repository: ghcr.io/runeeward/runebox
+  # tag defaults to "v" + .Chart.AppVersion (the release tag) when empty.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  # Legacy override applied as fallback to all components when per-component
+  # serviceAccount names are not set.
+  name: ""
+  annotations: {}
+  controller:
+    name: ""
+  server:
+    name: ""
+  webhook:
+    name: ""
+
+rbac:
+  create: true
+
+controller:
+  enabled: true
+  replicas: 1
+  workers: 2
+  # Keep namespace scope by default; enabling this expands controller RBAC to
+  # cluster-wide pod and exec access.
+  allNamespaces: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: "1"
+      memory: 256Mi
+
+webhook:
+  enabled: true
+  port: 8443
+  # >1 is safe: replicas share one serving cert via a Secret (see cert-secret).
+  replicas: 2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: "1"
+      memory: 256Mi
+
+server:
+  enabled: false
+  replicas: 1
+  port: 8080
+  noUI: false
+  # The server binds every interface so the Service and the readiness probe
+  # reach it, which requires an API token. Without existingSecret the chart
+  # generates one (kept across upgrades) in "<fullname>-server-token"; read
+  # it with:
+  #   kubectl get secret <fullname>-server-token -o jsonpath='{.data.token}' | base64 -d
+  auth:
+    # Secret holding the API token (at least 32 characters) under tokenKey.
+    existingSecret: ""
+    tokenKey: token
+  tls:
+    # Serve HTTPS. Without existingSecret the chart generates a self-signed
+    # certificate for the Service DNS names (kept across upgrades). false
+    # serves plaintext HTTP: only behind a service mesh or ingress that
+    # terminates TLS for every client.
+    enabled: true
+    # kubernetes.io/tls Secret (tls.crt, tls.key), e.g. from cert-manager.
+    existingSecret: ""
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+# Profiles mounted at /etc/runebox/profiles (filename -> TOML). The chart
+# stores them in a Secret by default (profiles can carry secret material).
+# Reuse an existing Secret via existingSecret, or an existing ConfigMap via
+# existingConfigMap (backward compatible). See docs for the profile schema.
+profiles:
+  create: false
+  existingSecret: ""
+  existingConfigMap: ""
+  data: {}
+
+egress:
+  # Empty uses <image.repository>-egress:<image tag>. Override with a
+  # digest-pinned reference for production deployments. It also supplies
+  # runebox-supervisor to sandboxes with [filesystem] or [process] (an
+  # init container copies it in), so it must be built from the same
+  # release's deploy/Dockerfile.egress.
+  image: ""
+
+sandbox:
+  # A StorageClass whose CSI driver hands volumes to Kata as direct-assigned
+  # block devices, keeps each disk until its volume is deleted and formats
+  # it with a world-writable root (Kata's own csi-kata-directvolume does
+  # neither; see docs/isolation.md). Sandboxes on Kata with Firecracker
+  # (kata-fc) with [workspace] persist then get a real disk as their
+  # workspace instead of a small guest tmpfs. Empty: the class of
+  # directVolumeDriver when it is enabled; otherwise kata-fc workspaces stay
+  # ephemeral and persist is refused.
+  directVolumeStorageClass: ""
+  # Rune Box's build of that driver, with its StorageClass, as a DaemonSet
+  # on the Kata nodes.
+  directVolumeDriver:
+    enabled: false
+    # Default: image.repository + "-csi-directvolume", tagged like the chart.
+    image: ""
+    driverName: directvolume.csi.runebox.runeward.io
+    storageClassName: runebox-kata-directvolume
+    # Host paths for the backing disks and the driver's volume state; keep
+    # them off tmpfs so workspaces survive a node reboot.
+    storagePath: /var/lib/runebox/direct-volumes
+    statePath: /var/lib/runebox/direct-volumes-state
+    # Schedule the driver where kata-fc sandboxes run.
+    nodeSelector: {}
+    tolerations: []
+    images:
+      provisioner: registry.k8s.io/sig-storage/csi-provisioner:v6.4.0@sha256:6ebe60fd8ed67a7f8a90d34402e9e706b274e53612d6fa5fbb8285728db622e2
+      registrar: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.18.0@sha256:b7fefd08651f00ac4df1a196ed4c621c2451fbb899297fe9fad9e36c667af0c0
+      livenessProbe: registry.k8s.io/sig-storage/livenessprobe:v2.20.0@sha256:19f2cf2f40e1987c7943945deca5f65cd4e4bf5cc0657fc78a5df131861578e8
+
+# Opt-in default-deny NetworkPolicy for the control-plane namespace. Off by
+# default: it only takes effect under a CNI that enforces NetworkPolicy, and a
+# default-deny stance can surprise single-tenant operators. When enabled it
+# denies all traffic, then allows intra-namespace ingress to the server/webhook
+# ports plus egress to DNS and the Kubernetes API. Per-sandbox pods get their
+# own in-cluster deny policy from the server via RUNEBOX_K8S_NETWORK_POLICY.
+networkPolicy:
+  enabled: false
+
+# Pod Security Admission level applied to the runebox-managed namespace that
+# hosts sandbox pods. The strict-egress sidecar needs NET_ADMIN, which the
+# "baseline"/"restricted" levels forbid at enforcement time, so enforce defaults
+# to "privileged" while warn/audit stay at "baseline" to surface violations
+# without breaking egress. Set enforce to baseline/restricted only if you don't
+# use strict egress. Maps to RUNEBOX_K8S_PSA_ENFORCE on the server/controller.
+podSecurityStandard:
+  enforce: privileged
+  warn: baseline
+  audit: baseline
+
+stateDir: /var/lib/runebox
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

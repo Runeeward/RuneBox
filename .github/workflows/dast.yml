@@ -36,12 +36,12 @@ jobs:
 
       - name: Build runebox
         run: |
-          cargo build --release --locked -p runeward-cli --bin runebox
+          cargo build --release --locked -p runebox-cli --bin runebox
           cp target/release/runebox ./runebox
 
       - name: Start runebox
         env:
-          RUNEWARD_API_TOKEN: ci-dast-token
+          RUNEBOX_API_TOKEN: ci-dast-token
         run: |
           # Bind to loopback on 8080; the token is set so the API is exercised
           # in an authenticated posture (ZAP itself crawls unauthenticated).

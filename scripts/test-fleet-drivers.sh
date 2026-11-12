@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-work=$(mktemp -d "${TMPDIR:-/tmp}/runeward-fleet-driver.XXXXXX")
+work=$(mktemp -d "${TMPDIR:-/tmp}/runebox-fleet-driver.XXXXXX")
 cleanup() { rm -rf "$work"; }
 trap cleanup EXIT
 
@@ -77,9 +77,9 @@ chmod +x "$work/bin/curl"
 export PATH="$work/bin:$PATH"
 export MOCK_CURL_LOG="$work/curl.log"
 export MOCK_CLAIM_COUNT="$work/claim-count"
-export RUNEWARD_AUTHZ_FILE="$work/authz.json"
-export RUNEWARD_TOKEN=test-token
-export RUNEWARD_BASE=http://runeward.test
+export RUNEBOX_AUTHZ_FILE="$work/authz.json"
+export RUNEBOX_TOKEN=test-token
+export RUNEBOX_BASE=http://runebox.test
 
 printf '0' >"$MOCK_CLAIM_COUNT"
 cd "$work/run"
@@ -90,12 +90,12 @@ AGENT=codex "$repo_root/examples/fleet.sh" run >/dev/null
 printf '0' >"$MOCK_CLAIM_COUNT"
 "$repo_root/examples/drive-fleet.sh" fleet-test >/dev/null
 
-if env -u RUNEWARD_TOKEN RUNEWARD_API_TOKEN=wrong-fallback \
+if env -u RUNEBOX_TOKEN RUNEBOX_API_TOKEN=wrong-fallback \
   "$repo_root/examples/fleet.sh" status >"$work/no-token.out" 2>&1; then
-  echo "fleet driver accepted RUNEWARD_AUTHZ_FILE without RUNEWARD_TOKEN" >&2
+  echo "fleet driver accepted RUNEBOX_AUTHZ_FILE without RUNEBOX_TOKEN" >&2
   exit 1
 fi
-grep -q 'RUNEWARD_TOKEN must select a principal' "$work/no-token.out"
+grep -q 'RUNEBOX_TOKEN must select a principal' "$work/no-token.out"
 grep -q 'Authorization' "$MOCK_CURL_LOG"
 grep -q 'test-token' "$MOCK_CURL_LOG"
 

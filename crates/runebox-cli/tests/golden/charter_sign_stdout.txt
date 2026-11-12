@@ -1,0 +1,9 @@
+$ runebox charter sign charter.toml --key charter.key --out -
+exit: 0
+--- stdout
+{
+  "format": "runebox.profile.sig.v1",
+  "key_id": "ae760f4a935daabd",
+  "sig": "jkZWAITgLHnSHJaago1KUSYned4iaLqFQoFY+Eaq+Pzldk+a4h4No9NuF5JnyrtzVbwBKvEk9KVIXU5p8DqRCw=="
+}
+--- stderr

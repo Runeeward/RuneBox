@@ -47,15 +47,15 @@ Requirements:
 Build and inspect the project:
 
 ```bash
-cargo build --locked -p runeward-cli --bin runebox
+cargo build --locked -p runebox-cli --bin runebox
 ./target/debug/runebox --config-dir examples list
 ./target/debug/runebox --config-dir examples/safe validate --strict
 
-RUNEWARD_STATE_DIR=/tmp/runeward-dev \
+RUNEBOX_STATE_DIR=/tmp/runebox-dev \
   ./target/debug/runebox --config-dir examples serve
 ```
 
-Always give a development server its own `RUNEWARD_STATE_DIR`. Concurrent
+Always give a development server its own `RUNEBOX_STATE_DIR`. Concurrent
 writers sharing state can invalidate assumptions around persistence and the
 tamper-evident Chronicle.
 
@@ -73,7 +73,7 @@ dependency checks (`cargo deny` and `cargo audit`, installed with
 `cargo install --locked cargo-deny cargo-audit`). Individual targets such as
 `make test`, `make lint`, `make sdk-test`, `make helm`, and `make security` are
 available while iterating. `make docker-test` runs the opt-in tests against a
-real Docker engine (`RUNEWARD_TEST_DOCKER=1`).
+real Docker engine (`RUNEBOX_TEST_DOCKER=1`).
 
 Before a release, also run the Docker and Kubernetes end-to-end procedures in
 [docs/E2E-TESTING.md](docs/E2E-TESTING.md), build and scan every release image,
@@ -84,7 +84,7 @@ branch without publishing anything:
 
 It runs the release gates, builds every binary (Linux, macOS, Windows) and
 image (amd64 and arm64), and signs and verifies `checksums.txt`. `-f
-mode=sandbox-image` publishes only the branch's `runeward-sandbox` image (as
+mode=sandbox-image` publishes only the branch's `runebox-sandbox` image (as
 `sha-<commit>` and `latest`), for shipping sandbox fixes between releases.
 
 ## Commit messages

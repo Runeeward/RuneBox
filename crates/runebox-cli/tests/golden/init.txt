@@ -1,0 +1,6 @@
+$ runebox init
+exit: 0
+--- stdout
+created: .runebox/quickstart.toml
+next: runebox --config-dir ".runebox" doctor quickstart && runebox --config-dir ".runebox" enter quickstart -- echo hello
+--- stderr

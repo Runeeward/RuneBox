@@ -1,6 +1,6 @@
 # Run the Cursor CLI agent (`agent`) inside an isolated Rune Box environment.
 #
-#   printf '%s' "$CURSOR_API_KEY" > ~/.runeward-cursor.key
+#   printf '%s' "$CURSOR_API_KEY" > ~/.runebox-cursor.key
 #   runebox --config-dir examples serve
 #   POST /v1/sandboxes {"profile":"cursor-agent"}
 #   POST /v1/sandboxes/{id}/shell/exec
@@ -10,13 +10,13 @@
 
 [host]
 type    = "container"
-image   = "ghcr.io/runeeward/runeward-agent:latest"
+image   = "ghcr.io/runeeward/runebox-agent:latest"
 user    = "agent"
 workdir = "/workspace"
 
 # Deny-by-default egress; only Cursor's endpoints are reachable.
 # NOTE: the Cursor CLI is Node-based, so NODE_USE_ENV_PROXY=1 (below) is what
-# makes it honor runeward's cooperative Docker proxy. For bypass-proof L3
+# makes it honor runebox's cooperative Docker proxy. For bypass-proof L3
 # enforcement, run on the k8s backend with `enforce = "strict"`.
 [network]
 default = "deny"
@@ -64,9 +64,9 @@ loop_threshold  = 12
 # the ledger. Never written under $HOME.
 [[env]]
 name = "CURSOR_API_KEY"
-file = "~/.runeward-cursor.key"
+file = "~/.runebox-cursor.key"
 
-# Make the Node-based CLI route through runeward's egress proxy.
+# Make the Node-based CLI route through runebox's egress proxy.
 [[env]]
 name  = "NODE_USE_ENV_PROXY"
 value = "1"

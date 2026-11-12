@@ -1,11 +1,11 @@
-# Default sandbox image: headless Chromium + the runeward-browser CDP driver,
-# so the governed browser tool works out of the box, and runeward-supervisor,
+# Default sandbox image: headless Chromium + the runebox-browser CDP driver,
+# so the governed browser tool works out of the box, and runebox-supervisor,
 # the in-sandbox entrypoint that confines the agent (Landlock, seccomp, a
 # dropped identity) for Charters with [filesystem] or [process]. Any image
 # works as a sandbox; profiles that don't use the browser tool or the
 # supervisor can use any base.
 
-# runeward-supervisor and runeward-browser from the Rust workspace. Built
+# runebox-supervisor and runebox-browser from the Rust workspace. Built
 # natively for the target platform (no --platform=$BUILDPLATFORM: the
 # Alpine/musl toolchain links static binaries for the runtime stage below
 # without a cross linker).
@@ -16,17 +16,17 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
-    cargo build --release --locked -p runeward-supervisor -p runeward-browser \
-        --bin runeward-supervisor --bin runeward-browser \
-    && install -D -m 0755 target/release/runeward-supervisor /out/runeward-supervisor \
-    && install -D -m 0755 target/release/runeward-browser /out/runeward-browser
+    cargo build --release --locked -p runebox-supervisor -p runebox-browser \
+        --bin runebox-supervisor --bin runebox-browser \
+    && install -D -m 0755 target/release/runebox-supervisor /out/runebox-supervisor \
+    && install -D -m 0755 target/release/runebox-browser /out/runebox-browser
 
 FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
 RUN apk upgrade --no-cache \
     && apk add --no-cache chromium ca-certificates curl python3 'nodejs>=24.22.1-r0' 'brotli-libs>=1.2.1-r0'
-COPY --from=rust-build /out/runeward-browser /usr/local/bin/runeward-browser
+COPY --from=rust-build /out/runebox-browser /usr/local/bin/runebox-browser
 # The control plane starts supervised sandboxes with this as PID 1.
-COPY --from=rust-build /out/runeward-supervisor /usr/local/bin/runeward-supervisor
+COPY --from=rust-build /out/runebox-supervisor /usr/local/bin/runebox-supervisor
 
 RUN adduser -D -u 1000 sandbox \
     && mkdir -p /workspace \

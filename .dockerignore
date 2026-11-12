@@ -10,10 +10,10 @@ bin/
 dist/
 dist-bin/
 dist-chart/
-runeward
-runeward-agent
-runeward-egress
-runeward-browser
+runebox
+runebox-agent
+runebox-egress
+runebox-browser
 *.tgz
 *.test
 *.out
@@ -27,8 +27,8 @@ NOTES-*.md
 
 # Editor / machine-local
 .cursor/
-.runeward/
-.runeward-fleet
+.runebox/
+.runebox-fleet
 .DS_Store
 *.swp
 

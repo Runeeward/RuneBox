@@ -30,8 +30,8 @@ code-scanning alerts after the fixed `main` branch publishes fresh SARIF.
 ## Follow-up review: 19 September 2026
 
 A follow-up covered every repository visible in the `Runeeward` organization:
-`runeward` and `homebrew-tap`. GitHub reported no open Dependabot or code
-scanning alerts in `runeward`, no Dependabot alerts in `homebrew-tap`, and no
+`runebox` and `homebrew-tap`. GitHub reported no open Dependabot or code
+scanning alerts in `runebox`, no Dependabot alerts in `homebrew-tap`, and no
 open pull requests in the tap.
 
 The review found and addressed two additional issues:

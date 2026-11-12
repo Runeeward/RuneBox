@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: runebox
+  labels:
+    app.kubernetes.io/name: runebox
+    app.kubernetes.io/managed-by: runebox-up

@@ -1,0 +1,19 @@
+---
+name: runebox-governed-execution
+description: Run shell commands, Python or Node code, browser actions, file operations, or delegated agent work inside Rune Box Citadels with Charter policy, human approvals, budgets, tenant ownership, and a signed Chronicle. Use whenever Codex should execute untrusted, networked, destructive, delegated, or audit-sensitive work through the Rune Box MCP tools.
+---
+
+# Rune Box governed execution
+
+1. Call `runebox_whoami` and `runebox_list_charters` before creating anything.
+2. Select the least-privileged Charter that can complete the task. Do not switch to a broader Charter to bypass a denial.
+3. Call `runebox_readiness` for that Charter, then `runebox_create_citadel`. Set `agent="codex"`; include provider/model metadata when known.
+4. Publish the user's visible request and each visible progress or final response with `runebox_publish_conversation` so authorized observers can follow the Citadel's Live chat feed. Never publish hidden reasoning, credentials, or content the user cannot see.
+5. Reuse that Citadel for the task and perform all execution through Rune Box tools.
+6. Treat a policy `deny` as final for that action. Explain the reason and choose only a genuinely different allowed approach.
+7. Treat `require-approval` as a hard pause. Surface the approval ID and wait for a human decision.
+8. For delegation, pass `parent_citadel`, `run_id`, `agent`, `provider`, and `model` when creating a child. Rune Box requires the child to inherit the parent's tenant and Charter; inspect `runebox_list_runs` for lineage.
+9. Use `runebox_export_evidence` before teardown when a portable signed result is required.
+10. Tear down Citadels and Cohorts when finished unless the user explicitly asks to preserve them.
+
+Never pass host paths through `copy_from`; it is an administrator-only operation. Never expose bearer tokens in prompts, tool arguments, files, or output.

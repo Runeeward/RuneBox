@@ -10,18 +10,18 @@ misconfigurations:
       sandbox.
   - id: KSV-0053
     paths:
-      - "deploy/helm/runeward/templates/rbac.yaml"
-      - "crates/runeward-k8s/manifests/install/20-rbac.yaml"
+      - "deploy/helm/runebox/templates/rbac.yaml"
+      - "crates/runebox-k8s/manifests/install/20-rbac.yaml"
     expired_at: 2027-08-07
     statement: >-
-      Runeward's Kubernetes backend uses the pods/exec POST subresource to
+      Rune Box's Kubernetes backend uses the pods/exec POST subresource to
       seed workspaces and execute governed commands inside Citadels. Access is
-      limited to the Runeward controller and server service accounts.
+      limited to the Rune Box controller and server service accounts.
   - id: KSV-0114
     paths:
-      - "deploy/helm/runeward/templates/webhook.yaml"
+      - "deploy/helm/runebox/templates/webhook.yaml"
     expired_at: 2027-08-07
     statement: >-
-      The admission webhook must create and maintain Runeward's own named
+      The admission webhook must create and maintain Rune Box's own named
       validating and mutating webhook configurations. Update and patch access
       is restricted with resourceNames; unscoped access is create-only.

@@ -1,6 +1,6 @@
 # CodeQL configuration for the Rust and GitHub Actions analyses in codeql.yml.
 # `security-extended` adds a broader set of security queries on top of the
 # default suite (more coverage, slightly higher noise).
-name: runeward-codeql
+name: runebox-codeql
 queries:
   - uses: security-extended

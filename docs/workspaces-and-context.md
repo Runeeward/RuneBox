@@ -47,12 +47,12 @@ root are gone after a wake. Put repositories, caches and agent notes under
 the workspace directory (`/workspace` by default).
 
 From the CLI: `runebox citadel sleep|wake|status <id>`. Over MCP:
-`runeward_sleep_citadel`, `runeward_wake_citadel` and
-`runeward_workspace_status`.
+`runebox_sleep_citadel`, `runebox_wake_citadel` and
+`runebox_workspace_status`.
 
 ## Fork
 
-`POST /v1/citadels/{id}/fork` (MCP `runeward_fork_citadel`) copies a
+`POST /v1/citadels/{id}/fork` (MCP `runebox_fork_citadel`) copies a
 Citadel's workspace into a new, independent Citadel. The fork gets a new
 run whose `forked_from` names the source run; after the copy the two never
 share state. A sleeping source is woken first.
@@ -81,9 +81,9 @@ sleeps. A subscriber that falls behind is refilled from the transcript.
 
 From the CLI, `runebox session turn <id> <prompt>` starts a turn and
 streams it, and `runebox session attach <id> --after <seq>` replays and
-then follows. Over MCP, `runeward_start_turn` starts a turn (or a new session
-in a Citadel), `runeward_session_events` reads a bounded page of the
-transcript after a sequence number, and `runeward_cancel_turn` cancels.
+then follows. Over MCP, `runebox_start_turn` starts a turn (or a new session
+in a Citadel), `runebox_session_events` reads a bounded page of the
+transcript after a sequence number, and `runebox_cancel_turn` cancels.
 
 `POST /v1/agent-sessions/{id}/cancel` stops the active turn. **Cancel does
 not rewind**: changes the command already made in the workspace stay, and
@@ -113,16 +113,16 @@ On the task board:
 - **Notes** are handoff messages on a task; `complete` and `fail` accept a
   `handoff` note for whoever picks up the work next.
 - **Briefs** are per-agent instructions on a task (`*` for every agent).
-- **Claim with context** (`"context": true`, or MCP `runeward_claim_task`)
+- **Claim with context** (`"context": true`, or MCP `runebox_claim_task`)
   returns the task plus its handoff notes (the parent's, then its own), the
   brief for the claimant, a summary of the parent and a ranked slice of
   shared memory, so an agent starting fresh does not need to replay
   transcripts.
 
-MCP tools: `runeward_memory_put`, `runeward_memory_get`,
-`runeward_memory_search`, `runeward_add_note`, `runeward_set_brief`,
-`runeward_handoff` (complete, or with `requeue` give the task back, and
-leave a note) and `runeward_add_child_task`.
+MCP tools: `runebox_memory_put`, `runebox_memory_get`,
+`runebox_memory_search`, `runebox_add_note`, `runebox_set_brief`,
+`runebox_handoff` (complete, or with `requeue` give the task back, and
+leave a note) and `runebox_add_child_task`.
 
 ## Scheduled runs
 
@@ -145,8 +145,8 @@ Citadel or Cohort.
 
 Operators manage schedules over REST or with `runebox schedule
 create|list|get|delete|run`. Agents can manage their own over MCP
-(`runeward_schedule_create`, `runeward_schedule_list`,
-`runeward_schedule_delete`) only when the Charter allows it:
+(`runebox_schedule_create`, `runebox_schedule_list`,
+`runebox_schedule_delete`) only when the Charter allows it:
 
 ```toml
 [schedule]

@@ -11,7 +11,7 @@ From the project you want to govern:
 runebox quickstart
 ```
 
-Rune Box creates `.runeward/quickstart.toml` without overwriting an existing policy, checks the
+Rune Box creates `.runebox/quickstart.toml` without overwriting an existing policy, checks the
 runtime and state directory, starts an isolated sandbox, runs an allowed command, blocks a recursive
 delete, and verifies its signed audit trail.
 
@@ -34,8 +34,8 @@ errors give recovery instructions without exposing local engine socket paths in 
 ## 3. Run your own command
 
 ```bash
-runebox --config-dir .runeward print quickstart
-runebox --config-dir .runeward enter quickstart -- uname -a
+runebox --config-dir .runebox print quickstart
+runebox --config-dir .runebox enter quickstart -- uname -a
 ```
 
 The `quickstart` after `enter` is the policy name. A policy file is also called a **Charter** in
@@ -46,8 +46,8 @@ existing Rune Box APIs.
 Give each running instance its own state directory because the signed audit ledger is single-writer:
 
 ```bash
-RUNEWARD_STATE_DIR=/tmp/runeward-quickstart \
-  runebox --config-dir .runeward serve
+RUNEBOX_STATE_DIR=/tmp/runebox-quickstart \
+  runebox --config-dir .runebox serve
 ```
 
 Open [http://localhost:8080](http://localhost:8080). The dashboard distinguishes server liveness
@@ -64,9 +64,9 @@ from launch readiness, shows setup guidance, and lets you:
 Stop the server before opening the same local ledger from the CLI, then run:
 
 ```bash
-runebox --config-dir .runeward evidence export quickstart -o runeward-evidence.json
-runebox evidence verify runeward-evidence.json
-runebox policy learn runeward-evidence.json > proposed-policy.toml
+runebox --config-dir .runebox evidence export quickstart -o runebox-evidence.json
+runebox evidence verify runebox-evidence.json
+runebox policy learn runebox-evidence.json > proposed-policy.toml
 ```
 
 The evidence package includes a digest of the resolved, secret-redacted policy and the Chronicle's
@@ -82,11 +82,11 @@ Rune Box takes a one-time copy rather than mounting the host folder, so the agen
 `/workspace`.
 
 ```bash
-# Add this to .runeward/quickstart.toml before launching:
+# Add this to .runebox/quickstart.toml before launching:
 # [host]
 # copy_from = "/absolute/path/to/your-project"
 
-runebox --config-dir .runeward enter quickstart --keep
+runebox --config-dir .runebox enter quickstart --keep
 runebox export <sandbox-id> ./agent-output
 ```
 

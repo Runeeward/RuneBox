@@ -28,9 +28,9 @@ set a gVisor or Kata `runtime_class` as described in the
 - Docker or OrbStack is running and reachable from the terminal.
 - `cargo`, `curl`, `jq`, and `asciinema` are installed (the script builds
   `runebox` with `cargo build --release`).
-- An OpenAI API key is stored in `~/.runeward-openai.key` with mode `0600`.
-- The published `ghcr.io/runeeward/runeward-agent:latest` and
-  `ghcr.io/runeeward/runeward-egress:latest` images are reachable.
+- An OpenAI API key is stored in `~/.runebox-openai.key` with mode `0600`.
+- The published `ghcr.io/runeeward/runebox-agent:latest` and
+  `ghcr.io/runeeward/runebox-egress:latest` images are reachable.
 
 The script never prints the API key. Rune Box injects it into the Citadel and
 scrubs declared secrets and common credential formats from the transcript.
@@ -50,7 +50,7 @@ From the repository root:
 To open the dashboard before the agent starts, use the pause switch:
 
 ```bash
-RUNEWARD_DEMO_PAUSE=1 ./scripts/demo-agent-session-escape.sh record
+RUNEBOX_DEMO_PAUSE=1 ./scripts/demo-agent-session-escape.sh record
 ```
 
 The script prints the dashboard URL. Open **Agent groups**, select the displayed

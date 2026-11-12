@@ -1,5 +1,5 @@
 # A worked autonomous-agent profile with a deny-by-default contract. Sanitized
-# template; real operator profiles live in ~/.config/runeward/.
+# template; real operator profiles live in ~/.config/runebox/.
 #
 #   runebox --config-dir examples print ns-auto
 #
@@ -8,7 +8,7 @@
 
 [host]
 type    = "container"
-image   = "ghcr.io/runeeward/runeward-sandbox:latest"
+image   = "ghcr.io/runeeward/runebox-sandbox:latest"
 user    = "agent"        # non-root
 workdir = "/workspace"   # starts empty: clone fresh each session
 

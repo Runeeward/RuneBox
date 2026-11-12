@@ -2534,7 +2534,7 @@ async function downloadAuthenticated(path, fallbackName) {
 async function downloadWorkspace() {
 	if (!state.selected) return;
 	try {
-		await downloadAuthenticated(sbPath("/workspace"), `runeward-workspace-${state.selected}.tar`);
+		await downloadAuthenticated(sbPath("/workspace"), `runebox-workspace-${state.selected}.tar`);
 		toast("Workspace download started", "success");
 	} catch (e) {
 		toast("Workspace export failed: " + e.message, "error", undefined, e);
@@ -2544,7 +2544,7 @@ async function downloadWorkspace() {
 async function downloadEvidence() {
 	if (!state.selected) return;
 	try {
-		await downloadAuthenticated(sbPath("/evidence"), `runeward-evidence-${state.selected}.json`);
+		await downloadAuthenticated(sbPath("/evidence"), `runebox-evidence-${state.selected}.json`);
 		toast("Signed evidence download started", "success");
 	} catch (e) {
 		toast("Evidence export failed: " + e.message, "error", undefined, e);

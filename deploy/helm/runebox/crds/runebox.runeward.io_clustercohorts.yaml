@@ -1,0 +1,84 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clustercohorts.runebox.runeward.io
+spec:
+  group: runebox.runeward.io
+  scope: Cluster
+  names:
+    kind: ClusterCohort
+    listKind: ClusterCohortList
+    plural: clustercohorts
+    singular: clustercohort
+    shortNames:
+      - ccoh
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: |
+            ClusterCohort is a cluster-scoped declarative request for N governed
+            runebox citadels that share a single atomic task board, shared
+            across an organization. It behaves like Cohort but is not namespaced;
+            the runebox controller provisions the backing resources in its own
+            (controller) namespace using the named profile's [fleet] block.
+          properties:
+            spec:
+              type: object
+              required:
+                - profile
+              properties:
+                profile:
+                  type: string
+                  description: Name of the runebox profile (with a [fleet] block).
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  description: One of Pending, Running, Failed, Terminating.
+                cohortId:
+                  type: string
+                citadels:
+                  type: array
+                  items:
+                    type: string
+                tasksTotal:
+                  type: integer
+                tasksPending:
+                  type: integer
+                tasksClaimed:
+                  type: integer
+                tasksDone:
+                  type: integer
+                tasksFailed:
+                  type: integer
+                message:
+                  type: string
+                observedGeneration:
+                  type: integer
+                  format: int64
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Profile
+          type: string
+          jsonPath: .spec.profile
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Cohort
+          type: string
+          jsonPath: .status.cohortId
+        - name: Done
+          type: integer
+          jsonPath: .status.tasksDone
+        - name: Total
+          type: integer
+          jsonPath: .status.tasksTotal
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp

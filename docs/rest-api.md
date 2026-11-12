@@ -7,11 +7,11 @@ All actions flow through the same governed path as every other surface.
 
 `serve` binds `127.0.0.1` by default and refuses a non-loopback `--bind` unless
 authentication is configured. Set a bearer token with `--token` /
-`RUNEWARD_API_TOKEN`, or point `RUNEWARD_AUTHZ_FILE` at a JSON store of named
+`RUNEBOX_API_TOKEN`, or point `RUNEBOX_AUTHZ_FILE` at a JSON store of named
 principals (each with its own token, launch scope, optional approval-profile
 scope, and admin flag) for multi-principal RBAC. When set, the token is required
 on every request except `/healthz` and the static dashboard shell — pass it as
-`Authorization: Bearer <token>` or an `X-Runeward-Token` header. The browser
+`Authorization: Bearer <token>` or an `X-Runebox-Token` header. The browser
 obtains a short-lived, single-use scoped ticket for the terminal WebSocket, so
 long-lived credentials never appear in URLs. Non-loopback listeners require TLS
 via `--tls-cert`/`--tls-key` unless `--allow-insecure-http` explicitly
@@ -22,7 +22,7 @@ MiB. See the
 Under RBAC, a non-admin principal sees and can act on only its tenant's
 resources; admins see all. Different agent principals can share a tenant while
 remaining independently attributable. OIDC is enabled with
-`RUNEWARD_OIDC_ISSUER` and `RUNEWARD_OIDC_AUDIENCE`; signed Rune Box claims map
+`RUNEBOX_OIDC_ISSUER` and `RUNEBOX_OIDC_AUDIENCE`; signed Rune Box claims map
 to the same authorization model as local tokens.
 
 ## Health & identity
@@ -99,7 +99,7 @@ parent run, timestamps, and terminal status.
 ### Browser IDE (experimental)
 
 Opt-in GUI against `/workspace` via code-server inside the environment. Requires
-`RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1`, Charter `[ide] enabled = true`, and an
+`RUNEBOX_ENABLE_EXPERIMENTAL_IDE=1`, Charter `[ide] enabled = true`, and an
 IDE-capable target (`ide` or `ide-agents`) from `deploy/Dockerfile.ide`. Mint
 `kind=ide` via `POST /v1/tickets` (or `/ide-ticket`), then open
 `/v1/citadels/{id}/ide?ticket=…`. The ticket is single-use; a session cookie
@@ -112,7 +112,7 @@ GUIs inside the environment; no first-class GitHub Copilot (Open VSX). Full writ
 ### Browser
 
 Browser automation is experimental and disabled by default. Set
-`RUNEWARD_ENABLE_EXPERIMENTAL_BROWSER=1` only in a trusted deployment after
+`RUNEBOX_ENABLE_EXPERIMENTAL_BROWSER=1` only in a trusted deployment after
 reviewing the [security model](security-model.md).
 
 | Method | Path | Description |
@@ -193,7 +193,7 @@ authorization and policy denials as different exception types.
 ## Example
 
 ```bash
-AUTH=(-H "Authorization: Bearer $RUNEWARD_API_TOKEN")   # omit when serving without a token: AUTH=()
+AUTH=(-H "Authorization: Bearer $RUNEBOX_API_TOKEN")   # omit when serving without a token: AUTH=()
 SB=$(curl -s "${AUTH[@]}" -X POST localhost:8080/v1/citadels -d '{"profile":"ns-auto"}' | jq -r .id)
 curl -s "${AUTH[@]}" -X POST "localhost:8080/v1/citadels/$SB/shell/exec" -d '{"command":["echo","hi"]}'
 curl -s "${AUTH[@]}" -X POST "localhost:8080/v1/citadels/$SB/usage" -d '{"tokens":1200,"cost_usd":0.03}'

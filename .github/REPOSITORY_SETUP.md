@@ -31,14 +31,14 @@ These settings live in GitHub rather than the repository, so a maintainer must a
 
 ## SDK registry publishing
 
-The `publish SDKs` workflow publishes `runeward` to PyPI and `@runeward/sdk` to npm from a `v*`
+The `publish SDKs` workflow publishes `rune-box` to PyPI and `@runebox/sdk` to npm from a `v*`
 tag. Both packages use the same version as the release tag.
 
 1. Create protected GitHub environments named `pypi` and `npm`. Require a maintainer approval and
    restrict deployment to protected release tags.
-2. In PyPI, configure the trusted publisher for project `runeward` with owner `Runeeward`,
+2. In PyPI, configure the trusted publisher for project `rune-box` with owner `Runeeward`,
    repository `RuneBox`, workflow `publish-sdks.yml`, and environment `pypi`.
-3. Create or confirm the `runeward` npm organization. The first `@runeward/sdk` version must be
+3. Create or confirm the `runebox` npm organization. The first `@runebox/sdk` version must be
    bootstrapped by an authenticated npm owner because npm trusted publishing is configured from an
    existing package's settings.
 4. After that bootstrap, configure the npm trusted publisher with owner `Runeeward`, repository

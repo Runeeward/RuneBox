@@ -21,7 +21,7 @@
 #       --verify-key ./keys/bundle.pub
 #
 # Then set `ref` below to the pushed reference and `verify_key` to the base64
-# public key (the contents of ./keys/bundle.pub) so runeward refuses to trust an
+# public key (the contents of ./keys/bundle.pub) so runebox refuses to trust an
 # unsigned or tampered bundle.
 
 [host]

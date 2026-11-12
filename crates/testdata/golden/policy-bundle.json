@@ -1,7 +1,7 @@
 {
   "key_id": "6a3a12eb1ec8d331",
-  "payload": "runeward.policy.bundle.v1\nconfig=sha256:a2ff7c0254be0bb4481043d6a81629ceb022e9a01fdbaef1e9933b67517196af\nlayer=sha256:5744d7b6081904ed746d0850272f462e2296c298f6a1e99153aa44a7d4d2addf",
+  "payload": "runebox.policy.bundle.v1\nconfig=sha256:3c93808e5f0b790ed962f744f066439ebcaf42bd8753317ea7c3d14e80060afc\nlayer=sha256:3853b115219360f63e11d7c5a7218d8e9c6a315a4a13b3f07e642308a91d7432",
   "private_key": "lG058zLoNCtoOOpPxRDASIVheFMstZjbIHI9o1Onqak1WlnlumdNWEbuP3YdlTqkwlCgIxIfFs1Zf+fa7TI4yQ==",
   "public_key": "NVpZ5bpnTVhG7j92HZU6pMJQoCMSHxbNWX/n2u0yOMk=",
-  "signature": "WMwyWLHGZVOr2qazEIj+ytKt/V399M7nagoxAhPhZyNNGeiXEjvKJAKAImZeH3TiZSGkXWNDJcJBwHOjl3HNDA=="
+  "signature": "/eSFmYYdGfxHcR1TOqt/FBn2PSEZFvyJ2l6W7fkIzX7GTDTW/m+mEBmCdTnwFzMvStjHI1ZnwcqsHQUaQuuIDQ=="
 }

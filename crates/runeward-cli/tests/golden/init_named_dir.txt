@@ -1,6 +1,0 @@
-$ runebox init proj --name dev
-exit: 0
---- stdout
-created: proj/.runeward/dev.toml
-next: runebox --config-dir "proj/.runeward" doctor dev && runebox --config-dir "proj/.runeward" enter dev -- echo hello
---- stderr

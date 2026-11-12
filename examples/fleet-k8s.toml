@@ -7,7 +7,7 @@
 # ["k8s", "fleet-*"] guardrail in the §6d ClusterPolicy example.
 #
 #   kubectl apply -f - <<'EOF'
-#   apiVersion: runeward.dev/v1alpha1
+#   apiVersion: runebox.runeward.io/v1alpha1
 #   kind: ClusterFleet
 #   metadata: { name: shared-crew, labels: { owner: alice } }
 #   spec: { profile: fleet-k8s }

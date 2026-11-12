@@ -24,8 +24,8 @@ test:
 
 # Opt-in tests against a real Docker engine (they remove only what they create).
 docker-test:
-	RUNEWARD_TEST_DOCKER=1 $(CARGO) test --locked -p runeward-backend --test docker_integration -- --test-threads=1
-	RUNEWARD_TEST_DOCKER=1 $(CARGO) test --locked -p runeward-controlplane --test docker_workspaces --test docker_governance -- --test-threads=1
+	RUNEBOX_TEST_DOCKER=1 $(CARGO) test --locked -p runebox-backend --test docker_integration -- --test-threads=1
+	RUNEBOX_TEST_DOCKER=1 $(CARGO) test --locked -p runebox-controlplane --test docker_workspaces --test docker_governance -- --test-threads=1
 
 fleet-driver-test:
 	./scripts/test-fleet-drivers.sh
@@ -34,15 +34,15 @@ kind-e2e:
 	./scripts/e2e-kind.sh
 
 profiles:
-	$(CARGO) run --locked -q -p runeward-cli --bin runebox -- --config-dir examples/safe validate --strict
+	$(CARGO) run --locked -q -p runebox-cli --bin runebox -- --config-dir examples/safe validate --strict
 
 sdk-test:
 	PYTHONPATH=adapters/python $(PYTHON) -m unittest discover -s adapters/python/tests
 	cd adapters/typescript && $(NPM) ci --ignore-scripts && $(NPM) test
 
 helm:
-	helm lint deploy/helm/runeward
-	helm template runeward deploy/helm/runeward --set server.enabled=true >/dev/null
+	helm lint deploy/helm/runebox
+	helm template runebox deploy/helm/runebox --set server.enabled=true >/dev/null
 
 # Needs cargo-deny and cargo-audit (`cargo install --locked cargo-deny cargo-audit`).
 # RUSTSEC-2023-0071 only reaches a dev-dependency; see deny.toml.

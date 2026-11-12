@@ -1,18 +1,18 @@
 # Run the OpenAI Codex CLI (`codex`) inside an isolated Rune Box environment.
 #
-#   printf '%s' "$OPENAI_API_KEY" > ~/.runeward-openai.key   # no trailing newline needed
+#   printf '%s' "$OPENAI_API_KEY" > ~/.runebox-openai.key   # no trailing newline needed
 #   runebox --config-dir examples serve
 #   POST /v1/sandboxes {"profile":"codex-agent"}
 #   POST /v1/sandboxes/{id}/shell/exec
 #        {"command":["sh","-lc","codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox 'write fib.py that prints the first 10 Fibonacci numbers, then run it'"]}
-#   (--dangerously-bypass-approvals-and-sandbox is correct here: runeward is the
+#   (--dangerously-bypass-approvals-and-sandbox is correct here: runebox is the
 #    external sandbox. --skip-git-repo-check is needed because /workspace is empty.)
 # The outer launch is policy-gated. Commands the Codex process starts inside the
 # sandbox are constrained by isolation/network/resources, not individually approved.
 
 [host]
 type    = "container"
-image   = "ghcr.io/runeeward/runeward-agent:latest"
+image   = "ghcr.io/runeeward/runebox-agent:latest"
 user    = "agent"
 workdir = "/workspace"
 
@@ -53,11 +53,11 @@ loop_threshold  = 12
 # only uses in interactive mode), so we inject both from the same file.
 [[env]]
 name = "CODEX_API_KEY"
-file = "~/.runeward-openai.key"
+file = "~/.runebox-openai.key"
 
 [[env]]
 name = "OPENAI_API_KEY"
-file = "~/.runeward-openai.key"
+file = "~/.runebox-openai.key"
 
 [chronicle]
 redact = true

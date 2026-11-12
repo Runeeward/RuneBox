@@ -2,7 +2,7 @@
 
 A policy file—called a Charter in existing Rune Box APIs—is the declarative
 security contract for a sandbox (Citadel). Rune Box resolves policies from a
-config directory (`--config-dir` or `$RUNEWARD_CONFIG_DIR`) and
+config directory (`--config-dir` or `$RUNEBOX_CONFIG_DIR`) and
 supports **TOML, YAML, and JSON** — pick per file by extension (`.toml`,
 `.yaml`/`.yml`, `.json`). TOML is the default in the examples.
 
@@ -19,7 +19,7 @@ capabilities = ["python", "node"] # optional tools actually present in the image
 
 [host]
 type      = "container"          # or "k8s", or "microvm" (Firecracker/libkrun)
-image     = "ghcr.io/runeeward/runeward-agent:latest"
+image     = "ghcr.io/runeeward/runebox-agent:latest"
 workdir   = "/workspace"
 copy_from = "~/Documents/my-project"   # optional: seed /workspace at create
 # runtime_class = "gvisor"       # hardened runtime (Docker --runtime / k8s runtimeClassName)
@@ -73,8 +73,8 @@ max_cost_usd    = 25.0           # cap reported spend in USD (0 = unlimited)
 | `[policy_bundle]` | Pull signed, versioned policy from an OCI artifact instead of inline rules. |
 | `[rationing]` | Rationing (guardrails): `wall_clock` (duration string), `max_execs`, `egress_requests`, loop detection via `loop_window`/`loop_threshold`, and budget caps `max_tokens`/`max_cost_usd` (enforced once usage is reported to `POST /v1/citadels/{id}/usage`). |
 | `[cohort]` | Cohort defaults when the Charter is launched as a Cohort: `replicas` (Citadels to start, at least 1) and optional `task_board`, a list of task identifiers seeded onto the shared Command Board. See [Cohorts](fleets.md). |
-| `[chronicle]` | Audit-ledger settings: `redact` (default `true`) scrubs known secrets from Chronicle events and returned output, and `scrub_patterns` adds operator regexes to the built-in scrubber. Live audit sinks are configured on the server with `RUNEWARD_AUDIT_*` (see [CLI reference](cli.md#environment)). |
-| `[ide]` | Optional experimental browser IDE (code-server). Fields: `enabled`, `port` (default 8080), optional `path`, optional `agents = ["claude","codex","cursor"]` (UI hints). Requires `RUNEWARD_ENABLE_EXPERIMENTAL_IDE=1` and the `ide` or `ide-agents` target from `deploy/Dockerfile.ide`. See [Browser IDE](browser-ide.md) for setup and limitations (no desktop GUI embed, no first-class Copilot). |
+| `[chronicle]` | Audit-ledger settings: `redact` (default `true`) scrubs known secrets from Chronicle events and returned output, and `scrub_patterns` adds operator regexes to the built-in scrubber. Live audit sinks are configured on the server with `RUNEBOX_AUDIT_*` (see [CLI reference](cli.md#environment)). |
+| `[ide]` | Optional experimental browser IDE (code-server). Fields: `enabled`, `port` (default 8080), optional `path`, optional `agents = ["claude","codex","cursor"]` (UI hints). Requires `RUNEBOX_ENABLE_EXPERIMENTAL_IDE=1` and the `ide` or `ide-agents` target from `deploy/Dockerfile.ide`. See [Browser IDE](browser-ide.md) for setup and limitations (no desktop GUI embed, no first-class Copilot). |
 | `[workspace]` | Optional persistent workspace: `persist = true` keeps the disk across sleep/wake and control-plane restarts; `idle_timeout = "15m"` (at least `1m`) puts an idle Citadel to sleep. See [Workspaces and context](workspaces-and-context.md). |
 | `[schedule]` | `self_service = true` lets agents create and delete their own scheduled runs over MCP (default false). See [Workspaces and context](workspaces-and-context.md#scheduled-runs). |
 
@@ -148,7 +148,7 @@ authenticate it one of these ways:
 - An existing `op signin` session (`OP_SESSION_*`), or `OP_ACCOUNT` to pick an
   account, works as it does for `op` itself.
 
-`RUNEWARD_OP_BIN` points at the `op` executable when it is not on `PATH`.
+`RUNEBOX_OP_BIN` points at the `op` executable when it is not on `PATH`.
 A reference must have the form `op://<vault>/<item>/<field>` or
 `op://<vault>/<item>/<section>/<field>` (an `?attribute=…` query is passed
 through); malformed references are refused before `op` runs. A missing CLI,
@@ -195,14 +195,14 @@ Set `policy_engine` at the top level:
 
 - `builtin` (default) — first-match tool + glob rules via `[[policy]]`.
 - `cel` — CEL expressions over `{tool, arg}` via `[[cel]]`.
-- `rego` — an OPA/Rego module returning `data.runeward.decision` via `[rego]`.
+- `rego` — an OPA/Rego module returning `data.runebox.decision` via `[rego]`.
 
 Instead of inline rules, a Charter can consume a signed OCI policy Archive so a
 security team ships one artifact many Charters reuse:
 
 ```toml
 [policy_bundle]
-ref        = "oci://ghcr.io/acme/runeward-policies:v3"
+ref        = "oci://ghcr.io/acme/runebox-policies:v3"
 verify_key = "<base64 ed25519 public key>"   # when set, a valid signature is REQUIRED
 ```
 

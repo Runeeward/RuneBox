@@ -43,13 +43,13 @@ an orchestrator that already supports subagents:
 5. Never automatically retry a denial or work around an approval gate in a child agent.
 
 Rune Box writes the lineage metadata to the Chronicle and a durable provider-neutral Run record.
-`GET /v1/runs`, `runeward_list_runs`, and the dashboard recovery view expose the run tree even after
+`GET /v1/runs`, `runebox_list_runs`, and the dashboard recovery view expose the run tree even after
 a Citadel is torn down.
 
 ### Charter subsumption
 
-A delegated child (`parent_citadel` on `POST /v1/citadels` or the `runeward_create_citadel` MCP
-tool) and a fork (`POST /v1/citadels/{id}/fork`, `runeward_fork_citadel`) may run under a
+A delegated child (`parent_citadel` on `POST /v1/citadels` or the `runebox_create_citadel` MCP
+tool) and a fork (`POST /v1/citadels/{id}/fork`, `runebox_fork_citadel`) may run under a
 different Charter than their parent only when Rune Box can prove it grants no more power. The
 check is conservative: it may refuse a Charter that is in fact narrower when containment cannot be
 decided, but it never accepts a broader one. The parent's own Charter, unchanged, is admitted on a
@@ -57,7 +57,7 @@ fast path (`exact`).
 
 | Dimension | The child is admitted when |
 | --- | --- |
-| `[[policy]]`, `policy_default` | For every action the child's verdict is no broader than the parent's (deny < require-approval < allow). The built-in first-match rules are compared exactly over every tool, every argument (an automaton over all `match` globs) and every combination of `match_argv` outcomes, so rule order is honoured: a child deny the parent lacked is fine; a child allow that shadows a parent deny is refused. An unset `policy_default` uses the server's `RUNEWARD_POLICY_DEFAULT`. |
+| `[[policy]]`, `policy_default` | For every action the child's verdict is no broader than the parent's (deny < require-approval < allow). The built-in first-match rules are compared exactly over every tool, every argument (an automaton over all `match` globs) and every combination of `match_argv` outcomes, so rule order is honoured: a child deny the parent lacked is fine; a child allow that shadows a parent deny is refused. An unset `policy_default` uses the server's `RUNEBOX_POLICY_DEFAULT`. |
 | CEL, Rego, policy bundles | The configuration is identical (Rego inline, bundles pinned by `@sha256:` digest), or the child's built-in rules deny everything, or the parent's built-in rules allow everything. |
 | `[network]` | The parent's egress is unrestricted, or the child's gate admits no hostname, port or IP range the parent's refuses (rule order honoured), keeps `enforce = "strict"`, and is not unrestricted itself. Hostname rules that could match IP literals are only accepted when identical. |
 | `[[endpoint]]`, `[[credential]]` | Each child credential is one of the parent's. Wherever the parent inspects an endpoint, the child has one with the same protocol, enforce mode, credential and `health_path`, a subset of its `binaries`, no larger budgets, every parent deny rule, and a non-empty prefix of the parent's ordered allow rules with effects at least as strict. |
@@ -92,7 +92,7 @@ This prevents one agent in a shared tenant from finishing another worker's task 
 | --- | --- |
 | MCP-capable agent or IDE | `runebox mcp` |
 | Browser IDE against `/workspace` (experimental) | `[ide]` + ticketed proxy — [Browser IDE](browser-ide.md) |
-| Python agent framework | `runeward` package and the relevant optional adapter |
+| Python agent framework | `runebox` package and the relevant optional adapter |
 | TypeScript agent framework | `@runebox/sdk` and its framework subpath |
 | Custom orchestrator | REST API or the dependency-light SDK client |
 | Parallel peer workers | Existing `runebox cohort` commands and `/v1/cohorts` API |
