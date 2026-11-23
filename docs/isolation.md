@@ -506,13 +506,12 @@ guest. With the supervisor:
 | Pod | Drives |
 | --- | --- |
 | pause, supervisor, sandbox (+ persistent workspace) | 3 (4) |
-| + egress sidecar, cooperative `[network] default = "deny"` | 4 (5) |
-| + strict egress (its init container installs the supervisor) | 4 (5) |
-| broker, cooperative: pause, trust-bundle, supervisor, sandbox, egress | 5 (6: see below) |
+| + strict egress, `[network] default = "deny"` (its init container installs the supervisor) | 4 (5) |
+| broker under an open network: pause, trust-bundle, supervisor, sandbox, egress | 5 (6: see below) |
 | broker and strict egress | 5 (6: refused, as without the supervisor) |
 
 The supervisor never costs a Charter that does not require it its
-sandbox. A cooperative broker with a persistent workspace (five drives
+sandbox. A broker under an open network with a persistent workspace (five drives
 without the supervisor) and a best-effort `[filesystem]` starts without
 the supervisor: the agent runs unconfined, the control plane records the
 supervisor as `absent` with that reason, and `runebox validate` warns.
@@ -647,7 +646,7 @@ both guests: host vsock ports 22, 2375 and the agent's own port were reset
 
 This is why deny-by-default cannot be bypassed from inside: there is no
 route to bypass it with, whatever a root process in the guest does, and it
-holds for `enforce = "strict"` and `"cooperative"` alike. The price is that
+holds for every deny policy. The price is that
 only proxy-aware traffic leaves at all: raw TCP, UDP and DNS lookups fail
 even under an open policy (`runebox validate` warns about that), and the
 in-cell IDE, which needs a sandbox address, is refused. Broker CAs are

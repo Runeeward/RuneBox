@@ -16,6 +16,10 @@ pub enum ValidationError {
     UnsupportedHostType(String),
     #[error("network.default must be \"allow\" or \"deny\", got {0:?}")]
     NetworkDefault(String),
+    #[error(
+        "network.enforce must be \"strict\" (or empty, which means the same), got {0:?}: a deny policy is always enforced in the kernel"
+    )]
+    NetworkEnforce(String),
     #[error("host.user uid {STRICT_PROXY_UID} is reserved for strict egress interception")]
     ReservedUid,
     #[error("env[{0}]: missing name")]
@@ -71,6 +75,10 @@ impl Charter {
         let default = self.network.default.as_str();
         if !matches!(default, "" | "allow" | "deny") {
             return Err(ValidationError::NetworkDefault(default.to_owned()));
+        }
+        let enforce = self.network.enforce.as_str();
+        if !crate::schema::ENFORCE_MODES.contains(&enforce) {
+            return Err(ValidationError::NetworkEnforce(enforce.to_owned()));
         }
         if self.network.strict_egress()
             && numeric_uid(&self.host.user) == Some(STRICT_PROXY_UID.into())
@@ -187,8 +195,44 @@ mod tests {
         assert_eq!(p.validate(), Err(ValidationError::ReservedUid));
         p.host.user = "1337:1337".into();
         assert!(p.validate().is_err());
+        // A deny policy is strict whether or not enforce is spelled out.
         p.network.enforce.clear();
+        assert_eq!(p.validate(), Err(ValidationError::ReservedUid));
+        p.network.default = "allow".into();
         assert!(p.validate().is_ok());
+    }
+
+    #[test]
+    fn deny_implies_strict_and_unknown_enforce_is_refused() {
+        let mut p = Charter {
+            host: Host {
+                host_type: HostType::Container,
+                image: "img".into(),
+                ..Host::default()
+            },
+            network: Network {
+                default: "deny".into(),
+                ..Network::default()
+            },
+            ..Charter::default()
+        };
+        assert!(p.network.strict_egress(), "deny with no enforce is strict");
+        for mode in ["", "strict", "l3"] {
+            p.network.enforce = mode.into();
+            assert!(p.network.strict_egress(), "{mode:?}");
+            assert!(p.validate().is_ok(), "{mode:?}");
+        }
+        for mode in ["cooperative", "proxy", "off", "STRICT"] {
+            p.network.enforce = mode.into();
+            assert_eq!(
+                p.validate(),
+                Err(ValidationError::NetworkEnforce(mode.into())),
+                "{mode:?}"
+            );
+        }
+        p.network.enforce.clear();
+        p.network.default = "allow".into();
+        assert!(!p.network.strict_egress());
     }
 
     #[test]
