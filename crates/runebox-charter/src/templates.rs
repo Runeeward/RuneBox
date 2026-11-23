@@ -96,8 +96,8 @@ hostname = "prod.*"
 [network]
 default = "deny"
 
-# enforce = "strict" adds kernel-level iptables redirection on the k8s backend
-# (the default cooperative HTTP(S)_PROXY is bypassable). Ignored by docker.
+# A deny policy is always enforced in the kernel: all TCP is redirected
+# through the egress proxy. "strict" is the default and may be left out.
 enforce = "strict"
 
 # Example: reach a model API.

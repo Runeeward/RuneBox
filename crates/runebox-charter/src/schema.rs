@@ -337,15 +337,23 @@ pub struct Network {
     pub default: String,
     #[serde(rename = "rule")]
     pub rules: Vec<NetworkRule>,
-    /// `""` uses the cooperative proxy env (bypassable); `"strict"` (alias
-    /// `"l3"`) adds kernel-level redirection on the k8s backend.
+    /// How a deny policy is enforced. `""` (the default), `"strict"` and its
+    /// alias `"l3"` all mean kernel-level enforcement: every TCP connection
+    /// is redirected through the egress proxy whatever the workload's proxy
+    /// settings, and a backend that cannot do that refuses the Charter.
+    /// There is no proxy-only mode. Any other value is refused at
+    /// validation.
     pub enforce: String,
 }
 
+/// The accepted `[network] enforce` values.
+pub const ENFORCE_MODES: [&str; 3] = ["", "strict", "l3"];
+
 impl Network {
-    /// Reports whether kernel-level egress enforcement is requested.
+    /// Reports whether kernel-level egress enforcement applies: always for
+    /// a deny policy (see [`Network::enforce`]).
     pub fn strict_egress(&self) -> bool {
-        self.default == "deny" && (self.enforce == "strict" || self.enforce == "l3")
+        self.deny_by_default()
     }
 
     /// Reports whether unmatched egress is blocked.

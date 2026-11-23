@@ -30,11 +30,10 @@ task_board = [
 ]
 
 # Deny-by-default egress; only Cursor's endpoints are reachable. On k8s this runs
-# an egress sidecar (needs runebox-egress in the cluster). For bypass-proof L3
-# enforcement that an uncooperative process can't skip, add: enforce = "strict".
+# an iptables init container and an egress sidecar (needs runebox-egress in the
+# cluster), so the policy holds even for a process that ignores proxy settings.
 [network]
 default = "deny"
-# enforce = "strict"
 
 [[network.rule]]
 verdict  = "allow"
@@ -80,7 +79,7 @@ loop_threshold  = 12
 name = "CURSOR_API_KEY"
 file = "~/.runebox-cursor.key"
 
-# The Cursor CLI is Node-based; make it honor the egress proxy in cooperative mode.
+# The Cursor CLI is Node-based; make it honor HTTP(S)_PROXY when one is set.
 [[env]]
 name  = "NODE_USE_ENV_PROXY"
 value = "1"

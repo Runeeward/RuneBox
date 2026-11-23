@@ -118,7 +118,7 @@ The example profiles live in `[examples/](https://github.com/Runeeward/RuneBox/t
 | `governed`      | Docker  | policy `deny` + human-in-the-loop approval        |
 | `rego`          | Docker  | OPA/Rego policy engine (`policy_engine = "rego"`) |
 | `policy-bundle` | Docker  | signed OCI policy bundle (`[policy_bundle]`)      |
-| `egress-demo`   | Docker  | deny-by-default egress (cooperative proxy)        |
+| `egress-demo`   | Docker  | deny-by-default egress (strict sidecar)           |
 | `egress-strict` | K8s     | strict L3 egress (iptables + transparent proxy)   |
 | `fleet-demo`    | Docker  | multi-agent Cohort + atomic Command Board         |
 | `ns-auto`       | Docker  | fully worked autonomous-agent contract            |
@@ -432,11 +432,12 @@ docker rm -f rw-registry
 
 ---
 
-## 4. Deny-by-default egress (Docker, cooperative proxy)
+## 4. Deny-by-default egress (Docker)
 
 The `egress-demo` profile denies all egress except `example.com`. Rune Box
-starts an in-process host proxy and points the container at it via
-`HTTP(S)_PROXY`.
+starts the egress sidecar (it needs the `runebox-egress` image) and the
+container joins its network namespace, where iptables send every TCP
+connection through the proxy.
 
 ```bash
 EID=$(curl -s "${AUTH[@]}" $BASE/v1/citadels -d '{"profile":"egress-demo"}' | jq -r .id)
@@ -452,9 +453,8 @@ curl -s "${AUTH[@]}" $BASE/v1/citadels/$EID/shell/exec \
 # => non-zero
 ```
 
-> Docker enforcement is **cooperative**: an app that ignores `HTTP(S)_PROXY`
-> could bypass it. For bypass-resistant enforcement, use strict mode on
-> Kubernetes (6).
+> The container has no proxy settings; an app that dials directly is still
+> redirected and refused. Under gVisor or Kata, Docker refuses the Citadel.
 
 ---
 

@@ -14,8 +14,8 @@ use runebox_backend::config::{
 };
 use runebox_backend::evidence::PROBE_MARKER;
 use runebox_backend::{
-    Backend, BackendConfig, Docker, ExecRequest, IsolationTier, LABEL_PROFILE, PtyStream,
-    Resources, Spec,
+    Backend, BackendConfig, BackendError, Docker, ExecRequest, IsolationTier, LABEL_PROFILE,
+    PtyStream, Resources, Spec,
 };
 use runebox_charter::{File, Network, NetworkRule};
 use serde::Deserialize;
@@ -325,40 +325,78 @@ async fn egress_scenarios_match_go() {
     let go = go_fixtures();
     let cli = FakeCli::new();
 
-    let d = backend(&cli, "docker", BackendConfig::default()).await;
-    let spec = Spec {
-        network: deny_network(""),
-        ..demo("net")
-    };
-    let sb = d.create(spec.clone()).await.expect("create");
-    d.kill(&sb.id).await.expect("kill");
-    assert_matches_go("cooperative-docker", &cli, &go);
+    // A deny policy is enforced by the strict sidecar whether or not
+    // `enforce` is spelled out, so all three produce Go's strict argv. (Go
+    // ran a deny policy without `enforce` through proxy settings only; the
+    // "cooperative-*" fixtures record that and no longer apply.)
+    for enforce in ["strict", "", "l3"] {
+        let cfg = BackendConfig::from_pairs([
+            (EGRESS_IMAGE_ENV, "registry.example/egress:2"),
+            (DNS_RESOLVERS_ENV, "1.1.1.1,8.8.8.8"),
+        ]);
+        let d = backend(&cli, "docker", cfg).await;
+        let spec = Spec {
+            network: deny_network(enforce),
+            user: "1000".into(),
+            ..demo("strict")
+        };
+        let sb = d.create(spec).await.expect("create");
+        let ip = d
+            .reachable()
+            .expect("reachable")
+            .container_ip(&sb.id)
+            .await
+            .expect("ip");
+        assert_eq!(ip, "172.17.0.9");
+        d.kill(&sb.id).await.expect("kill");
+        assert_matches_go("strict", &cli, &go);
+    }
 
     let d = backend(&cli, "podman", BackendConfig::default()).await;
     assert_eq!(d.name(), "podman");
-    d.create(spec).await.expect("create");
-    assert_matches_go("cooperative-podman", &cli, &go);
+    d.create(Spec {
+        network: deny_network(""),
+        ..demo("net")
+    })
+    .await
+    .expect("create");
+    let calls = canon(&cli.calls());
+    assert!(
+        calls
+            .iter()
+            .any(|c| c.iter().any(|a| a == "--setup-iptables")),
+        "{calls:#?}"
+    );
+    let run = calls
+        .iter()
+        .find(|c| c.iter().any(|a| a == "runebox-<ID>"))
+        .expect("sandbox run");
+    assert!(
+        run.iter().any(|a| a == "container:runebox-egress-<ID>"),
+        "{run:?}"
+    );
+    assert!(!run.iter().any(|a| a.contains("_PROXY=")), "{run:?}");
+}
 
-    let cfg = BackendConfig::from_pairs([
-        (EGRESS_IMAGE_ENV, "registry.example/egress:2"),
-        (DNS_RESOLVERS_ENV, "1.1.1.1,8.8.8.8"),
-    ]);
-    let d = backend(&cli, "docker", cfg).await;
-    let spec = Spec {
-        network: deny_network("strict"),
-        user: "1000".into(),
-        ..demo("strict")
-    };
-    let sb = d.create(spec).await.expect("create");
-    let ip = d
-        .reachable()
-        .expect("reachable")
-        .container_ip(&sb.id)
-        .await
-        .expect("ip");
-    assert_eq!(ip, "172.17.0.9");
-    d.kill(&sb.id).await.expect("kill");
-    assert_matches_go("strict", &cli, &go);
+#[tokio::test(flavor = "multi_thread")]
+async fn deny_under_a_vm_or_gvisor_runtime_is_refused() {
+    let cli = FakeCli::new();
+    for rc in ["runsc", "kata-qemu"] {
+        let d = backend(&cli, "docker", BackendConfig::default()).await;
+        let err = d
+            .create(Spec {
+                network: deny_network(""),
+                runtime_class: rc.into(),
+                ..demo("net")
+            })
+            .await
+            .expect_err(rc);
+        assert!(
+            matches!(&err, BackendError::Unsupported(m) if m.contains(rc)),
+            "{rc}: {err}"
+        );
+        assert!(cli.calls().is_empty(), "{rc}: nothing is created");
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]

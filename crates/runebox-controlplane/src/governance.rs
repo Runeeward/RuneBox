@@ -287,7 +287,7 @@ impl Manager {
                 // endpoints could ever be attributed.
                 if !c.network.strict_egress() {
                     return Err(Error::bad_input(
-                        "an [[endpoint]] lists binaries, which are enforced only with strict egress: set [network] default = \"deny\" and enforce = \"strict\"",
+                        "an [[endpoint]] lists binaries, which are enforced only with strict egress: set [network] default = \"deny\"",
                     ));
                 }
                 broker = broker.with_attribution(

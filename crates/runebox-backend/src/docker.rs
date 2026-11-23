@@ -9,9 +9,14 @@
 //! documents into an anonymous volume at `/run/runebox`, the broker CA and
 //! trust bundle into one at `/etc/runebox/ca`), and only then started, so
 //! PID 1 and the agent never see a half-configured sandbox. The broker sits
-//! in the in-process cooperative proxy, or is exported to the strict
-//! sidecar as a root-only document whose decisions are read back from the
-//! sidecar's stdout. See [`crate::incell`].
+//! in the in-process cooperative proxy (an open network policy), or is
+//! exported to the strict sidecar as a root-only document whose decisions
+//! are read back from the sidecar's stdout. See [`crate::incell`].
+//!
+//! A deny network policy is always enforced by the strict-egress sidecar:
+//! the sandbox joins its network namespace, where iptables force every TCP
+//! connection through the proxy. Runtimes whose traffic those rules cannot
+//! see (gVisor, Kata) are refused rather than run with proxy settings only.
 
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
@@ -85,7 +90,7 @@ fn check_binary_attribution(
         return Ok(());
     }
     let why = if !net.strict_egress() {
-        "they need strict egress ([network] default = \"deny\", enforce = \"strict\"), so the broker shares the sandbox's network namespace".to_owned()
+        "they need strict egress ([network] default = \"deny\"), so the broker shares the sandbox's network namespace".to_owned()
     } else if RuntimeFamily::of(runtime) != RuntimeFamily::Container {
         format!(
             "runtime {runtime:?} keeps the sandbox's sockets out of the egress sidecar's sight; use a container runtime (runc, crun) for binary-restricted endpoints"
@@ -97,6 +102,21 @@ fn check_binary_attribution(
     };
     Err(BackendError::Unsupported(format!(
         "endpoint binaries cannot be enforced here: {why}"
+    )))
+}
+
+/// Refuses a deny network policy under a runtime whose traffic the strict
+/// egress sidecar cannot police. The sidecar's iptables rules act on the
+/// network namespace the sandbox joins; a gVisor sandbox sends from its own
+/// user-space network stack and a Kata guest through a tap device mirrored
+/// past netfilter, so neither passes through those rules. Running such a
+/// sandbox with only proxy settings would leave raw connections open.
+fn check_strict_egress_runtime(net: &Network, runtime: &str) -> Result<()> {
+    if !net.strict_egress() || RuntimeFamily::of(runtime) == RuntimeFamily::Container {
+        return Ok(());
+    }
+    Err(BackendError::Unsupported(format!(
+        "[network] default = \"deny\" cannot be enforced under runtime {runtime:?} on Docker or Podman: the egress sidecar's kernel rules do not see a gVisor or VM sandbox's traffic; use a container runtime (runc, crun), or the k8s or microvm backend"
     )))
 }
 
@@ -868,6 +888,7 @@ impl Docker {
     /// A failed rebuild never removes the reused volume.
     async fn provision(&self, spec: Spec, reuse: bool) -> Result<Sandbox> {
         check_engine_runtime(&self.runtime_for(&spec.runtime_class))?;
+        check_strict_egress_runtime(&spec.network, &self.runtime_for(&spec.runtime_class))?;
         self.check_vm_size(&spec)?;
         if let Some(b) = &spec.broker {
             check_binary_attribution(
@@ -933,8 +954,8 @@ impl Docker {
                     }
                 }
             } else {
-                // Cooperative mode: hostname policy through HTTP(S)_PROXY;
-                // non-proxy protocols are not policed.
+                // Open network with a broker: the proxy only swaps
+                // placeholders for secrets, so HTTP(S)_PROXY is enough.
                 match HostProxy::start(policy_from_network(&spec.network), &id, broker.clone())
                     .await
                 {
@@ -2227,8 +2248,9 @@ mod tests {
             enforce: "strict".into(),
             ..Network::default()
         };
+        // A broker under an open network policy runs in the host proxy.
         let cooperative = Network {
-            default: "deny".into(),
+            default: "allow".into(),
             ..Network::default()
         };
         check_binary_attribution(&attributed, &strict, "runc", true).expect("supported");
@@ -2253,6 +2275,29 @@ mod tests {
                 "{want}: {err}"
             );
         }
+    }
+
+    #[test]
+    fn deny_needs_a_runtime_the_sidecar_can_police() {
+        let deny = |enforce: &str| Network {
+            default: "deny".into(),
+            enforce: enforce.into(),
+            ..Network::default()
+        };
+        for enforce in ["", "strict"] {
+            for rt in ["", "runc", "crun", "youki"] {
+                check_strict_egress_runtime(&deny(enforce), rt).expect(rt);
+            }
+            for rt in ["runsc", "kata-qemu", "io.containerd.kata-clh.v2"] {
+                let err = check_strict_egress_runtime(&deny(enforce), rt).expect_err(rt);
+                assert!(
+                    matches!(&err, BackendError::Unsupported(m) if m.contains(rt) && m.contains("deny")),
+                    "{err}"
+                );
+            }
+        }
+        let open = Network::default();
+        check_strict_egress_runtime(&open, "runsc").expect("open network");
     }
 
     #[test]
