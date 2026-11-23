@@ -14,10 +14,8 @@ image   = "ghcr.io/runeeward/runebox-agent:latest"
 user    = "agent"
 workdir = "/workspace"
 
-# Deny-by-default egress; only Cursor's endpoints are reachable.
-# NOTE: the Cursor CLI is Node-based, so NODE_USE_ENV_PROXY=1 (below) is what
-# makes it honor runebox's cooperative Docker proxy. For bypass-proof L3
-# enforcement, run on the k8s backend with `enforce = "strict"`.
+# Deny-by-default egress; only Cursor's endpoints are reachable. The deny
+# policy is enforced in the kernel by the egress sidecar.
 [network]
 default = "deny"
 

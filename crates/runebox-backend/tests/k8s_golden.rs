@@ -469,13 +469,19 @@ fn scenarios() -> Vec<Scenario> {
             pre_namespace: Some(json!({"metadata": {"name": NS, "labels": psa("privileged")}})),
             want_tier: IsolationTier::Container,
         },
+        // A deny policy without `enforce` gets the same strict Pod as an
+        // explicit `enforce = "l3"`. (Go gave it proxy settings only; its
+        // "cooperative" fixture records that and no longer applies.)
         Scenario {
-            name: "cooperative",
-            env: vec![],
+            name: "strict",
+            env: vec![
+                (EGRESS_IMAGE_ENV, "registry.example/egress:2"),
+                (EGRESS_PULL_POLICY_ENV, "Never"),
+                (K8S_NETWORK_POLICY_ENV, "1"),
+            ],
             spec: Spec {
                 network: deny_network(""),
-                env: BTreeMap::from([("X".into(), "y".into())]),
-                ..demo("net")
+                ..demo("strict")
             },
             pre_namespace: None,
             want_tier: IsolationTier::Container,

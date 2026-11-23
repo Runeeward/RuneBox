@@ -846,7 +846,7 @@ fn check_network(p: &Charter, c: &Charter) -> Result<String, Refusal> {
     if p.network.strict_egress() && !c.network.strict_egress() {
         return refuse(
             "network",
-            "the parent enforces egress strictly (enforce = \"strict\") but the child does not",
+            "the parent enforces egress strictly (default = \"deny\") but the child does not",
         );
     }
     if p.network.default == c.network.default

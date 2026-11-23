@@ -554,10 +554,14 @@ fn network_broadening_is_refused() {
     assert!(r.reason.contains("admin.example.com"), "{r}");
     assert!(r.reason.contains("network.rule[0]"), "{r}");
 
-    // Strict enforcement must be kept.
+    // Strict enforcement must be kept. A deny child is strict whether or
+    // not it spells out `enforce`; an open child behind a broker is not.
     let mut strict = with_net("p", "deny", vec![]);
     strict.network.enforce = "strict".into();
-    let r = refusal(&strict, &with_net("c", "deny", vec![]));
+    assert!(accepts(&strict, &with_net("c", "deny", vec![])));
+    let mut open = with_net("c", "allow", vec![]);
+    open.endpoints = vec![endpoint("api.example.com")];
+    let r = refusal(&strict, &open);
     assert!(r.reason.contains("strictly"), "{r}");
 
     // IP-shaped hostnames are only compared when everything is identical.

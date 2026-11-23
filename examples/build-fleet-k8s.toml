@@ -26,8 +26,7 @@ task_board = []
 
 [network]
 default = "deny"
-# For bypass-proof L3 enforcement (a process can't skip it), add:
-# enforce = "strict"
+# A deny policy is always enforced in the kernel (strict egress).
 
 # --- OpenAI / Codex ---
 [[network.rule]]
