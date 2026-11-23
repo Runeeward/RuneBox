@@ -53,7 +53,7 @@ impl Charter {
             self.host.workdir = "/workspace".to_owned();
         }
         if self.host.image.is_empty() {
-            self.host.image = "ghcr.io/runeeward/runebox-sandbox:latest".to_owned();
+            self.host.image = crate::DEFAULT_SANDBOX_IMAGE.to_owned();
         }
     }
 

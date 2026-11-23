@@ -76,6 +76,9 @@ pub struct Manager {
     pub(crate) schedule_op: tokio::sync::Mutex<()>,
     sweeper: Mutex<Option<JoinHandle<()>>>,
     ticker: Mutex<Option<JoinHandle<()>>>,
+    anchorer: Mutex<Option<JoinHandle<()>>>,
+    /// The ledger seq last written to the anchor file.
+    anchored_seq: std::sync::atomic::AtomicI64,
 }
 
 impl std::fmt::Debug for Manager {
@@ -170,8 +173,9 @@ impl ManagerBuilder {
         };
         let sign = config.sign_ledger;
         let state_dir = state.dir().map(Path::to_path_buf);
+        let key_dir = config.ledger_key_dir.clone();
         let (ledger, signer, lease) = tokio::task::spawn_blocking(move || {
-            open_ledger(&ledger_path, sign, state_dir.as_deref())
+            open_ledger(&ledger_path, sign, state_dir.as_deref(), key_dir.as_deref())
         })
         .await
         .map_err(Error::other)??;
@@ -205,6 +209,8 @@ impl ManagerBuilder {
             schedule_op: tokio::sync::Mutex::new(()),
             sweeper: Mutex::new(None),
             ticker: Mutex::new(None),
+            anchorer: Mutex::new(None),
+            anchored_seq: std::sync::atomic::AtomicI64::new(0),
         });
         mgr.load_fleets().await?;
         mgr.load_snapshots().await?;
@@ -227,17 +233,20 @@ impl ManagerBuilder {
         if let Some(every) = mgr.config.context_tick {
             mgr.start_ticker(every);
         }
+        mgr.start_anchorer();
         Ok(mgr)
     }
 }
 
-/// Opens the ledger, attaches the signer when enabled, and loads (or
-/// creates) the Cohort lease key. Without a state directory the lease key
-/// is ephemeral.
+/// Opens the ledger, attaches the signer when enabled (its key in
+/// `key_dir`, default `keys/` beside the ledger), and loads (or creates)
+/// the Cohort lease key. Without a state directory the lease key is
+/// ephemeral.
 fn open_ledger(
     path: &Path,
     sign: bool,
     state_dir: Option<&Path>,
+    key_dir: Option<&Path>,
 ) -> Result<(Ledger, Option<Signer>, LeaseSigner)> {
     if let Some(parent) = path.parent()
         && !parent.as_os_str().is_empty()
@@ -246,8 +255,13 @@ fn open_ledger(
     }
     let ledger = Ledger::open(path)?;
     let signer = if sign {
-        let dir = path.parent().unwrap_or_else(|| Path::new("."));
-        let s = Signer::load_or_create(dir)?;
+        let dir = match path.parent() {
+            Some(p) if !p.as_os_str().is_empty() => p,
+            _ => Path::new("."),
+        };
+        let keys =
+            key_dir.map_or_else(|| dir.join(runebox_ledger::KEY_DIR_NAME), Path::to_path_buf);
+        let s = Signer::load_or_create_apart(&keys, dir)?;
         ledger.set_signer(Some(s.clone()));
         Some(s)
     } else {
@@ -351,16 +365,47 @@ impl Manager {
     pub async fn verify_ledger(&self) -> Result<()> {
         let ledger = Arc::clone(&self.ledger);
         let signer = self.signer.clone();
-        blocking(move || match signer {
-            Some(s) => Ok(ledger.verify_signatures(Some(&s.public()), false)?),
-            None => Ok(ledger.verify()?),
+        let anchor = self.config.ledger_anchor.clone();
+        blocking(move || {
+            match signer {
+                Some(s) => ledger.verify_signatures(Some(&s.public()), false)?,
+                None => ledger.verify()?,
+            }
+            if let Some(path) = anchor {
+                let anchors = runebox_ledger::anchor::read_anchors(&path)?;
+                runebox_ledger::anchor::verify_anchors(&ledger.records()?, &anchors)?;
+            }
+            Ok(())
         })
         .await
+    }
+
+    /// Appends the ledger head to the anchor file when it moved since the
+    /// last anchor (a no-op without `RUNEBOX_LEDGER_ANCHOR`). A failure is
+    /// logged and retried on the next tick.
+    pub async fn anchor_ledger(&self) {
+        use std::sync::atomic::Ordering;
+        let Some(path) = self.config.ledger_anchor.clone() else {
+            return;
+        };
+        let ledger = Arc::clone(&self.ledger);
+        let last = self.anchored_seq.load(Ordering::SeqCst);
+        let res = blocking(move || Ok(ledger.anchor_head(&path, last)?)).await;
+        match res {
+            Ok(Some(a)) => self.anchored_seq.store(a.seq, Ordering::SeqCst),
+            Ok(None) => {}
+            Err(e) => tracing::warn!("runebox: anchor ledger head: {e}"),
+        }
     }
 
     /// Stops the sweeper, cancels and waits for agent sessions, flushes the
     /// audit sinks and releases the ledger.
     pub async fn close(&self) -> Result<()> {
+        let anchorer = lock(&self.anchorer).take();
+        if let Some(h) = anchorer {
+            h.abort();
+            let _ = h.await;
+        }
         let sweeper = lock(&self.sweeper).take();
         if let Some(h) = sweeper {
             h.abort();
@@ -373,6 +418,8 @@ impl Manager {
         }
         self.agents.cancel_all();
         self.agents.wait_all().await;
+        // Anchor the final head before the ledger is released.
+        self.anchor_ledger().await;
         let sink = Arc::clone(&self.sink);
         let ledger = Arc::clone(&self.ledger);
         blocking(move || {
@@ -507,6 +554,27 @@ impl Manager {
             }
         });
         *lock(&self.sweeper) = Some(handle);
+    }
+
+    /// Anchors the ledger head every `ledger_anchor_interval` when an
+    /// anchor file is configured.
+    fn start_anchorer(self: &Arc<Self>) {
+        if self.config.ledger_anchor.is_none() {
+            return;
+        }
+        let every = self.config.ledger_anchor_interval;
+        let weak: Weak<Self> = Arc::downgrade(self);
+        let handle = tokio::spawn(async move {
+            let mut tick = tokio::time::interval(every);
+            tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            tick.tick().await;
+            loop {
+                tick.tick().await;
+                let Some(m) = weak.upgrade() else { return };
+                m.anchor_ledger().await;
+            }
+        });
+        *lock(&self.anchorer) = Some(handle);
     }
 
     /// Puts idle persistent workspaces to sleep and fires due schedules on

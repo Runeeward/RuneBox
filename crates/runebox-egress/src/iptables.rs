@@ -17,6 +17,8 @@ pub const CHAIN: &str = "RUNEBOX_OUT";
 pub const UDP_CHAIN: &str = "RUNEBOX_UDP";
 /// filter-table chain confining TCP DNS to the pinned resolvers.
 pub const DNS_TCP_CHAIN: &str = "RUNEBOX_DNST";
+/// filter-table chain dropping outbound ICMP that isn't a reply.
+pub const ICMP_CHAIN: &str = "RUNEBOX_ICMP";
 /// ip6tables chain dropping IPv6 egress.
 pub const CHAIN6: &str = "RUNEBOX_OUT6";
 
@@ -58,6 +60,64 @@ pub fn flush_steps() -> Vec<Vec<String>> {
         ]),
         args(&["-t", "filter", "-F", DNS_TCP_CHAIN]),
         args(&["-t", "filter", "-X", DNS_TCP_CHAIN]),
+        args(&[
+            "-t", "filter", "-D", "OUTPUT", "-p", "icmp", "-j", ICMP_CHAIN,
+        ]),
+        args(&["-t", "filter", "-F", ICMP_CHAIN]),
+        args(&["-t", "filter", "-X", ICMP_CHAIN]),
+    ]
+}
+
+/// One rule of [`icmp_steps`] and whether setup fails when it can't be
+/// installed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IcmpStep {
+    /// The iptables arguments.
+    pub args: Vec<String>,
+    /// A failure aborts setup. Only the conntrack reply exemption is
+    /// optional: without it (gVisor has no conntrack match) all outbound
+    /// ICMP is dropped, which is stricter.
+    pub required: bool,
+}
+
+/// The IPv4 rules (in order) that drop outbound ICMP except loopback and
+/// replies or errors belonging to an existing flow (conntrack ESTABLISHED
+/// or RELATED). A workload can't ping out, probe the network or tunnel
+/// data over ICMP; path MTU discovery and errors for allowed flows still
+/// work.
+pub fn icmp_steps() -> Vec<IcmpStep> {
+    let step = |a: &[&str], required: bool| IcmpStep {
+        args: args(a),
+        required,
+    };
+    vec![
+        step(&["-t", "filter", "-N", ICMP_CHAIN], true),
+        step(
+            &["-t", "filter", "-A", ICMP_CHAIN, "-o", "lo", "-j", "RETURN"],
+            true,
+        ),
+        step(
+            &[
+                "-t",
+                "filter",
+                "-A",
+                ICMP_CHAIN,
+                "-m",
+                "conntrack",
+                "--ctstate",
+                "ESTABLISHED,RELATED",
+                "-j",
+                "RETURN",
+            ],
+            false,
+        ),
+        step(&["-t", "filter", "-A", ICMP_CHAIN, "-j", "DROP"], true),
+        step(
+            &[
+                "-t", "filter", "-A", "OUTPUT", "-p", "icmp", "-j", ICMP_CHAIN,
+            ],
+            true,
+        ),
     ]
 }
 
@@ -241,7 +301,8 @@ pub fn ipv6_drop_steps() -> Vec<Vec<String>> {
 }
 
 /// Runs the full setup sequence through `run(program, args)`: best-effort
-/// flush, fail-fast IPv4 steps, then best-effort IPv6 drop.
+/// flush, fail-fast IPv4 steps (TCP/UDP, then ICMP), then best-effort IPv6
+/// drop.
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub(crate) fn setup_redirect_with<F>(
     mut run: F,
@@ -256,17 +317,24 @@ where
     for a in flush_steps() {
         let _ = run(v4, &a);
     }
+    let fail = |a: &[String], e: io::Error| {
+        // gVisor has no nftables, and its legacy nat table exists only
+        // with runsc's net-raw option.
+        let hint = if e.to_string().contains("nft") {
+            " (under gVisor, set net-raw = \"true\" in runsc's configuration)"
+        } else {
+            ""
+        };
+        io::Error::new(e.kind(), format!("{v4} {}: {e}{hint}", a.join(" ")))
+    };
     for a in redirect_steps(proxy_uid, redirect_port, resolvers) {
-        run(v4, &a).map_err(|e| {
-            // gVisor has no nftables, and its legacy nat table exists only
-            // with runsc's net-raw option.
-            let hint = if e.to_string().contains("nft") {
-                " (under gVisor, set net-raw = \"true\" in runsc's configuration)"
-            } else {
-                ""
-            };
-            io::Error::new(e.kind(), format!("{v4} {}: {e}{hint}", a.join(" ")))
-        })?;
+        run(v4, &a).map_err(|e| fail(&a, e))?;
+    }
+    for s in icmp_steps() {
+        match run(v4, &s.args) {
+            Err(e) if s.required => return Err(fail(&s.args, e)),
+            _ => {}
+        }
     }
     // Some environments lack IPv6/ip6tables entirely, which is fine (nothing
     // to bypass through), so failures here are ignored.
@@ -293,7 +361,7 @@ where
 
 /// Installs the iptables rules redirecting outbound TCP to the transparent
 /// proxy on `redirect_port`, exempting `proxy_uid`, loopback and DNS, and
-/// closing the UDP/QUIC and IPv6 bypasses. Reads [`DNS_RESOLVERS_ENV`]. Runs
+/// closing the UDP/QUIC, ICMP and IPv6 bypasses. Reads [`DNS_RESOLVERS_ENV`]. Runs
 /// once, privileged, before the sandbox starts.
 #[cfg(target_os = "linux")]
 pub fn setup_redirect(proxy_uid: u32, redirect_port: u16) -> io::Result<()> {
@@ -404,7 +472,10 @@ mod tests {
             &[],
         );
         assert!(res.is_ok());
-        assert_eq!(calls.len(), 1 + flush_steps().len() + 13 + 9);
+        assert_eq!(
+            calls.len(),
+            1 + flush_steps().len() + 13 + icmp_steps().len() + 9
+        );
         assert!(
             calls
                 .last()
@@ -486,6 +557,104 @@ mod tests {
         assert!(progs[2..].iter().all(|p| p == "iptables"), "{progs:?}");
         assert!(err.to_string().starts_with("iptables "), "{err}");
         assert!(!err.to_string().contains("gVisor"), "{err}");
+    }
+
+    #[test]
+    fn icmp_drops_all_but_replies() {
+        let steps = icmp_steps();
+        let s: Vec<String> = steps.iter().map(|s| s.args.join(" ")).collect();
+        assert_eq!(
+            s,
+            [
+                "-t filter -N RUNEBOX_ICMP",
+                "-t filter -A RUNEBOX_ICMP -o lo -j RETURN",
+                "-t filter -A RUNEBOX_ICMP -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN",
+                "-t filter -A RUNEBOX_ICMP -j DROP",
+                "-t filter -A OUTPUT -p icmp -j RUNEBOX_ICMP",
+            ]
+        );
+        // Only the reply exemption may fail; losing it is stricter.
+        let optional: Vec<&str> = steps
+            .iter()
+            .filter(|s| !s.required)
+            .map(|s| s.args[3].as_str())
+            .collect();
+        assert_eq!(optional, ["RUNEBOX_ICMP"]);
+        assert!(!steps[2].required && steps[2].args.contains(&"conntrack".to_string()));
+        assert!(
+            flush_steps()
+                .iter()
+                .any(|a| a.join(" ") == "-t filter -X RUNEBOX_ICMP")
+        );
+    }
+
+    #[test]
+    fn setup_installs_icmp_rules_after_redirect() {
+        let mut calls = Vec::new();
+        setup_redirect_with(
+            |prog, a| {
+                calls.push(format!("{prog} {}", a.join(" ")));
+                Ok(())
+            },
+            1337,
+            15001,
+            &[],
+        )
+        .expect("setup");
+        let redirect = calls
+            .iter()
+            .position(|c| c == "iptables -t nat -A OUTPUT -p tcp -j RUNEBOX_OUT")
+            .expect("redirect");
+        let jump = calls
+            .iter()
+            .position(|c| c == "iptables -t filter -A OUTPUT -p icmp -j RUNEBOX_ICMP")
+            .expect("icmp jump");
+        let drop = calls
+            .iter()
+            .position(|c| c == "iptables -t filter -A RUNEBOX_ICMP -j DROP")
+            .expect("icmp drop");
+        assert!(redirect < drop && drop < jump);
+    }
+
+    #[test]
+    fn missing_conntrack_keeps_the_icmp_drop() {
+        let mut calls = Vec::new();
+        setup_redirect_with(
+            |prog, a| {
+                calls.push(format!("{prog} {}", a.join(" ")));
+                if a.iter().any(|x| x == "conntrack") {
+                    Err(io::Error::other("no conntrack match"))
+                } else {
+                    Ok(())
+                }
+            },
+            1337,
+            15001,
+            &[],
+        )
+        .expect("conntrack is optional");
+        assert!(calls.contains(&"iptables -t filter -A RUNEBOX_ICMP -j DROP".to_string()));
+    }
+
+    #[test]
+    fn icmp_rule_failure_aborts_setup() {
+        let err = setup_redirect_with(
+            |_, a| {
+                if a.join(" ") == "-t filter -A RUNEBOX_ICMP -j DROP" {
+                    Err(io::Error::other("boom"))
+                } else {
+                    Ok(())
+                }
+            },
+            1,
+            2,
+            &[],
+        )
+        .expect_err("must fail");
+        assert!(
+            err.to_string().contains("RUNEBOX_ICMP -j DROP: boom"),
+            "{err}"
+        );
     }
 
     #[cfg(not(target_os = "linux"))]

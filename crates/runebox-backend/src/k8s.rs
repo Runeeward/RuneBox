@@ -25,16 +25,19 @@ use k8s_openapi::api::core::v1::{
     AppArmorProfile, Capabilities, ConfigMap, ConfigMapVolumeSource, Container, ContainerPort,
     EmptyDirVolumeSource, EnvVar, Event, ExecAction, KeyToPath, Namespace, Node,
     PersistentVolumeClaim, PersistentVolumeClaimSpec, PersistentVolumeClaimVolumeSource, Pod,
-    PodSecurityContext, PodSpec, PodStatus, Probe, ResourceRequirements, SeccompProfile, Secret,
-    SecretVolumeSource, SecurityContext, Volume, VolumeMount, VolumeResourceRequirements,
+    PodSecurityContext, PodSpec, PodStatus, Probe, ResourceQuota, ResourceQuotaSpec,
+    ResourceRequirements, SeccompProfile, Secret, SecretVolumeSource, SecurityContext, Volume,
+    VolumeMount, VolumeResourceRequirements,
 };
 use k8s_openapi::api::networking::v1::{
-    NetworkPolicy, NetworkPolicyEgressRule, NetworkPolicyIngressRule, NetworkPolicyPort,
-    NetworkPolicySpec,
+    IPBlock, NetworkPolicy, NetworkPolicyEgressRule, NetworkPolicyIngressRule, NetworkPolicyPeer,
+    NetworkPolicyPort, NetworkPolicySpec,
 };
 use k8s_openapi::api::node::v1::RuntimeClass;
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::{LabelSelector, ObjectMeta, Status};
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
+    LabelSelector, LabelSelectorRequirement, ObjectMeta, Status,
+};
 use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 use kube::api::{Api, AttachParams, DeleteParams, ListParams, LogParams, PostParams, TerminalSize};
 use kube::config::KubeConfigOptions;
@@ -45,7 +48,10 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use crate::backend::{Backend, Reachable};
-use crate::config::{BackendConfig, DEFAULT_IMAGE, K8S_DIRECT_VOLUME_CLASS_ENV};
+use crate::config::{
+    BackendConfig, DEFAULT_IMAGE, K8S_DIRECT_VOLUME_CLASS_ENV, K8S_NETWORK_POLICY_ENV,
+    MAX_CITADELS_ENV, NetworkPolicyMode,
+};
 use crate::docker::{check_seed_dir, projected_data};
 use crate::egress::{policy_json, proxy_env};
 use crate::error::{BackendError, Result, is_status};
@@ -109,6 +115,23 @@ const SUPERVISOR_REFUSALS: [i32; 5] = [
 ];
 
 const DEFAULT_DENY_POLICY: &str = "runebox-default-deny";
+/// The ResourceQuota capping Citadels in the managed namespace.
+pub const CITADEL_QUOTA: &str = "runebox-citadels";
+/// The ephemeral-storage request of a sandbox container (its limit is
+/// `RUNEBOX_SANDBOX_DISK`), capped at that limit.
+const SANDBOX_EPHEMERAL_REQUEST: i64 = 256 << 20;
+/// Private, shared and link-local ranges Citadel pods can't reach under
+/// the default NetworkPolicy: pods, services, nodes and cloud metadata.
+const NON_PUBLIC_V4: &[&str] = &[
+    "0.0.0.0/8",
+    "10.0.0.0/8",
+    "100.64.0.0/10",
+    "127.0.0.0/8",
+    "169.254.0.0/16",
+    "172.16.0.0/12",
+    "192.168.0.0/16",
+];
+const NON_PUBLIC_V6: &[&str] = &["::1/128", "fc00::/7", "fe80::/10"];
 /// The egress sidecar container of a sandbox Pod.
 const EGRESS_CONTAINER: &str = "egress";
 const WAIT_RUNNING_TIMEOUT: Duration = Duration::from_secs(90);
@@ -311,15 +334,21 @@ impl K8s {
         }
     }
 
-    async fn apply_psa_labels(&self, api: &Api<Namespace>, mut ns: Namespace) {
+    async fn apply_psa_labels(&self, api: &Api<Namespace>, ns: Namespace) {
         let desired = psa_labels(self.config.psa_enforce_level());
-        let labels = ns.metadata.labels.get_or_insert_with(BTreeMap::new);
+        let labels = ns.metadata.labels.unwrap_or_default();
         if desired.iter().all(|(k, v)| labels.get(k) == Some(v)) {
             return;
         }
-        labels.extend(desired);
+        // A merge patch of just the labels: the shipped RBAC grants
+        // `patch` (not `update`) on namespaces.
+        let patch = serde_json::json!({"metadata": {"labels": desired}});
         if let Err(e) = api
-            .replace(&self.namespace, &PostParams::default(), &ns)
+            .patch(
+                &self.namespace,
+                &kube::api::PatchParams::default(),
+                &kube::api::Patch::Merge(&patch),
+            )
             .await
         {
             tracing::warn!(
@@ -330,22 +359,47 @@ impl K8s {
         }
     }
 
-    /// Installs the default-deny NetworkPolicy when
-    /// `RUNEBOX_K8S_NETWORK_POLICY` is truthy (off by default: it only
-    /// works under an enforcing CNI and would surprise single-tenant users).
+    /// Installs (or updates) the Citadel NetworkPolicy chosen by
+    /// `RUNEBOX_K8S_NETWORK_POLICY`. On by default; it takes effect under a
+    /// CNI that enforces NetworkPolicy.
     pub async fn ensure_network_policy(&self) -> Result<()> {
-        if !self.config.k8s_network_policy() {
+        let mode = self.config.k8s_network_policy_mode();
+        if mode == NetworkPolicyMode::Off {
             return Ok(());
         }
-        match self
-            .network_policies()
-            .create(&PostParams::default(), &default_deny_policy())
+        create_or_update(
+            &self.network_policies(),
+            default_deny_policy(mode),
+            |a, b| a.spec == b.spec,
+        )
+        .await
+        .map_err(|e| {
+            BackendError::kube(
+                format!(
+                    "create default-deny network policy (set {K8S_NETWORK_POLICY_ENV}=off to run without it)"
+                ),
+                e,
+            )
+        })
+    }
+
+    /// Installs (or updates) the ResourceQuota capping Citadels in the
+    /// namespace (`RUNEBOX_MAX_CITADELS`; none when disabled).
+    pub async fn ensure_quota(&self) -> Result<()> {
+        let Some(quota) = citadel_quota(self.config.max_citadels()) else {
+            return Ok(());
+        };
+        let api: Api<ResourceQuota> = Api::namespaced(self.client.clone(), &self.namespace);
+        create_or_update(&api, quota, |a, b| a.spec == b.spec)
             .await
-        {
-            Ok(_) => Ok(()),
-            Err(e) if is_status(&e, 409) => Ok(()),
-            Err(e) => Err(BackendError::kube("create default-deny network policy", e)),
-        }
+            .map_err(|e| {
+                BackendError::kube(
+                    format!(
+                        "create Citadel resource quota (set {MAX_CITADELS_ENV}=off to run without it)"
+                    ),
+                    e,
+                )
+            })
     }
 
     /// Allows TCP ingress to the IDE port on one sandbox pod (needed when
@@ -845,6 +899,7 @@ impl K8s {
         }
         self.ensure_namespace().await?;
         self.ensure_network_policy().await?;
+        self.ensure_quota().await?;
         let pod_name = container_name(&id);
         let pvc_name = volume_name(&id);
 
@@ -1625,6 +1680,19 @@ fn egress_resources() -> ResourceRequirements {
     }
 }
 
+/// The egress sidecar runs without capabilities or privilege escalation:
+/// it only proxies (strict mode's NET_ADMIN lives in the init container).
+fn egress_security_context() -> SecurityContext {
+    SecurityContext {
+        allow_privilege_escalation: Some(false),
+        capabilities: Some(Capabilities {
+            add: None,
+            drop: Some(vec!["ALL".into()]),
+        }),
+        ..SecurityContext::default()
+    }
+}
+
 /// The Pod's users of Firecracker drives under Kata 4.2.0 and 4.3.0: the pause
 /// container, every init container (an exited one's slot is not reused), every
 /// container, and a direct-assigned workspace.
@@ -1685,6 +1753,19 @@ pub(crate) fn sandbox_pod(
             Quantity(quantity_milli_decimal_si(
                 spec.resources.nano_cpus / 1_000_000,
             )),
+        );
+    }
+
+    let mut requests = BTreeMap::new();
+    let disk = cfg.sandbox_disk_bytes();
+    if disk > 0 {
+        limits.insert(
+            "ephemeral-storage".to_owned(),
+            Quantity(quantity_binary_si(disk)),
+        );
+        requests.insert(
+            "ephemeral-storage".to_owned(),
+            Quantity(quantity_binary_si(disk.min(SANDBOX_EPHEMERAL_REQUEST))),
         );
     }
 
@@ -1771,7 +1852,8 @@ pub(crate) fn sandbox_pod(
                 ),
                 security_context: Some(SecurityContext {
                     run_as_user: Some(proxy_uid),
-                    ..SecurityContext::default()
+                    run_as_non_root: Some(true),
+                    ..egress_security_context()
                 }),
                 volume_mounts: Some(egress_mounts),
                 resources: Some(egress_resources()),
@@ -1796,6 +1878,7 @@ pub(crate) fn sandbox_pod(
                     .chain(broker_args.iter().cloned())
                     .collect(),
                 ),
+                security_context: Some(egress_security_context()),
                 volume_mounts: Some(egress_mounts),
                 resources: Some(egress_resources()),
                 ..Container::default()
@@ -1930,6 +2013,7 @@ pub(crate) fn sandbox_pod(
         env: (!env.is_empty()).then_some(env),
         resources: Some(ResourceRequirements {
             limits: (!limits.is_empty()).then_some(limits),
+            requests: (!requests.is_empty()).then_some(requests),
             ..ResourceRequirements::default()
         }),
         security_context: Some(sec),
@@ -1965,6 +2049,8 @@ pub(crate) fn sandbox_pod(
         },
         spec: Some(PodSpec {
             restart_policy: Some("Always".into()),
+            // Citadels never talk to the Kubernetes API.
+            automount_service_account_token: Some(false),
             runtime_class_name: (!spec.runtime_class.is_empty())
                 .then(|| spec.runtime_class.clone()),
             enable_service_links: Some(false),
@@ -2293,14 +2379,14 @@ pub fn app_armor_profile(name: &str) -> AppArmorProfile {
 
 /// Pod Security Admission labels for the managed namespace: `enforce` is
 /// configurable (default `privileged`, since strict egress needs NET_ADMIN);
-/// warn/audit stay at `baseline` so violations are still surfaced.
+/// warn/audit are `restricted` so anything short of it is surfaced.
 pub fn psa_labels(enforce: &str) -> BTreeMap<String, String> {
     [
         ("pod-security.kubernetes.io/enforce", enforce),
         ("pod-security.kubernetes.io/enforce-version", "latest"),
-        ("pod-security.kubernetes.io/warn", "baseline"),
+        ("pod-security.kubernetes.io/warn", "restricted"),
         ("pod-security.kubernetes.io/warn-version", "latest"),
-        ("pod-security.kubernetes.io/audit", "baseline"),
+        ("pod-security.kubernetes.io/audit", "restricted"),
         ("pod-security.kubernetes.io/audit-version", "latest"),
     ]
     .into_iter()
@@ -2321,14 +2407,39 @@ pub(crate) fn namespace_object(name: &str, enforce: &str) -> Namespace {
     }
 }
 
-/// Denies all ingress and allows egress only to DNS (UDP+TCP 53); real
-/// egress allowlisting is done by the egress proxy.
-pub(crate) fn default_deny_policy() -> NetworkPolicy {
+/// The Citadel NetworkPolicy: selects only Citadel pods (the control plane
+/// may share the namespace), denies all ingress (the IDE port gets its own
+/// policy) and allows egress to DNS (UDP+TCP 53) and, with
+/// [`NetworkPolicyMode::PublicEgress`], to public addresses. Which hosts a
+/// Citadel reaches is still decided in the pod, by the egress proxy or the
+/// strict-mode rules; this keeps it off pods, services, nodes and cloud
+/// metadata.
+pub(crate) fn default_deny_policy(mode: NetworkPolicyMode) -> NetworkPolicy {
     let dns = |proto: &str| NetworkPolicyPort {
         port: Some(IntOrString::Int(53)),
         protocol: Some(proto.into()),
         end_port: None,
     };
+    let block = |cidr: &str, except: &[&str]| NetworkPolicyPeer {
+        ip_block: Some(IPBlock {
+            cidr: cidr.into(),
+            except: Some(except.iter().map(|c| (*c).to_owned()).collect()),
+        }),
+        ..NetworkPolicyPeer::default()
+    };
+    let mut egress = vec![NetworkPolicyEgressRule {
+        ports: Some(vec![dns("UDP"), dns("TCP")]),
+        to: None,
+    }];
+    if mode == NetworkPolicyMode::PublicEgress {
+        egress.push(NetworkPolicyEgressRule {
+            ports: None,
+            to: Some(vec![
+                block("0.0.0.0/0", NON_PUBLIC_V4),
+                block("::/0", NON_PUBLIC_V6),
+            ]),
+        });
+    }
     NetworkPolicy {
         metadata: ObjectMeta {
             name: Some(DEFAULT_DENY_POLICY.into()),
@@ -2339,15 +2450,73 @@ pub(crate) fn default_deny_policy() -> NetworkPolicy {
             ..ObjectMeta::default()
         },
         spec: Some(NetworkPolicySpec {
-            // An empty selector (`podSelector: {}`) selects every pod.
-            pod_selector: Some(LabelSelector::default()),
+            // Every Citadel pod carries its id label; nothing else does.
+            pod_selector: Some(LabelSelector {
+                match_labels: None,
+                match_expressions: Some(vec![LabelSelectorRequirement {
+                    key: LABEL_ID.to_owned(),
+                    operator: "Exists".into(),
+                    values: None,
+                }]),
+            }),
             policy_types: Some(vec!["Ingress".into(), "Egress".into()]),
             ingress: Some(Vec::new()),
-            egress: Some(vec![NetworkPolicyEgressRule {
-                ports: Some(vec![dns("UDP"), dns("TCP")]),
-                to: None,
-            }]),
+            egress: Some(egress),
         }),
+    }
+}
+
+/// The ResourceQuota capping Citadels at `max` per namespace (none when 0).
+/// Each Citadel is one Pod and one workspace claim; other pods in the
+/// namespace (a control plane installed there) count too.
+pub(crate) fn citadel_quota(max: i64) -> Option<ResourceQuota> {
+    (max > 0).then(|| ResourceQuota {
+        metadata: ObjectMeta {
+            name: Some(CITADEL_QUOTA.into()),
+            labels: Some(BTreeMap::from([(
+                LABEL_MANAGED.to_owned(),
+                "true".to_owned(),
+            )])),
+            ..ObjectMeta::default()
+        },
+        spec: Some(ResourceQuotaSpec {
+            hard: Some(BTreeMap::from([
+                ("pods".to_owned(), Quantity(max.to_string())),
+                (
+                    "persistentvolumeclaims".to_owned(),
+                    Quantity(max.to_string()),
+                ),
+            ])),
+            ..ResourceQuotaSpec::default()
+        }),
+        ..ResourceQuota::default()
+    })
+}
+
+/// Creates `want`, or replaces the existing object of the same name when
+/// `same` says it differs (keeping its resourceVersion).
+async fn create_or_update<K>(
+    api: &Api<K>,
+    want: K,
+    same: impl Fn(&K, &K) -> bool,
+) -> std::result::Result<(), kube::Error>
+where
+    K: kube::Resource + Clone + serde::de::DeserializeOwned + serde::Serialize + std::fmt::Debug,
+{
+    match api.create(&PostParams::default(), &want).await {
+        Ok(_) => Ok(()),
+        Err(e) if is_status(&e, 409) => {
+            let name = want.meta().name.clone().unwrap_or_default();
+            let current = api.get(&name).await?;
+            if same(&current, &want) {
+                return Ok(());
+            }
+            let mut next = want;
+            next.meta_mut().resource_version = current.meta().resource_version.clone();
+            api.replace(&name, &PostParams::default(), &next).await?;
+            Ok(())
+        }
+        Err(e) => Err(e),
     }
 }
 
@@ -2638,8 +2807,8 @@ mod tests {
     fn psa_labels_default_and_override() {
         let l = psa_labels("privileged");
         assert_eq!(l["pod-security.kubernetes.io/enforce"], "privileged");
-        assert_eq!(l["pod-security.kubernetes.io/warn"], "baseline");
-        assert_eq!(l["pod-security.kubernetes.io/audit"], "baseline");
+        assert_eq!(l["pod-security.kubernetes.io/warn"], "restricted");
+        assert_eq!(l["pod-security.kubernetes.io/audit"], "restricted");
         let ns = namespace_object("runebox", "restricted");
         let labels = ns.metadata.labels.expect("labels");
         assert_eq!(labels[LABEL_MANAGED], "true");
@@ -2648,15 +2817,149 @@ mod tests {
 
     #[test]
     fn default_deny_policy_shape() {
-        let np = default_deny_policy();
-        let spec = np.spec.expect("spec");
-        assert!(spec.ingress.as_ref().is_some_and(Vec::is_empty));
-        let egress = spec.egress.expect("egress");
-        assert_eq!(egress.len(), 1);
-        let ports = egress[0].ports.as_ref().expect("ports");
-        assert_eq!(ports.len(), 2);
-        for p in ports {
-            assert_eq!(p.port, Some(IntOrString::Int(53)));
+        for mode in [NetworkPolicyMode::DnsOnly, NetworkPolicyMode::PublicEgress] {
+            let np = default_deny_policy(mode);
+            let spec = np.spec.expect("spec");
+            // Only Citadel pods, never the control plane sharing the namespace.
+            let sel = spec.pod_selector.expect("selector");
+            assert_eq!(sel.match_labels, None);
+            let req = &sel.match_expressions.expect("expressions")[0];
+            assert_eq!(
+                (req.key.as_str(), req.operator.as_str()),
+                (LABEL_ID, "Exists")
+            );
+            assert_eq!(
+                spec.policy_types.as_deref(),
+                Some(&["Ingress".to_owned(), "Egress".to_owned()][..])
+            );
+            assert!(spec.ingress.as_ref().is_some_and(Vec::is_empty));
+            let egress = spec.egress.expect("egress");
+            let ports = egress[0].ports.as_ref().expect("ports");
+            assert_eq!(ports.len(), 2);
+            for p in ports {
+                assert_eq!(p.port, Some(IntOrString::Int(53)));
+            }
+            assert!(egress[0].to.is_none());
+            if mode == NetworkPolicyMode::DnsOnly {
+                assert_eq!(egress.len(), 1);
+                continue;
+            }
+            assert_eq!(egress.len(), 2);
+            assert!(egress[1].ports.is_none());
+            let to = egress[1].to.as_ref().expect("to");
+            let v4 = to[0].ip_block.as_ref().expect("v4");
+            assert_eq!(v4.cidr, "0.0.0.0/0");
+            let except = v4.except.as_ref().expect("except");
+            for cidr in [
+                "10.0.0.0/8",
+                "172.16.0.0/12",
+                "192.168.0.0/16",
+                "169.254.0.0/16",
+            ] {
+                assert!(except.iter().any(|c| c == cidr), "{cidr}");
+            }
+            let v6 = to[1].ip_block.as_ref().expect("v6");
+            assert_eq!(v6.cidr, "::/0");
+            assert!(
+                v6.except
+                    .as_ref()
+                    .expect("except")
+                    .iter()
+                    .any(|c| c == "fe80::/10")
+            );
+        }
+    }
+
+    #[test]
+    fn citadel_quota_caps_pods_and_claims() {
+        assert!(citadel_quota(0).is_none());
+        let q = citadel_quota(12).expect("quota");
+        assert_eq!(q.metadata.name.as_deref(), Some(CITADEL_QUOTA));
+        let hard = q.spec.expect("spec").hard.expect("hard");
+        assert_eq!(hard["pods"], Quantity("12".into()));
+        assert_eq!(hard["persistentvolumeclaims"], Quantity("12".into()));
+        assert_eq!(hard.len(), 2);
+    }
+
+    fn plain_pod(cfg: &BackendConfig, network: runebox_charter::Network) -> Pod {
+        let spec = Spec {
+            network,
+            ..Spec::default()
+        };
+        sandbox_pod("abc", &spec, &sandbox_labels("abc", "p"), cfg, None)
+    }
+
+    #[test]
+    fn pods_get_no_token_and_a_disk_cap() {
+        let pod = plain_pod(
+            &BackendConfig::default(),
+            runebox_charter::Network::default(),
+        );
+        let ps = pod.spec.expect("spec");
+        assert_eq!(ps.automount_service_account_token, Some(false));
+        let res = ps.containers[0].resources.clone().expect("resources");
+        assert_eq!(
+            res.limits.expect("limits")["ephemeral-storage"],
+            Quantity("10Gi".into())
+        );
+        assert_eq!(
+            res.requests.expect("requests")["ephemeral-storage"],
+            Quantity("256Mi".into())
+        );
+
+        let small = BackendConfig::from_pairs([(crate::config::SANDBOX_DISK_ENV, "100m")]);
+        let ps = plain_pod(&small, runebox_charter::Network::default())
+            .spec
+            .expect("spec");
+        let res = ps.containers[0].resources.clone().expect("resources");
+        assert_eq!(
+            res.requests.expect("requests")["ephemeral-storage"],
+            Quantity("100Mi".into())
+        );
+
+        let off = BackendConfig::from_pairs([(crate::config::SANDBOX_DISK_ENV, "off")]);
+        let ps = plain_pod(&off, runebox_charter::Network::default())
+            .spec
+            .expect("spec");
+        let res = ps.containers[0].resources.clone().expect("resources");
+        assert!(res.requests.is_none());
+        assert!(
+            res.limits
+                .is_none_or(|l| !l.contains_key("ephemeral-storage"))
+        );
+    }
+
+    #[test]
+    fn egress_sidecar_runs_without_capabilities() {
+        for enforce in ["", "strict"] {
+            let pod = plain_pod(
+                &BackendConfig::default(),
+                runebox_charter::Network {
+                    default: "deny".into(),
+                    enforce: enforce.into(),
+                    ..runebox_charter::Network::default()
+                },
+            );
+            let ps = pod.spec.expect("spec");
+            let egress = ps
+                .containers
+                .iter()
+                .find(|c| c.name == EGRESS_CONTAINER)
+                .expect("egress");
+            let sec = egress.security_context.clone().expect("security context");
+            assert_eq!(sec.allow_privilege_escalation, Some(false), "{enforce}");
+            assert_eq!(
+                sec.capabilities.and_then(|c| c.drop),
+                Some(vec!["ALL".to_owned()]),
+                "{enforce}"
+            );
+            if enforce == "strict" {
+                assert_eq!(sec.run_as_non_root, Some(true));
+                assert_eq!(
+                    sec.run_as_user,
+                    Some(i64::from(runebox_egress::STRICT_PROXY_UID))
+                );
+            }
         }
     }
 

@@ -29,7 +29,7 @@ use tokio::process::Command;
 use tokio::task::JoinHandle;
 
 use crate::backend::{Backend, Reachable};
-use crate::config::BackendConfig;
+use crate::config::{BackendConfig, MAX_CITADELS_ENV};
 use crate::decision_follow;
 use crate::egress::{HostProxy, policy_from_network, policy_json, proxy_env};
 use crate::error::{BackendError, Result};
@@ -123,13 +123,14 @@ struct EngineInfo {
     host_kernel: String,
     os: String,
     capacity: EngineCapacity,
+    storage_driver: String,
 }
 
-/// Splits the `info` line `runtime|kernel|os|memtotal|ncpu` (missing
-/// fields are empty, unparseable numbers 0).
+/// Splits the `info` line `runtime|kernel|os|memtotal|ncpu|driver`
+/// (missing fields are empty, unparseable numbers 0).
 fn parse_engine_info(out: &str) -> EngineInfo {
     let line = out.lines().next().unwrap_or("").trim();
-    let mut parts = line.splitn(5, '|').map(|p| {
+    let mut parts = line.splitn(6, '|').map(|p| {
         let p = p.trim();
         if p == "<no value>" { "" } else { p }.to_owned()
     });
@@ -137,12 +138,43 @@ fn parse_engine_info(out: &str) -> EngineInfo {
     let (default_runtime, host_kernel, os) = (field(), field(), field());
     let memory_bytes = field().parse().unwrap_or(0);
     let cpus = field().parse().unwrap_or(0);
+    let storage_driver = field();
     EngineInfo {
         default_runtime,
         host_kernel,
         os,
         capacity: EngineCapacity { memory_bytes, cpus },
+        storage_driver,
     }
+}
+
+/// Storage drivers whose `--storage-opt size` works without host setup.
+/// overlay2 supports it only on xfs mounted with `pquota`, which `info`
+/// does not report, so it gets a disk cap only when the operator sets
+/// `RUNEBOX_SANDBOX_DISK`.
+const SIZED_STORAGE_DRIVERS: &[&str] = &["btrfs", "zfs", "devicemapper"];
+
+/// The `--storage-opt size` a sandbox gets, in bytes (0 = none): the
+/// configured cap when the operator set one, the default cap on drivers
+/// known to support it, otherwise none.
+pub(crate) fn disk_quota(cfg: &BackendConfig, storage_driver: &str) -> i64 {
+    let disk = cfg.sandbox_disk_bytes();
+    if cfg.sandbox_disk_explicit() || SIZED_STORAGE_DRIVERS.contains(&storage_driver) {
+        disk
+    } else {
+        0
+    }
+}
+
+/// Refuses a new Citadel when `existing` already reach `max` (0 = no
+/// limit).
+pub(crate) fn check_citadel_limit(existing: usize, max: i64) -> Result<()> {
+    if max > 0 && i64::try_from(existing).unwrap_or(i64::MAX) >= max {
+        return Err(BackendError::msg(format!(
+            "Citadel limit reached: {existing} exist and {MAX_CITADELS_ENV} is {max}; remove one or raise the limit"
+        )));
+    }
+    Ok(())
 }
 
 /// Where the strict sidecar reads its broker document (root-only, removed
@@ -166,6 +198,9 @@ pub struct Docker {
     /// The engine host's total memory and CPUs, read once at startup and
     /// used to size VM sandboxes (zero when unknown).
     capacity: EngineCapacity,
+    /// The engine's storage driver (`overlay2`, `btrfs`, ...); empty when
+    /// unknown.
+    storage_driver: String,
     state: Mutex<DockerState>,
 }
 
@@ -252,6 +287,7 @@ impl Docker {
             host_kernel: String::new(),
             engine_os: String::new(),
             capacity: EngineCapacity::default(),
+            storage_driver: String::new(),
             state: Mutex::new(DockerState::default()),
         };
         let info = d.engine_info().await;
@@ -259,6 +295,7 @@ impl Docker {
         d.host_kernel = info.host_kernel;
         d.engine_os = info.os;
         d.capacity = info.capacity;
+        d.storage_driver = info.storage_driver;
         Ok(d)
     }
 
@@ -278,9 +315,9 @@ impl Docker {
     /// from one `info` call; empty fields when the engine did not say.
     async fn engine_info(&self) -> EngineInfo {
         let format = if self.runtime == "podman" {
-            "{{.Host.OCIRuntime.Name}}|{{.Host.Kernel}}|{{.Host.Distribution.Distribution}}|{{.Host.MemTotal}}|{{.Host.CPUs}}"
+            "{{.Host.OCIRuntime.Name}}|{{.Host.Kernel}}|{{.Host.Distribution.Distribution}}|{{.Host.MemTotal}}|{{.Host.CPUs}}|{{.Store.GraphDriverName}}"
         } else {
-            "{{.DefaultRuntime}}|{{.KernelVersion}}|{{.OperatingSystem}}|{{.MemTotal}}|{{.NCPU}}"
+            "{{.DefaultRuntime}}|{{.KernelVersion}}|{{.OperatingSystem}}|{{.MemTotal}}|{{.NCPU}}|{{.Driver}}"
         };
         match self.output(&["info", "--format", format]).await {
             Ok(out) => parse_engine_info(&out),
@@ -878,6 +915,9 @@ impl Docker {
             )?;
         }
         let id = sandbox_id_for(&spec)?;
+        if !reuse {
+            check_citadel_limit(self.list().await?.len(), self.config.max_citadels())?;
+        }
         let name = container_name(&id);
         let vol = volume_name(&id);
         let image = run_image(&spec);
@@ -965,6 +1005,7 @@ impl Docker {
             egress_env: &egress_env,
             supervisor: supervisor.as_ref(),
             broker_ca: broker.is_some(),
+            disk_bytes: disk_quota(&self.config, &self.storage_driver),
         };
         let args = docker_run_args(&plan, &spec, &self.config);
 
@@ -1660,6 +1701,8 @@ pub(crate) struct RunPlan<'a> {
     pub(crate) supervisor: Option<&'a SupervisorPlan>,
     /// Gives the sandbox a directory for the broker CA and trust bundle.
     pub(crate) broker_ca: bool,
+    /// `--storage-opt size` in bytes (0 = none; see [`disk_quota`]).
+    pub(crate) disk_bytes: i64,
 }
 
 impl RunPlan<'_> {
@@ -1754,6 +1797,9 @@ pub(crate) fn docker_run_args(plan: &RunPlan<'_>, spec: &Spec, cfg: &BackendConf
     let pids = cfg.default_pids_limit();
     if pids > 0 {
         a.extend(["--pids-limit".into(), pids.to_string()]);
+    }
+    if plan.disk_bytes > 0 {
+        a.extend(["--storage-opt".into(), format!("size={}", plan.disk_bytes)]);
     }
     if plan.supervisor.is_some() {
         // The agent identity lives in the supervisor config.
@@ -2265,6 +2311,7 @@ mod tests {
                 memory_bytes: mem,
                 cpus,
             },
+            storage_driver: String::new(),
         };
         assert_eq!(
             parse_engine_info(
@@ -2288,6 +2335,47 @@ mod tests {
             info("crun", "", "fedora", 0, 0)
         );
         assert_eq!(parse_engine_info(""), EngineInfo::default());
+        assert_eq!(
+            parse_engine_info("runc|6.8|Ubuntu|1024|4|overlay2").storage_driver,
+            "overlay2"
+        );
+    }
+
+    #[test]
+    fn disk_quota_only_where_the_driver_supports_it() {
+        use crate::config::SANDBOX_DISK_ENV;
+        let default = BackendConfig::default();
+        assert_eq!(disk_quota(&default, "overlay2"), 0);
+        assert_eq!(disk_quota(&default, ""), 0);
+        for d in ["btrfs", "zfs", "devicemapper"] {
+            assert_eq!(disk_quota(&default, d), 10 << 30, "{d}");
+        }
+        let set = BackendConfig::from_pairs([(SANDBOX_DISK_ENV, "5g")]);
+        assert_eq!(disk_quota(&set, "overlay2"), 5 << 30);
+        let off = BackendConfig::from_pairs([(SANDBOX_DISK_ENV, "off")]);
+        assert_eq!(disk_quota(&off, "btrfs"), 0);
+        assert_eq!(disk_quota(&off, "overlay2"), 0);
+
+        let env = Vec::new();
+        let mut p = plan("abc", &env);
+        assert!(
+            !docker_run_args(&p, &Spec::default(), &default)
+                .iter()
+                .any(|a| a == "--storage-opt")
+        );
+        p.disk_bytes = 1 << 30;
+        let a = docker_run_args(&p, &Spec::default(), &default);
+        let i = a.iter().position(|x| x == "--storage-opt").expect("opt");
+        assert_eq!(a[i + 1], "size=1073741824");
+    }
+
+    #[test]
+    fn citadel_limit() {
+        assert!(check_citadel_limit(0, 1).is_ok());
+        assert!(check_citadel_limit(49, 50).is_ok());
+        let err = check_citadel_limit(50, 50).expect_err("at limit");
+        assert!(err.to_string().contains("RUNEBOX_MAX_CITADELS"), "{err}");
+        assert!(check_citadel_limit(1000, 0).is_ok());
     }
 
     fn plan<'a>(id: &'a str, env: &'a [(String, String)]) -> RunPlan<'a> {
@@ -2300,6 +2388,7 @@ mod tests {
             egress_env: env,
             supervisor: None,
             broker_ca: false,
+            disk_bytes: 0,
         }
     }
 
@@ -2340,11 +2429,14 @@ mod tests {
             ..Spec::default()
         };
         let args = docker_run_args(&plan("x", &[]), &spec, &BackendConfig::default());
-        let want = "run -d --name runebox-x --label runebox.managed=true --label runebox.profile=demo \
+        let want = format!(
+            "run -d --name runebox-x --label runebox.managed=true --label runebox.profile=demo \
             --label runebox.id=x --label runebox.volume=runebox-vol-x -w /workspace \
             -v runebox-vol-x:/workspace --cap-drop ALL --security-opt no-new-privileges \
             --pids-limit 1024 --label runebox.profile=demo --memory 4294967296 --cpus 2.000 \
-            --entrypoint sleep debian:stable-slim infinity";
+            --entrypoint sleep {} infinity",
+            crate::config::DEFAULT_IMAGE
+        );
         assert_eq!(
             args.join(" "),
             want.split_whitespace().collect::<Vec<_>>().join(" ")
@@ -2475,7 +2567,10 @@ mod tests {
             "--cap-drop ALL --cap-add SETUID --cap-add SETGID --cap-add CHOWN --security-opt no-new-privileges",
             "-u 0:0",
             "-e SSL_CERT_FILE=/etc/runebox/ca/ca-bundle.pem",
-            "--entrypoint /usr/local/bin/runebox-supervisor debian:stable-slim init --config /run/runebox/supervisor.json",
+            &format!(
+                "--entrypoint /usr/local/bin/runebox-supervisor {} init --config /run/runebox/supervisor.json",
+                crate::config::DEFAULT_IMAGE
+            ),
         ] {
             assert!(a.contains(want), "missing {want:?} in {a}");
         }
@@ -2491,7 +2586,11 @@ mod tests {
         let a = docker_run_args(&p, &spec, &BackendConfig::default()).join(" ");
         assert!(a.starts_with("create "), "{a}");
         assert!(
-            a.contains("-u 1000") && a.ends_with("--entrypoint agent debian:stable-slim"),
+            a.contains("-u 1000")
+                && a.ends_with(&format!(
+                    "--entrypoint agent {}",
+                    crate::config::DEFAULT_IMAGE
+                )),
             "{a}"
         );
         assert!(!a.contains("SETUID"), "{a}");

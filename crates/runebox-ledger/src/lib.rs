@@ -10,6 +10,7 @@
 //! implementation: the same events produce the same lines, hashes and
 //! signatures, so ledgers written by either build verify with the other.
 
+pub mod anchor;
 mod error;
 pub mod evidence;
 pub mod gojson;
@@ -24,4 +25,6 @@ mod golden_tests;
 pub use error::{BundleProblem, LedgerError};
 pub use ledger::{Event, Ledger, redact};
 pub use scrub::{REDACT_MASK, Scrubber, scrub, scrub_string};
-pub use sign::{Bundle, KEY_FILE_NAME, PUB_FILE_NAME, Signer, decode_public_key, verify_bundle};
+pub use sign::{
+    Bundle, KEY_DIR_NAME, KEY_FILE_NAME, PUB_FILE_NAME, Signer, decode_public_key, verify_bundle,
+};

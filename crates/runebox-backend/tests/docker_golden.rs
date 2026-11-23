@@ -58,7 +58,9 @@ static PROJ_TMP: LazyLock<Regex> =
 
 /// Applies the same normalisation as the Go fixture generator.
 fn norm(s: &str) -> String {
-    let s = HEX_ID.replace_all(s, "<ID>");
+    // Go's default image was the same one, unpinned.
+    let s = s.replace(runebox_backend::config::DEFAULT_IMAGE, "debian:stable-slim");
+    let s = HEX_ID.replace_all(&s, "<ID>");
     let s = PROXY_URL.replace_all(&s, "http://runebox:<ID>@$1:<PORT>");
     PROJ_TMP.replace_all(&s, "<TMP>").into_owned()
 }
@@ -123,11 +125,28 @@ impl FakeCli {
 
     /// Every invocation except the isolation probe, which the Go
     /// implementation never made (see [`FakeCli::probes`]).
+    /// The CLI calls Go also made: probes and the Citadel-count check
+    /// (the `ps` listing before a new workspace volume; Go had no limit)
+    /// are left out.
     fn calls(&self) -> Vec<Vec<String>> {
-        self.all_calls()
+        let calls: Vec<Vec<String>> = self
+            .all_calls()
             .into_iter()
             .filter(|c| !is_probe(c))
-            .collect()
+            .collect();
+        let mut out: Vec<Vec<String>> = Vec::with_capacity(calls.len());
+        for c in calls {
+            if c.starts_with(&["volume".to_owned(), "create".to_owned()]) {
+                while out
+                    .last()
+                    .is_some_and(|p| p.starts_with(&["ps".to_owned(), "-a".to_owned()]))
+                {
+                    out.pop();
+                }
+            }
+            out.push(c);
+        }
+        out
     }
 
     /// The isolation probe invocations.
@@ -252,7 +271,7 @@ async fn create_scenarios_match_go() {
     let sb = d.create(demo("demo")).await.expect("create");
     assert_eq!(sb.backend, "docker");
     assert_eq!(sb.status, "running");
-    assert_eq!(sb.image, "debian:stable-slim");
+    assert_eq!(sb.image, runebox_backend::config::DEFAULT_IMAGE);
     assert_eq!(sb.isolation, IsolationTier::Container);
     let ev = sb.isolation_evidence.as_ref().expect("evidence");
     assert_eq!(ev.runtime, "runc");

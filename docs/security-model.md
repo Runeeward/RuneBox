@@ -25,6 +25,12 @@ Please disclose privately; do not open a public issue.
   capabilities dropped, `no-new-privileges`, a `--pids-limit`, and default
   memory/CPU ceilings (overridable via `RUNEBOX_SANDBOX_MEMORY`,
   `RUNEBOX_SANDBOX_CPUS`, `RUNEBOX_SANDBOX_PIDS`; set to `0` to disable).
+  `RUNEBOX_SANDBOX_DISK` (default `10g`) caps disk: ephemeral storage on
+  Kubernetes, `--storage-opt size` on Docker/Podman (applied by default on
+  btrfs, zfs and devicemapper; overlay2 needs xfs with `pquota`, so set it
+  explicitly there). `RUNEBOX_MAX_CITADELS` (default `50`) caps Citadels per
+  backend; on Kubernetes it is a ResourceQuota on pods and claims in the
+  namespace.
   Setting `host.read_only = true` mounts the root filesystem read-only (with a
   writable `/tmp` and the writable workspace) on both Docker and Kubernetes.
   `host.seccomp` / `host.apparmor` pin a seccomp/AppArmor profile (Docker
@@ -94,7 +100,8 @@ Please disclose privately; do not open a public issue.
   (the sandbox joins it with `--network container:…`). In strict mode all TCP is
   redirected through the proxy regardless of proxy env, so code that ignores it
   can't bypass the allowlist. The strict path also drops non-DNS UDP (blocking
-  QUIC/HTTP3 bypass) and IPv6 egress; setting `RUNEBOX_DNS_RESOLVERS`
+  QUIC/HTTP3 bypass), outbound ICMP other than replies to existing flows,
+  and IPv6 egress; setting `RUNEBOX_DNS_RESOLVERS`
   (comma-separated IPs) additionally confines DNS (UDP+TCP :53) to those
   resolvers, closing DNS as a covert exfil channel.
 - **Credential broker.** A Charter's `[[credential]]`s are resolved by the
@@ -153,7 +160,12 @@ Please disclose privately; do not open a public issue.
 - **Guardrails.** Hard caps on wall-clock, exec count, egress requests, and
   token/spend budgets, plus retry-loop detection.
 - **Tamper-evident audit.** An append-only, hash-chained, ed25519-signed ledger,
-  independently verifiable offline. Events can also stream in real time to a
+  independently verifiable offline. The signing key lives in `keys/` beside
+  the ledger (0700, key 0400), or in `RUNEBOX_LEDGER_KEY_DIR`; a key found
+  next to the ledger moves there on start. `RUNEBOX_LEDGER_ANCHOR` appends
+  the ledger head to a file every `RUNEBOX_LEDGER_ANCHOR_INTERVAL` (default
+  `5m`) and on shutdown, and verification checks the ledger still matches
+  it; put both on storage the node can't rewrite. Events can also stream in real time to a
   webhook or file sink (`RUNEBOX_AUDIT_WEBHOOK_URL` / `RUNEBOX_AUDIT_FILE`)
   for SIEM ingestion, over a non-blocking queue that never stalls the ledger. A
   built-in anomaly detector flags novel egress targets, exec bursts, and denial
@@ -178,10 +190,13 @@ Please disclose privately; do not open a public issue.
   disable privilege escalation (a supervised one adds back `SETUID`, `SETGID`
   and `CHOWN` for the supervisor, which the `baseline` standard allows, and
   runs as root until the supervisor drops to the agent, which `restricted`
-  does not), and an optional default-deny NetworkPolicy
-  (DNS-only egress) isolates Citadel pods (`RUNEBOX_K8S_NETWORK_POLICY`, or the
-  chart's `networkPolicy.enabled`) so environments can't reach each other or the control
-  plane laterally.
+  does not). Warn and audit labels are `restricted`; enforce stays
+  `privileged` by default because strict egress needs `NET_ADMIN`. Citadel
+  pods get no service-account token, and a NetworkPolicy, on by default,
+  gives them no ingress and only DNS and public egress, so they can't reach
+  each other, the control plane, nodes or cloud metadata
+  (`RUNEBOX_K8S_NETWORK_POLICY`: `dns-only` or `off`). It needs a CNI that
+  enforces NetworkPolicy; allow private destinations with your own policy.
 - **Admission enforcement defaults.** The validating ClusterPolicy webhook is
   fail-closed (`failurePolicy: Fail`) so webhook outages block admission for
   governed resources. The mutating default-profile webhook is best-effort
