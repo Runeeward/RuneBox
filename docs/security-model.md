@@ -94,9 +94,10 @@ Please disclose privately; do not open a public issue.
   (the sandbox joins it with `--network container:…`). In strict mode all TCP is
   redirected through the proxy regardless of proxy env, so code that ignores it
   can't bypass the allowlist. The strict path also drops non-DNS UDP (blocking
-  QUIC/HTTP3 bypass) and IPv6 egress; setting `RUNEBOX_DNS_RESOLVERS`
-  (comma-separated IPs) additionally confines DNS (UDP+TCP :53) to those
-  resolvers, closing DNS as a covert exfil channel.
+  QUIC/HTTP3 bypass) and IPv6 egress, and confines DNS (UDP and TCP :53, IPv4
+  and IPv6) to the resolvers: `RUNEBOX_DNS_RESOLVERS` (comma-separated IPs)
+  when set, else the nameservers in the Citadel's own `/etc/resolv.conf`.
+  With neither, strict egress fails to start and the Citadel is refused.
 - **Credential broker.** A Charter's `[[credential]]`s are resolved by the
   control plane (from `env://`, `vault://`, `aws://`, `gcp://` or 1Password
   `op://` references) and never enter the Citadel: the agent gets an opaque

@@ -1725,11 +1725,16 @@ pub(crate) fn sandbox_pod(
         if spec.network.strict_egress() {
             let redirect = runebox_egress::STRICT_REDIRECT_PORT.to_string();
             let proxy_uid = i64::from(runebox_egress::STRICT_PROXY_UID);
-            // Installs the iptables REDIRECT rules; needs NET_ADMIN.
+            // Installs the iptables REDIRECT rules; needs NET_ADMIN. DNS is
+            // confined to RUNEBOX_DNS_RESOLVERS when the operator sets it,
+            // else to the Pod's own resolvers (its resolv.conf).
+            let resolvers = cfg.dns_resolvers();
             init_containers.push(Container {
                 name: "egress-init".into(),
                 image: Some(img.clone()),
                 image_pull_policy: Some(pull.clone()),
+                env: (!resolvers.is_empty())
+                    .then(|| vec![env_var(crate::config::DNS_RESOLVERS_ENV, &resolvers)]),
                 args: Some(
                     [
                         "--setup-iptables".to_owned(),
@@ -2867,6 +2872,36 @@ mod tests {
                 Some("Memory")
             );
         }
+    }
+
+    #[test]
+    fn strict_egress_init_gets_the_configured_resolvers() {
+        let spec = Spec {
+            network: runebox_charter::Network {
+                default: "deny".into(),
+                enforce: "strict".into(),
+                ..runebox_charter::Network::default()
+            },
+            ..Spec::default()
+        };
+        let id = "0123456789abcdef0123456789abcdef";
+        let init = |cfg: &BackendConfig| {
+            let pod = sandbox_pod(id, &spec, &BTreeMap::new(), cfg, None);
+            pod.spec
+                .expect("spec")
+                .init_containers
+                .expect("init")
+                .into_iter()
+                .find(|c| c.name == EGRESS_INIT)
+                .expect("egress-init")
+        };
+        // Unset: the init container reads the Pod's resolv.conf itself.
+        assert!(init(&BackendConfig::default()).env.is_none());
+        let cfg = BackendConfig::default().with(crate::config::DNS_RESOLVERS_ENV, " 10.0.0.10 ");
+        assert_eq!(
+            env_of(&init(&cfg))[crate::config::DNS_RESOLVERS_ENV],
+            "10.0.0.10"
+        );
     }
 
     #[test]

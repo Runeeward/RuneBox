@@ -5,30 +5,83 @@
 use std::io;
 use std::net::IpAddr;
 
-/// Optionally restricts DNS egress to a comma-separated list of resolver IPs.
-/// When set, DNS (port 53) to any other destination is dropped, so a workload
-/// can't tunnel data out over DNS to an arbitrary server. Unset keeps DNS
-/// open.
+/// The resolvers DNS (port 53, UDP and TCP) may reach, as a comma-separated
+/// list of IPs. DNS to any other destination is dropped. Unset, the
+/// nameservers in [`RESOLV_CONF`] are used; with neither, setup fails.
 pub const DNS_RESOLVERS_ENV: &str = "RUNEBOX_DNS_RESOLVERS";
+
+/// Where the Citadel's own resolvers are read from when
+/// [`DNS_RESOLVERS_ENV`] is unset. The setup runs in the Citadel's network
+/// namespace (the Docker sidecar the sandbox joins, or the Pod's init
+/// container), whose resolv.conf is the one the sandbox uses.
+pub const RESOLV_CONF: &str = "/etc/resolv.conf";
 
 /// nat-table chain redirecting outbound TCP to the proxy.
 pub const CHAIN: &str = "RUNEBOX_OUT";
 /// filter-table chain dropping non-DNS UDP.
 pub const UDP_CHAIN: &str = "RUNEBOX_UDP";
-/// filter-table chain confining TCP DNS to the pinned resolvers.
+/// filter-table chain confining TCP DNS to the resolvers.
 pub const DNS_TCP_CHAIN: &str = "RUNEBOX_DNST";
 /// ip6tables chain dropping IPv6 egress.
 pub const CHAIN6: &str = "RUNEBOX_OUT6";
 
 /// Returns the valid resolver IPs from a `RUNEBOX_DNS_RESOLVERS` value
-/// (garbage entries are skipped rather than failing setup).
-pub fn parse_dns_resolvers(raw: &str) -> Vec<String> {
+/// (garbage entries are skipped; [`resolvers`] refuses a list left empty).
+pub fn parse_dns_resolvers(raw: &str) -> Vec<IpAddr> {
     raw.trim()
         .split(',')
         .map(str::trim)
-        .filter(|f| !f.is_empty() && f.parse::<IpAddr>().is_ok())
-        .map(str::to_string)
+        .filter_map(|f| f.parse().ok())
         .collect()
+}
+
+/// Returns the `nameserver` addresses of a resolv.conf (entries that are not
+/// a plain IP, such as a link-local address with a zone, are skipped).
+pub fn parse_resolv_conf(text: &str) -> Vec<IpAddr> {
+    text.lines()
+        .filter_map(|l| {
+            let mut f = l.split_whitespace();
+            (f.next() == Some("nameserver"))
+                .then(|| f.next())
+                .flatten()
+                .and_then(|ip| ip.parse().ok())
+        })
+        .collect()
+}
+
+/// Picks the resolvers DNS is confined to: the `RUNEBOX_DNS_RESOLVERS`
+/// value when set, else the nameservers of the Citadel's resolv.conf (`None`
+/// when it cannot be read). Fails when neither names a resolver, so strict
+/// egress never leaves port 53 open to every address.
+pub fn resolvers(env: Option<&str>, resolv_conf: Option<&str>) -> io::Result<Vec<IpAddr>> {
+    if let Some(raw) = env.filter(|r| !r.trim().is_empty()) {
+        let ips = parse_dns_resolvers(raw);
+        if ips.is_empty() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("{DNS_RESOLVERS_ENV}={raw:?} names no valid resolver IP"),
+            ));
+        }
+        return Ok(ips);
+    }
+    let ips = resolv_conf.map(parse_resolv_conf).unwrap_or_default();
+    if ips.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "no DNS resolver known: {RESOLV_CONF} lists no nameserver and {DNS_RESOLVERS_ENV} is unset; strict egress needs one to confine port 53 to"
+            ),
+        ));
+    }
+    Ok(ips)
+}
+
+/// Splits resolvers into the IPv4 and IPv6 addresses, as strings for
+/// iptables and ip6tables.
+fn by_family(resolvers: &[IpAddr]) -> (Vec<String>, Vec<String>) {
+    let (v4, v6): (Vec<_>, Vec<_>) = resolvers.iter().partition(|ip| ip.is_ipv4());
+    let s = |ips: Vec<&IpAddr>| ips.iter().map(ToString::to_string).collect();
+    (s(v4), s(v6))
 }
 
 fn args(a: &[&str]) -> Vec<String> {
@@ -63,8 +116,8 @@ pub fn flush_steps() -> Vec<Vec<String>> {
 
 /// The IPv4 rules (in order) that redirect outbound TCP to `redirect_port`,
 /// exempting `proxy_uid`, loopback and DNS; drop non-DNS UDP (QUIC/HTTP3
-/// bypass); and, when `resolvers` is non-empty, confine UDP and TCP DNS to
-/// them.
+/// bypass); and confine UDP and TCP DNS to the IPv4 `resolvers`. With none,
+/// all DNS off loopback is dropped.
 pub fn redirect_steps(
     proxy_uid: u32,
     redirect_port: u16,
@@ -90,8 +143,10 @@ pub fn redirect_steps(
             "RETURN",
         ]),
         args(&["-t", "nat", "-A", CHAIN, "-o", "lo", "-j", "RETURN"]),
-        // Let DNS through (not redirected) so name resolution keeps working;
-        // destination filtering, if any, happens in the filter table below.
+        // Let DNS through (not redirected) so name resolution keeps working.
+        // This RETURN must stay paired with the filter-table chains below,
+        // which drop :53 to anything but the resolvers; without them it
+        // would be an open TCP path to any host listening on port 53.
         args(&[
             "-t", "nat", "-A", CHAIN, "-p", "udp", "--dport", "53", "-j", "RETURN",
         ]),
@@ -127,19 +182,12 @@ pub fn redirect_steps(
         ]),
         args(&["-t", "filter", "-A", UDP_CHAIN, "-o", "lo", "-j", "RETURN"]),
     ];
-    // DNS destination policy for UDP: only the configured resolvers when set,
-    // otherwise any :53. Everything else falls through to the DROP.
-    if resolvers.is_empty() {
+    // UDP DNS reaches only the resolvers; everything else falls through to
+    // the DROP.
+    for ip in resolvers {
         steps.push(args(&[
-            "-t", "filter", "-A", UDP_CHAIN, "-p", "udp", "--dport", "53", "-j", "RETURN",
+            "-t", "filter", "-A", UDP_CHAIN, "-p", "udp", "-d", ip, "--dport", "53", "-j", "RETURN",
         ]));
-    } else {
-        for ip in resolvers {
-            steps.push(args(&[
-                "-t", "filter", "-A", UDP_CHAIN, "-p", "udp", "-d", ip, "--dport", "53", "-j",
-                "RETURN",
-            ]));
-        }
     }
     steps.push(args(&[
         "-t", "filter", "-A", UDP_CHAIN, "-p", "udp", "-j", "DROP",
@@ -148,48 +196,32 @@ pub fn redirect_steps(
         "-t", "filter", "-A", "OUTPUT", "-p", "udp", "-j", UDP_CHAIN,
     ]));
 
-    // With pinned resolvers, also confine TCP DNS (DoT/large responses) so DNS
-    // can't be a covert channel over TCP either.
-    if !resolvers.is_empty() {
-        steps.push(args(&["-t", "filter", "-N", DNS_TCP_CHAIN]));
-        steps.push(args(&[
-            "-t",
-            "filter",
-            "-A",
-            DNS_TCP_CHAIN,
-            "-m",
-            "owner",
-            "--uid-owner",
-            uid,
-            "-j",
-            "RETURN",
-        ]));
-        steps.push(args(&[
-            "-t",
-            "filter",
-            "-A",
-            DNS_TCP_CHAIN,
-            "-o",
-            "lo",
-            "-j",
-            "RETURN",
-        ]));
-        for ip in resolvers {
-            steps.push(args(&[
-                "-t",
-                "filter",
-                "-A",
-                DNS_TCP_CHAIN,
-                "-p",
-                "tcp",
-                "-d",
-                ip,
-                "--dport",
-                "53",
-                "-j",
-                "RETURN",
-            ]));
-        }
+    // TCP DNS (large responses) is confined the same way, so the nat RETURN
+    // above cannot carry a connection to anything but a resolver.
+    steps.push(args(&["-t", "filter", "-N", DNS_TCP_CHAIN]));
+    steps.push(args(&[
+        "-t",
+        "filter",
+        "-A",
+        DNS_TCP_CHAIN,
+        "-m",
+        "owner",
+        "--uid-owner",
+        uid,
+        "-j",
+        "RETURN",
+    ]));
+    steps.push(args(&[
+        "-t",
+        "filter",
+        "-A",
+        DNS_TCP_CHAIN,
+        "-o",
+        "lo",
+        "-j",
+        "RETURN",
+    ]));
+    for ip in resolvers {
         steps.push(args(&[
             "-t",
             "filter",
@@ -197,24 +229,38 @@ pub fn redirect_steps(
             DNS_TCP_CHAIN,
             "-p",
             "tcp",
+            "-d",
+            ip,
             "--dport",
             "53",
             "-j",
-            "DROP",
-        ]));
-        steps.push(args(&[
-            "-t",
-            "filter",
-            "-A",
-            "OUTPUT",
-            "-p",
-            "tcp",
-            "--dport",
-            "53",
-            "-j",
-            DNS_TCP_CHAIN,
+            "RETURN",
         ]));
     }
+    steps.push(args(&[
+        "-t",
+        "filter",
+        "-A",
+        DNS_TCP_CHAIN,
+        "-p",
+        "tcp",
+        "--dport",
+        "53",
+        "-j",
+        "DROP",
+    ]));
+    steps.push(args(&[
+        "-t",
+        "filter",
+        "-A",
+        "OUTPUT",
+        "-p",
+        "tcp",
+        "--dport",
+        "53",
+        "-j",
+        DNS_TCP_CHAIN,
+    ]));
     steps
 }
 
@@ -227,36 +273,51 @@ pub fn ipv6_flush_steps() -> Vec<Vec<String>> {
     ]
 }
 
-/// ip6tables rules dropping all IPv6 egress except loopback and DNS (the
-/// proxy is IPv4-only, so this forces traffic onto the proxied path).
-pub fn ipv6_drop_steps() -> Vec<Vec<String>> {
-    vec![
+/// ip6tables rules dropping all IPv6 egress except loopback and DNS to the
+/// IPv6 `resolvers` (the proxy is IPv4-only, so this forces traffic onto
+/// the proxied path).
+pub fn ipv6_drop_steps(resolvers: &[String]) -> Vec<Vec<String>> {
+    let mut steps = vec![
         args(&["-N", CHAIN6]),
         args(&["-A", CHAIN6, "-o", "lo", "-j", "RETURN"]),
-        args(&["-A", CHAIN6, "-p", "udp", "--dport", "53", "-j", "RETURN"]),
-        args(&["-A", CHAIN6, "-p", "tcp", "--dport", "53", "-j", "RETURN"]),
-        args(&["-A", CHAIN6, "-j", "DROP"]),
-        args(&["-A", "OUTPUT", "-j", CHAIN6]),
-    ]
+    ];
+    for ip in resolvers {
+        for proto in ["udp", "tcp"] {
+            steps.push(args(&[
+                "-A", CHAIN6, "-p", proto, "-d", ip, "--dport", "53", "-j", "RETURN",
+            ]));
+        }
+    }
+    steps.push(args(&["-A", CHAIN6, "-j", "DROP"]));
+    steps.push(args(&["-A", "OUTPUT", "-j", CHAIN6]));
+    steps
 }
 
 /// Runs the full setup sequence through `run(program, args)`: best-effort
-/// flush, fail-fast IPv4 steps, then best-effort IPv6 drop.
+/// flush, fail-fast IPv4 steps, then best-effort IPv6 drop. Refuses an
+/// empty resolver list before touching anything.
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub(crate) fn setup_redirect_with<F>(
     mut run: F,
     proxy_uid: u32,
     redirect_port: u16,
-    resolvers: &[String],
+    resolvers: &[IpAddr],
 ) -> io::Result<()>
 where
     F: FnMut(&str, &[String]) -> io::Result<()>,
 {
+    if resolvers.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "no DNS resolver to confine port 53 to",
+        ));
+    }
+    let (resolvers4, resolvers6) = by_family(resolvers);
     let (v4, v6) = pick_backend(&mut run);
     for a in flush_steps() {
         let _ = run(v4, &a);
     }
-    for a in redirect_steps(proxy_uid, redirect_port, resolvers) {
+    for a in redirect_steps(proxy_uid, redirect_port, &resolvers4) {
         run(v4, &a).map_err(|e| {
             // gVisor has no nftables, and its legacy nat table exists only
             // with runsc's net-raw option.
@@ -270,7 +331,10 @@ where
     }
     // Some environments lack IPv6/ip6tables entirely, which is fine (nothing
     // to bypass through), so failures here are ignored.
-    for a in ipv6_flush_steps().into_iter().chain(ipv6_drop_steps()) {
+    for a in ipv6_flush_steps()
+        .into_iter()
+        .chain(ipv6_drop_steps(&resolvers6))
+    {
         let _ = run(v6, &a);
     }
     Ok(())
@@ -292,12 +356,15 @@ where
 }
 
 /// Installs the iptables rules redirecting outbound TCP to the transparent
-/// proxy on `redirect_port`, exempting `proxy_uid`, loopback and DNS, and
-/// closing the UDP/QUIC and IPv6 bypasses. Reads [`DNS_RESOLVERS_ENV`]. Runs
-/// once, privileged, before the sandbox starts.
+/// proxy on `redirect_port`, exempting `proxy_uid`, loopback and DNS to the
+/// resolvers, and closing the UDP/QUIC and IPv6 bypasses. The resolvers come
+/// from [`DNS_RESOLVERS_ENV`], else [`RESOLV_CONF`]; with neither it fails.
+/// Runs once, privileged, before the sandbox starts.
 #[cfg(target_os = "linux")]
 pub fn setup_redirect(proxy_uid: u32, redirect_port: u16) -> io::Result<()> {
-    let resolvers = parse_dns_resolvers(&std::env::var(DNS_RESOLVERS_ENV).unwrap_or_default());
+    let env = std::env::var(DNS_RESOLVERS_ENV).ok();
+    let conf = std::fs::read_to_string(RESOLV_CONF).ok();
+    let resolvers = resolvers(env.as_deref(), conf.as_deref())?;
     setup_redirect_with(run_command, proxy_uid, redirect_port, &resolvers)
 }
 
@@ -329,21 +396,126 @@ fn run_command(program: &str, args: &[String]) -> io::Result<()> {
 mod tests {
     use super::*;
 
+    fn ips(list: &[&str]) -> Vec<IpAddr> {
+        list.iter().map(|s| s.parse().expect("ip")).collect()
+    }
+
     #[test]
     fn parse_resolvers_skips_garbage() {
         assert!(parse_dns_resolvers("").is_empty());
         assert_eq!(
             parse_dns_resolvers(" 1.1.1.1, nope ,,2606:4700::1111 "),
-            vec!["1.1.1.1".to_string(), "2606:4700::1111".to_string()]
+            ips(&["1.1.1.1", "2606:4700::1111"])
         );
+    }
+
+    #[test]
+    fn resolv_conf_nameservers() {
+        let conf = "# generated\nsearch svc.cluster.local\nnameserver 10.96.0.10\nnameserver  fe80::1%eth0\nnameserver 2001:db8::53\noptions ndots:5\nnameserver\n";
+        assert_eq!(
+            parse_resolv_conf(conf),
+            ips(&["10.96.0.10", "2001:db8::53"])
+        );
+        assert!(parse_resolv_conf("search x\n").is_empty());
+    }
+
+    #[test]
+    fn resolvers_prefer_the_env_then_the_citadels_resolv_conf() {
+        let conf = Some("nameserver 127.0.0.11\n");
+        assert_eq!(
+            resolvers(Some("9.9.9.9"), conf).expect("env"),
+            ips(&["9.9.9.9"])
+        );
+        // Unset or blank: the Citadel's own resolver.
+        assert_eq!(resolvers(None, conf).expect("conf"), ips(&["127.0.0.11"]));
+        assert_eq!(
+            resolvers(Some("  "), conf).expect("conf"),
+            ips(&["127.0.0.11"])
+        );
+        // A set value with no valid IP is an error, never "any resolver".
+        let err = resolvers(Some("nope,"), conf).expect_err("garbage");
+        assert!(err.to_string().contains(DNS_RESOLVERS_ENV), "{err}");
+        // No resolver known at all: strict egress is refused.
+        for conf in [None, Some(""), Some("search x\n")] {
+            let err = resolvers(None, conf).expect_err("no resolver");
+            assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
+            assert!(err.to_string().contains("no DNS resolver"), "{err}");
+        }
     }
 
     fn joined(steps: &[Vec<String>]) -> Vec<String> {
         steps.iter().map(|s| s.join(" ")).collect()
     }
 
+    /// The filter-table fate of an IPv4 packet: walks OUTPUT and the chain
+    /// it jumps to, as iptables would, for a non-proxy, non-loopback packet.
+    fn filter_verdict(steps: &[String], proto: &str, dst: &str, dport: u16) -> &'static str {
+        let matches = |rule: &str| {
+            let f: Vec<&str> = rule.split_whitespace().collect();
+            let opt = |k: &str| f.iter().position(|x| *x == k).map(|i| f[i + 1]);
+            if opt("-m") == Some("owner") || opt("-o") == Some("lo") {
+                return false;
+            }
+            opt("-p").is_none_or(|p| p == proto)
+                && opt("-d").is_none_or(|d| d == dst)
+                && opt("--dport").is_none_or(|p| p == dport.to_string())
+        };
+        let filter: Vec<&String> = steps
+            .iter()
+            .filter(|l| l.starts_with("-t filter -A "))
+            .collect();
+        for out in filter.iter().filter(|l| l.contains(" -A OUTPUT ")) {
+            if !matches(out) {
+                continue;
+            }
+            let chain = out.rsplit(' ').next().expect("target");
+            for r in filter
+                .iter()
+                .filter(|l| l.starts_with(&format!("-t filter -A {chain} ")))
+            {
+                if matches(r) {
+                    if r.ends_with("-j DROP") {
+                        return "DROP";
+                    }
+                    if r.ends_with("-j RETURN") {
+                        break;
+                    }
+                }
+            }
+        }
+        "ACCEPT"
+    }
+
     #[test]
-    fn steps_without_resolvers() {
+    fn dns_to_anything_but_the_resolvers_is_dropped() {
+        let r = vec!["10.0.0.2".to_string()];
+        let s = joined(&redirect_steps(1337, 15001, &r));
+        for proto in ["udp", "tcp"] {
+            assert_eq!(
+                filter_verdict(&s, proto, "10.0.0.2", 53),
+                "ACCEPT",
+                "{proto}"
+            );
+            assert_eq!(
+                filter_verdict(&s, proto, "203.0.113.9", 53),
+                "DROP",
+                "{proto}"
+            );
+        }
+        // Other UDP is dropped; other TCP is left to the nat redirect.
+        assert_eq!(filter_verdict(&s, "udp", "203.0.113.9", 443), "DROP");
+        assert_eq!(filter_verdict(&s, "tcp", "203.0.113.9", 443), "ACCEPT");
+        // No filter rule lets :53 through without naming a resolver.
+        assert!(
+            !s.iter().any(|l| l.starts_with("-t filter")
+                && l.contains("--dport 53 -j RETURN")
+                && !l.contains(" -d ")),
+            "{s:#?}"
+        );
+    }
+
+    #[test]
+    fn steps_without_ipv4_resolvers_drop_all_dns() {
         let s = joined(&redirect_steps(1337, 15001, &[]));
         assert_eq!(s[0], "-t nat -N RUNEBOX_OUT");
         assert!(
@@ -352,13 +524,14 @@ mod tests {
         assert!(
             s.contains(&"-t nat -A RUNEBOX_OUT -p tcp -j REDIRECT --to-ports 15001".to_string())
         );
-        assert!(s.contains(&"-t filter -A RUNEBOX_UDP -p udp --dport 53 -j RETURN".to_string()));
+        for proto in ["udp", "tcp"] {
+            assert_eq!(filter_verdict(&s, proto, "1.1.1.1", 53), "DROP", "{proto}");
+        }
         assert_eq!(
             s.last().map(String::as_str),
-            Some("-t filter -A OUTPUT -p udp -j RUNEBOX_UDP")
+            Some("-t filter -A OUTPUT -p tcp --dport 53 -j RUNEBOX_DNST")
         );
-        assert!(!s.iter().any(|l| l.contains("RUNEBOX_DNST")));
-        assert_eq!(s.len(), 13);
+        assert_eq!(s.len(), 17);
     }
 
     #[test]
@@ -377,6 +550,7 @@ mod tests {
             s.last().map(String::as_str),
             Some("-t filter -A OUTPUT -p tcp --dport 53 -j RUNEBOX_DNST")
         );
+        assert_eq!(s.len(), 21);
         let drop_udp = s
             .iter()
             .position(|l| l == "-t filter -A RUNEBOX_UDP -p udp -j DROP");
@@ -401,10 +575,20 @@ mod tests {
             },
             1337,
             15001,
-            &[],
+            &ips(&["10.0.0.2", "2001:db8::53"]),
         );
         assert!(res.is_ok());
-        assert_eq!(calls.len(), 1 + flush_steps().len() + 13 + 9);
+        // Probe, flushes, 19 IPv4 steps, 3 IPv6 flushes and 6 IPv6 steps.
+        assert_eq!(calls.len(), 1 + flush_steps().len() + 19 + 3 + 6);
+        assert!(calls.contains(
+            &"ip6tables -A RUNEBOX_OUT6 -p tcp -d 2001:db8::53 --dport 53 -j RETURN".to_string()
+        ));
+        assert!(
+            !calls
+                .iter()
+                .any(|c| c.starts_with("iptables ") && c.contains("2001:db8::53")),
+            "an IPv6 resolver never reaches iptables"
+        );
         assert!(
             calls
                 .last()
@@ -426,7 +610,7 @@ mod tests {
             },
             1,
             2,
-            &[],
+            &ips(&["10.0.0.2"]),
         )
         .expect_err("must fail");
         assert!(
@@ -452,7 +636,7 @@ mod tests {
             },
             1337,
             15001,
-            &[],
+            &ips(&["10.0.0.2"]),
         )
         .expect("legacy backend");
         assert_eq!(calls[0], "iptables -t nat -S");
@@ -479,13 +663,44 @@ mod tests {
             },
             1,
             2,
-            &[],
+            &ips(&["10.0.0.2"]),
         )
         .expect_err("must fail");
         assert_eq!(progs[..2], ["iptables", "iptables-legacy"]);
         assert!(progs[2..].iter().all(|p| p == "iptables"), "{progs:?}");
         assert!(err.to_string().starts_with("iptables "), "{err}");
         assert!(!err.to_string().contains("gVisor"), "{err}");
+    }
+
+    #[test]
+    fn setup_without_resolvers_is_refused_before_any_rule() {
+        let mut calls = 0;
+        let err = setup_redirect_with(
+            |_, _| {
+                calls += 1;
+                Ok(())
+            },
+            1337,
+            15001,
+            &[],
+        )
+        .expect_err("no resolver");
+        assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
+        assert_eq!(calls, 0);
+    }
+
+    #[test]
+    fn ipv6_dns_reaches_only_ipv6_resolvers() {
+        let none = joined(&ipv6_drop_steps(&[]));
+        assert!(!none.iter().any(|l| l.contains("--dport 53")), "{none:?}");
+        let s = joined(&ipv6_drop_steps(&["2001:db8::53".to_string()]));
+        for proto in ["udp", "tcp"] {
+            assert!(s.contains(&format!(
+                "-A RUNEBOX_OUT6 -p {proto} -d 2001:db8::53 --dport 53 -j RETURN"
+            )));
+        }
+        let drop = s.iter().position(|l| l == "-A RUNEBOX_OUT6 -j DROP");
+        assert!(s.iter().position(|l| l.contains("-d 2001:db8::53")) < drop);
     }
 
     #[cfg(not(target_os = "linux"))]
