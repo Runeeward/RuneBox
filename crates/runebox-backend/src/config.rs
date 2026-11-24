@@ -119,8 +119,10 @@ pub const DEFAULT_IMAGE: &str =
     "debian:stable-slim@sha256:fbfb4059d2127120aa05b6e6064523d2102552f0cf0026ddf0701c12f1f8f3e0";
 /// The egress sidecar image used when `RUNEBOX_EGRESS_IMAGE` is unset: the
 /// published image of this release, so a deny Citadel works without a local build.
-pub const DEFAULT_EGRESS_IMAGE: &str =
-    concat!("ghcr.io/runeeward/runebox-egress:v", env!("CARGO_PKG_VERSION"));
+pub const DEFAULT_EGRESS_IMAGE: &str = concat!(
+    "ghcr.io/runeeward/runebox-egress:v",
+    env!("CARGO_PKG_VERSION")
+);
 /// The Kubernetes namespace used when `RUNEBOX_K8S_NAMESPACE` is unset.
 pub const DEFAULT_K8S_NAMESPACE: &str = "runebox";
 
