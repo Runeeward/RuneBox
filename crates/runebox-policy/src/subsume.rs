@@ -632,6 +632,7 @@ impl GlobNfa {
         bits[i / 64] & (1 << (i % 64)) != 0
     }
 
+    #[allow(clippy::needless_range_loop)]
     fn close(&self, bits: &mut [u64]) {
         for i in 0..self.p.len() {
             if Self::has(bits, i) && self.p[i] == b'*' {
@@ -649,6 +650,7 @@ impl GlobNfa {
 
     /// One step on a byte class: `Some(b)` a literal byte, `None` any byte
     /// no glob mentions literally.
+    #[allow(clippy::needless_range_loop)]
     fn step(&self, from: &[u64], byte: Option<u8>) -> Vec<u64> {
         let mut b = vec![0; self.words()];
         for i in 0..self.p.len() {
