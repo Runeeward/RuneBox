@@ -40,7 +40,7 @@ for `enter <charter>`.
 | `RUNEBOX_KRUN_HELPER` / `RUNEBOX_LIBKRUN` | The `runebox-krun` helper (default: `PATH`) and the libkrun library it loads (default `libkrun.so.1`, `libkrun.1.dylib` on macOS); libkrun must be built with block-device support. |
 | `RUNEBOX_MICROVM_DISK_SIZE` | Size of a new persistent workspace disk (sparse; default `8g`). |
 | `RUNEBOX_MICROVM_MKFS` | `mkfs.ext4` used to build image and workspace disks (`debugfs` is taken from the same directory). |
-| `RUNEBOX_DNS_RESOLVERS` | Comma-separated resolver IPs to confine DNS to under strict egress. |
+| `RUNEBOX_DNS_RESOLVERS` | Comma-separated resolver IPs that DNS (UDP and TCP port 53) may reach under strict egress. Unset, the Citadel's own resolvers (its `/etc/resolv.conf`) are used; if it lists none, the Citadel is refused. |
 | `RUNEBOX_ENABLE_EXPERIMENTAL_BROWSER` | Set to `1` to enable the experimental browser surface in a trusted deployment; disabled by default. |
 | `RUNEBOX_ENABLE_EXPERIMENTAL_IDE` | Set to `1` to enable the optional in-Citadel browser IDE (code-server) + ticketed reverse proxy; disabled by default. See [Browser IDE](browser-ide.md). |
 | `RUNEBOX_OP_BIN` / `OP_SERVICE_ACCOUNT_TOKEN` | Locate and authenticate the 1Password CLI (`op`) that resolves `op://` Charter references; the desktop app integration works without a token. See [Charters](profiles.md#1password-op). |
