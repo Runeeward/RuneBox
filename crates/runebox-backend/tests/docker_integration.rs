@@ -214,7 +214,7 @@ async fn alpine_deny_egress_is_enforced_without_proxy_settings() {
         return;
     }
     let cleanup = Cleanup::default();
-    let d = Docker::docker(BackendConfig::default())
+    let d = Docker::docker(BackendConfig::from_env())
         .await
         .expect("docker backend");
     let spec = Spec {
@@ -251,7 +251,7 @@ async fn alpine_projects_files() {
         return;
     }
     let cleanup = Cleanup::default();
-    let d = Docker::docker(BackendConfig::default())
+    let d = Docker::docker(BackendConfig::from_env())
         .await
         .expect("docker backend");
     let file = |path: &str, mode: &str| File {
@@ -340,7 +340,7 @@ async fn failed_create_leaves_nothing_behind() {
         return;
     }
     let cleanup = Cleanup::default();
-    let d = Docker::docker(BackendConfig::default())
+    let d = Docker::docker(BackendConfig::from_env())
         .await
         .expect("docker backend");
     // An unregistered runtime: the engine creates the container, then
