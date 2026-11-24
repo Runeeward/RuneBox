@@ -117,8 +117,10 @@ const ALL_ENV: &[&str] = &[
 /// pinned by digest.
 pub const DEFAULT_IMAGE: &str =
     "debian:stable-slim@sha256:fbfb4059d2127120aa05b6e6064523d2102552f0cf0026ddf0701c12f1f8f3e0";
-/// The egress sidecar image used when `RUNEBOX_EGRESS_IMAGE` is unset.
-pub const DEFAULT_EGRESS_IMAGE: &str = "runebox-egress:latest";
+/// The egress sidecar image used when `RUNEBOX_EGRESS_IMAGE` is unset: the
+/// published image of this release, so a deny Citadel works without a local build.
+pub const DEFAULT_EGRESS_IMAGE: &str =
+    concat!("ghcr.io/runeeward/runebox-egress:v", env!("CARGO_PKG_VERSION"));
 /// The Kubernetes namespace used when `RUNEBOX_K8S_NAMESPACE` is unset.
 pub const DEFAULT_K8S_NAMESPACE: &str = "runebox";
 
@@ -520,7 +522,8 @@ mod tests {
         assert_eq!(c.k8s_namespace(), "runebox");
         assert_eq!(c.psa_enforce_level(), "privileged");
         assert_eq!(c.egress_pull_policy(), "IfNotPresent");
-        assert_eq!(c.egress_image(), "runebox-egress:latest");
+        assert_eq!(c.egress_image(), DEFAULT_EGRESS_IMAGE);
+        assert!(DEFAULT_EGRESS_IMAGE.starts_with("ghcr.io/runeeward/runebox-egress:v"));
         assert!(c.k8s_network_policy());
         assert_eq!(c.k8s_network_policy_mode(), NetworkPolicyMode::PublicEgress);
         assert!(c.kube_context().is_none());

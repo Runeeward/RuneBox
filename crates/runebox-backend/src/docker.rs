@@ -2564,7 +2564,7 @@ mod tests {
         let cfg = BackendConfig::default();
         let a = egress_run_args("x", "{}", &cfg, false);
         assert!(!a.iter().any(|s| s.starts_with("RUNEBOX_DNS_RESOLVERS")));
-        assert_eq!(a[a.len() - 7], "runebox-egress:latest");
+        assert_eq!(a[a.len() - 7], crate::config::DEFAULT_EGRESS_IMAGE);
         let cfg = cfg.with(crate::config::DNS_RESOLVERS_ENV, " 9.9.9.9 ");
         let a = egress_run_args("x", "{}", &cfg, false);
         assert!(a.contains(&"RUNEBOX_DNS_RESOLVERS=9.9.9.9".to_owned()));

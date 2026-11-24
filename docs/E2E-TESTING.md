@@ -88,7 +88,7 @@ mkdir -p bin && cp target/release/runebox bin/runebox
 | `RUNEBOX_STATE_DIR`     | where the audit ledger is written                 | OS cache dir                |
 | `RUNEBOX_KUBE_CONTEXT`  | kube-context for the k8s backend                  | current context             |
 | `RUNEBOX_K8S_NAMESPACE` | namespace for sandbox pods                        | `runebox`                  |
-| `RUNEBOX_EGRESS_IMAGE`  | egress sidecar/init image ref                     | `runebox-egress:latest`    |
+| `RUNEBOX_EGRESS_IMAGE`  | egress sidecar/init image ref                     | `ghcr.io/runeeward/runebox-egress:v<version>` |
 | `RUNEBOX_API_TOKEN`     | bearer token for `serve --token` and REST clients | (unset; open local serve)   |
 | `GITHUB_TOKEN`           | optional GitHub credential explicitly imported by a Charter | unset |
 | `OPENAI_BASE_URL`        | optional OpenAI-compatible gateway explicitly imported by a Charter | provider default |
