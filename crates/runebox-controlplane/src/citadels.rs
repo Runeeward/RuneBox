@@ -3,8 +3,10 @@
 
 use std::sync::Arc;
 
+use runebox_backend::config::MICROVM_VMM_ENV;
 use runebox_backend::{
-    Backend, IsolationTier, PtyStream, Sandbox, spec_from_charter, verify_runtime_capabilities,
+    Backend, BackendConfig, IsolationTier, MICROVM_HOST_TYPE, PtyStream, Sandbox,
+    spec_from_charter, verify_runtime_capabilities,
 };
 use runebox_charter::{Charter, IsolationLevel, Severity, Verdict};
 use runebox_ledger::{Event, Scrubber};
@@ -70,6 +72,57 @@ pub struct ProfileInfo {
     pub image: String,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub capabilities: Vec<String>,
+    /// The effective egress enforcement mode: `strict` or `l3` for a deny
+    /// policy, `none` when egress is open.
+    pub enforce: String,
+    /// The DNS resolvers egress is pinned to (`RUNEBOX_DNS_RESOLVERS`);
+    /// empty when none are configured or egress is open.
+    pub dns_resolvers: Vec<String>,
+    /// The OCI runtime (or microVM monitor) the Charter runs under; `None`
+    /// when it is left to the engine's default.
+    pub runtime: Option<String>,
+}
+
+/// The `enforce` value reported for a Charter.
+fn effective_enforce(c: &Charter) -> String {
+    if !c.network.strict_egress() {
+        return "none".into();
+    }
+    match c.network.enforce.trim() {
+        "" => "strict".into(),
+        mode => mode.to_owned(),
+    }
+}
+
+/// The resolvers a Charter's DNS is pinned to: the operator's
+/// `RUNEBOX_DNS_RESOLVERS`, applied by the strict-egress sidecar of the
+/// container and Kubernetes backends.
+fn effective_dns_resolvers(c: &Charter, cfg: &BackendConfig) -> Vec<String> {
+    if !c.network.strict_egress() || c.host.host_type.as_str() == MICROVM_HOST_TYPE {
+        return Vec::new();
+    }
+    runebox_egress::iptables::parse_dns_resolvers(&cfg.dns_resolvers())
+        .iter()
+        .map(ToString::to_string)
+        .collect()
+}
+
+/// The runtime a Charter runs under: its own OCI runtime, else for a
+/// microVM its monitor (`host.runtime`, then `RUNEBOX_MICROVM_VMM`).
+fn effective_runtime(c: &Charter, cfg: &BackendConfig) -> Option<String> {
+    let oci = c.host.oci_runtime();
+    if !oci.is_empty() {
+        return Some(oci.to_owned());
+    }
+    if c.host.host_type.as_str() != MICROVM_HOST_TYPE {
+        return None;
+    }
+    let vmm = |raw: &str| match raw.trim().to_ascii_lowercase().as_str() {
+        "firecracker" | "fc" => Some("firecracker".to_owned()),
+        "libkrun" | "krun" => Some("libkrun".to_owned()),
+        _ => None,
+    };
+    vmm(&c.host.runtime).or_else(|| vmm(cfg.raw(MICROVM_VMM_ENV)))
 }
 
 /// One user-actionable setup diagnostic.
@@ -165,10 +218,11 @@ impl Manager {
         blocking(move || runebox_charter::load(&name, &opts).map_err(Error::other)).await
     }
 
-    /// The resolvable Charters with their host, egress mode, image and
-    /// capabilities.
+    /// The resolvable Charters with their host, egress mode, image,
+    /// capabilities and effective isolation settings.
     pub async fn list_profiles(&self) -> Result<Vec<ProfileInfo>> {
         let opts = self.config.charter_options();
+        let cfg = self.backend_config.clone();
         blocking(move || {
             let mut out = Vec::new();
             for name in runebox_charter::list(&opts) {
@@ -178,8 +232,14 @@ impl Manager {
                     egress: "open".into(),
                     image: String::new(),
                     capabilities: Vec::new(),
+                    enforce: "none".into(),
+                    dns_resolvers: Vec::new(),
+                    runtime: None,
                 };
                 if let Ok(c) = runebox_charter::load(&name, &opts) {
+                    info.enforce = effective_enforce(&c);
+                    info.dns_resolvers = effective_dns_resolvers(&c, &cfg);
+                    info.runtime = effective_runtime(&c, &cfg);
                     info.image.clone_from(&c.host.image);
                     info.capabilities = runebox_backend::charter_capabilities(&c);
                     if !c.host.host_type.as_str().is_empty() {

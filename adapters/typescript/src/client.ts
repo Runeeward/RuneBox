@@ -224,6 +224,14 @@ export interface Profile {
   name: string;
   host: string;
   egress: string;
+  image?: string;
+  capabilities?: string[];
+  /** Effective egress enforcement: `strict` or `l3` for a deny policy, `none` when open. */
+  enforce?: string;
+  /** DNS resolvers egress is pinned to; empty when none are configured. */
+  dns_resolvers?: string[];
+  /** OCI runtime (or microVM monitor) the Charter runs under; `null` for the engine default. */
+  runtime?: string | null;
 }
 
 /** The result of a governed execution (shell / python / node). */

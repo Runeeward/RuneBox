@@ -493,7 +493,8 @@ class RuneboxClient:
         })
 
     def list_profiles(self) -> List[Dict[str, Any]]:
-        """``GET /v1/charters`` — reachable profiles."""
+        """``GET /v1/charters`` — reachable profiles, each with its effective
+        isolation settings (``enforce``, ``dns_resolvers``, ``runtime``)."""
         return self._request("GET", "/v1/charters").get("profiles", [])
 
     def list_runs(self) -> List[Dict[str, Any]]:

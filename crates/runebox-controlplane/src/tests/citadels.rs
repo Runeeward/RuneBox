@@ -5,7 +5,7 @@ use runebox_backend::IsolationTier;
 use runebox_charter::Charter;
 use runebox_ledger::gotime;
 
-use super::support::{harness, lock};
+use super::support::{harness, harness_with_backend_config, lock};
 use crate::runs::{RUNS_FILE_NAME, Run};
 use crate::{CreateOptions, Error, Manager, SessionState};
 
@@ -446,4 +446,78 @@ async fn readiness_reports_policy_runtime_secrets_and_image() {
     let names: Vec<_> = profiles.iter().map(|p| p.name.as_str()).collect();
     assert_eq!(names, ["dev", "local"]);
     assert_eq!(profiles[0].host, "container");
+}
+
+#[tokio::test]
+async fn list_profiles_reports_effective_isolation() {
+    let backend = runebox_backend::BackendConfig::default().with(
+        runebox_backend::config::DNS_RESOLVERS_ENV,
+        " 9.9.9.9, nope ,2606:4700::1111 ",
+    );
+    let h = harness_with_backend_config(backend).await;
+    h.write_charter("open", BASIC);
+    h.write_charter(
+        "strict",
+        r#"
+[host]
+type = "container"
+image = "ghcr.io/example/agent:1"
+runtime_class = "crun"
+
+[network]
+default = "deny"
+enforce = "l3"
+
+[[network.rule]]
+verdict = "allow"
+hostname = "example.com"
+"#,
+    );
+    h.write_charter(
+        "strict-default",
+        "[host]\nimage = \"debian:dev\"\n[network]\ndefault = \"deny\"\n",
+    );
+    let profiles = h.mgr.list_profiles().await.expect("profiles");
+    let json: Vec<_> = profiles
+        .iter()
+        .map(|p| serde_json::to_value(p).expect("json"))
+        .collect();
+    let by_name = |n: &str| {
+        json.iter()
+            .find(|p| p["name"] == n)
+            .cloned()
+            .unwrap_or_else(|| panic!("charter {n} listed"))
+    };
+
+    let open = by_name("open");
+    assert_eq!(open["egress"], "open");
+    assert_eq!(open["enforce"], "none");
+    assert_eq!(open["dns_resolvers"], serde_json::json!([]));
+    assert_eq!(open["runtime"], serde_json::Value::Null);
+
+    let strict = by_name("strict");
+    assert_eq!(strict["egress"], "deny-by-default");
+    assert_eq!(strict["enforce"], "l3");
+    assert_eq!(
+        strict["dns_resolvers"],
+        serde_json::json!(["9.9.9.9", "2606:4700::1111"])
+    );
+    assert_eq!(strict["runtime"], "crun");
+
+    let strict_default = by_name("strict-default");
+    assert_eq!(strict_default["enforce"], "strict");
+    assert_eq!(strict_default["runtime"], serde_json::Value::Null);
+}
+
+#[tokio::test]
+async fn list_profiles_reports_no_resolvers_when_unset() {
+    let h = harness(None).await;
+    h.write_charter(
+        "strict",
+        "[host]\nimage = \"debian:dev\"\nruntime = \"runc\"\n[network]\ndefault = \"deny\"\nenforce = \"strict\"\n",
+    );
+    let p = &h.mgr.list_profiles().await.expect("profiles")[0];
+    assert_eq!(p.enforce, "strict");
+    assert!(p.dns_resolvers.is_empty());
+    assert_eq!(p.runtime.as_deref(), Some("runc"));
 }
