@@ -250,8 +250,11 @@ async fn backend(cli: &FakeCli, runtime: &str, cfg: BackendConfig) -> Docker {
 }
 
 fn assert_matches_go(name: &str, cli: &FakeCli, go: &HashMap<String, Fixture>) {
+    assert_calls_match_go(name, cli.calls(), go);
+}
+
+fn assert_calls_match_go(name: &str, got: Vec<Vec<String>>, go: &HashMap<String, Fixture>) {
     let want = &go[name];
-    let got = cli.calls();
     let (got_c, want_c) = (canon(&got), canon(&want.calls));
     for (i, (g, w)) in got_c.iter().zip(&want_c).enumerate() {
         assert_eq!(g, w, "{name}: call {i} differs");
@@ -368,7 +371,27 @@ async fn egress_scenarios_match_go() {
             .expect("ip");
         assert_eq!(ip, "172.17.0.9");
         d.kill(&sb.id).await.expect("kill");
-        assert_matches_go("strict", &cli, &go);
+        // On the Docker engine the sidecar also maps host.docker.internal
+        // to the host gateway (Go's strict sidecar did not); apart from that
+        // pair the argv is Go's.
+        let host_gateway = ["--add-host", "host.docker.internal:host-gateway"];
+        let calls: Vec<Vec<String>> = cli
+            .calls()
+            .into_iter()
+            .map(|c| {
+                if !c.iter().any(|a| a == "--setup-iptables") {
+                    return c;
+                }
+                let at = c
+                    .windows(2)
+                    .position(|w| w == host_gateway)
+                    .unwrap_or_else(|| panic!("sidecar names the host gateway: {c:?}"));
+                let mut c = c;
+                c.drain(at..at + 2);
+                c
+            })
+            .collect();
+        assert_calls_match_go("strict", calls, &go);
     }
 
     let d = backend(&cli, "podman", BackendConfig::default()).await;

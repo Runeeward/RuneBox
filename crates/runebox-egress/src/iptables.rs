@@ -628,6 +628,60 @@ mod tests {
         assert!(allow_udp < drop_udp);
     }
 
+    /// A brokered Citadel gets the same rules as any deny Citadel: the
+    /// broker lives in the proxy, so an endpoint (here one on the host
+    /// gateway) is reached only through the REDIRECT. No rule exempts a
+    /// destination other than a resolver on port 53, and only the proxy's
+    /// uid (never the agent's or the supervisor's) skips the redirect.
+    #[test]
+    fn a_brokered_endpoint_is_reached_only_through_the_redirect() {
+        let uid = crate::STRICT_PROXY_UID;
+        let port = crate::STRICT_REDIRECT_PORT;
+        let mut rules = Vec::new();
+        setup_redirect_with(
+            |prog, a| {
+                if !a
+                    .iter()
+                    .any(|x| x == "-D" || x == "-F" || x == "-X" || x == "-S")
+                {
+                    rules.push((prog.to_owned(), a.join(" ")));
+                }
+                Ok(())
+            },
+            uid,
+            port,
+            &ips(&["10.0.0.2"]),
+        )
+        .expect("setup");
+        let nat: Vec<&str> = rules
+            .iter()
+            .filter(|(p, r)| p == "iptables" && r.starts_with(&format!("-t nat -A {CHAIN} ")))
+            .map(|(_, r)| r.as_str())
+            .collect();
+        assert_eq!(
+            nat,
+            [
+                format!("-t nat -A {CHAIN} -m owner --uid-owner {uid} -j RETURN"),
+                format!("-t nat -A {CHAIN} -o lo -j RETURN"),
+                format!("-t nat -A {CHAIN} -p udp --dport 53 -j RETURN"),
+                format!("-t nat -A {CHAIN} -p tcp --dport 53 -j RETURN"),
+                format!("-t nat -A {CHAIN} -p tcp -j REDIRECT --to-ports {port}"),
+            ]
+        );
+        for (_, r) in &rules {
+            assert!(!r.contains("ACCEPT"), "{r}");
+            if let Some((_, d)) = r.split_once(" -d ") {
+                assert!(d.starts_with("10.0.0.2 --dport 53 "), "{r}");
+            }
+            if let Some((_, owner)) = r.split_once("--uid-owner ") {
+                assert!(owner.starts_with(&format!("{uid} ")), "{r}");
+            }
+        }
+        for gateway in ["172.17.0.1", "0.250.250.254", "host.docker.internal"] {
+            assert!(!rules.iter().any(|(_, r)| r.contains(gateway)), "{gateway}");
+        }
+    }
+
     #[test]
     fn setup_sequence_is_best_effort_where_go_is() {
         let mut calls = Vec::new();
