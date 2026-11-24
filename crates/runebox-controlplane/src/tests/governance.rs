@@ -464,19 +464,34 @@ binaries = ["/usr/bin/gh"]
 #[tokio::test]
 async fn endpoint_binaries_need_strict_egress_and_get_attribution() {
     let h = harness(None).await;
-    // Cooperative egress cannot attribute connections: refused up front.
+    // An open network has no strict egress to attribute connections:
+    // refused up front.
     h.write_charter("coop", &binaries_charter(""));
     let err = h
         .mgr
         .create_sandbox("coop", CreateOptions::default())
         .await
-        .expect_err("cooperative");
+        .expect_err("open network");
     assert!(err.to_string().contains("strict egress"), "{err}");
     assert_eq!(
         h.fake.creates.load(std::sync::atomic::Ordering::SeqCst),
         0,
         "nothing created"
     );
+
+    // A deny policy is strict without `enforce`.
+    h.write_charter(
+        "implied",
+        &binaries_charter("[network]\ndefault = \"deny\""),
+    );
+    let c = h.mgr.load_profile("implied").await.expect("charter");
+    let (mut env, mut secrets) = (Default::default(), Vec::new());
+    let gov = h
+        .mgr
+        .prepare_governance(&c, &mut env, &mut secrets)
+        .await
+        .expect("deny implies strict egress");
+    assert!(gov.broker.as_ref().expect("broker").attribution().is_some());
 
     // Strict egress: the broker gets an attribution key and the supervisor
     // is required, without [filesystem] or [process], with the same key.

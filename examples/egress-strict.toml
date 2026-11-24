@@ -1,7 +1,7 @@
 # Strict (L3) deny-by-default egress on Kubernetes.
 #
-# Unlike egress-demo (cooperative HTTP(S)_PROXY, which an app can bypass by
-# ignoring the proxy env), enforce = "strict" makes the k8s backend inject a
+# Like every deny policy (enforce = "strict" is the default and is spelled out
+# here only for clarity), this makes the k8s backend inject a
 # privileged iptables init container that transparently redirects ALL egress
 # through the proxy sidecar. The proxy recovers the destination from the TLS
 # SNI / HTTP Host header and enforces the allowlist below in the kernel path.

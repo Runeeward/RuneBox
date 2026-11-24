@@ -96,7 +96,7 @@ pub fn validate_strict_egress_user(spec: &Spec) -> Result<()> {
     match numeric_uid(&spec.user) {
         Some(uid) if uid == u64::from(runebox_egress::STRICT_PROXY_UID) => {
             Err(BackendError::msg(format!(
-                "host.user uid {uid} is reserved for strict egress and cannot be used when network.enforce=strict"
+                "host.user uid {uid} is reserved for strict egress and cannot be used with [network] default = \"deny\""
             )))
         }
         _ => Ok(()),
@@ -218,7 +218,8 @@ mod tests {
             enforce: "strict".into(),
             ..Network::default()
         };
-        let coop = Network {
+        // A deny policy without `enforce` is strict too.
+        let implied = Network {
             default: "deny".into(),
             ..Network::default()
         };
@@ -227,7 +228,8 @@ mod tests {
             ("1337:1337", strict.clone(), true),
             ("1000", strict.clone(), false),
             ("root", strict, false),
-            ("1337", coop, false),
+            ("1337", implied, true),
+            ("1337", Network::default(), false),
         ];
         for (user, network, want_err) in cases {
             let spec = Spec {

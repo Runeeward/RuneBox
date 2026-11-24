@@ -86,14 +86,19 @@ Please disclose privately; do not open a public issue.
   RBAC principal name, else `X-Runebox-Actor`, else the peer address) in the
   audit ledger.
 - **Deny-by-default egress, enforced at L3 on both backends.** Network access is
-  denied unless explicitly allowlisted. Cooperative mode points the sandbox at
-  the proxy via `HTTP(S)_PROXY` (the host proxy requires a per-cell credential);
-  strict mode (`network.enforce = "strict"`) enforces transparently at the
-  kernel: on Kubernetes via an iptables init container + sidecar sharing the pod
-  netns, and on Docker via a `NET_ADMIN` egress sidecar that owns the netns
-  (the sandbox joins it with `--network container:…`). In strict mode all TCP is
-  redirected through the proxy regardless of proxy env, so code that ignores it
-  can't bypass the allowlist. The strict path also drops non-DNS UDP (blocking
+  denied unless explicitly allowlisted. `default = "deny"` is always enforced
+  transparently at the kernel (strict mode; `network.enforce` may be left out
+  or set to `"strict"`): on Kubernetes via an iptables init container +
+  sidecar sharing the pod netns, and on Docker via a `NET_ADMIN` egress
+  sidecar that owns the netns (the sandbox joins it with `--network
+  container:…`). All TCP is redirected through the proxy regardless of proxy
+  env, so code that ignores it can't bypass the allowlist. A backend that
+  cannot do this refuses the Citadel instead of running it with proxy
+  settings only: on Docker/Podman that is a deny Citadel under gVisor or
+  Kata, whose traffic the sidecar's rules cannot see (use runc or crun, or
+  the k8s or microvm backend). The proxy-settings path (`HTTP(S)_PROXY`, with
+  a per-cell credential) remains only for a broker under an open network
+  policy, where it swaps placeholders and polices nothing else. The strict path also drops non-DNS UDP (blocking
   QUIC/HTTP3 bypass) and IPv6 egress; setting `RUNEBOX_DNS_RESOLVERS`
   (comma-separated IPs) additionally confines DNS (UDP+TCP :53) to those
   resolvers, closing DNS as a covert exfil channel.
@@ -412,8 +417,8 @@ on the host kernel. What crosses the boundary, and why:
 
 ### Broker secrets in the egress sidecar
 
-In cooperative mode on Docker/Podman the broker runs inside the control plane,
-so resolved credentials never leave it. Strict mode and Kubernetes run the
+Under an open network policy on Docker/Podman (cooperative mode) the broker
+runs inside the control plane, so resolved credentials never leave it. Strict mode and Kubernetes run the
 proxy in a sidecar, which needs the secrets to inject them. The control plane
 hands the sidecar a `runebox.egress.broker.v1` document (endpoints, resolved
 credential values, the placeholders already set in the Citadel, and the
@@ -433,8 +438,9 @@ per-Citadel CA certificate and private key) through `runebox-egress
 Anyone who can read the sidecar's filesystem or memory, or read Secrets in the
 Citadel namespace, can read those credentials: the container engine, node
 root, and Kubernetes principals with Secret read or `pods/exec` on the egress
-container. Grant that access accordingly, or use cooperative mode on
-Docker/Podman when credentials must stay on the control-plane host. Approval
+container. Grant that access accordingly, or use an open network policy on
+Docker/Podman when credentials must stay on the control-plane host (a deny
+policy always runs the sidecar). Approval
 routing is not available in the sidecar yet: a `require-approval` request
 there is refused. Strict-mode decisions are read back from the sidecar's log
 stream into the perimeter list and the Chronicle, on Docker/Podman and on
