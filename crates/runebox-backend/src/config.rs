@@ -15,6 +15,11 @@ pub const SANDBOX_CPUS_ENV: &str = "RUNEBOX_SANDBOX_CPUS";
 pub const SANDBOX_MEMORY_ENV: &str = "RUNEBOX_SANDBOX_MEMORY";
 /// Default process cap (`0`/`off`/`none` disables).
 pub const SANDBOX_PIDS_ENV: &str = "RUNEBOX_SANDBOX_PIDS";
+/// Default disk cap: ephemeral storage on Kubernetes, `--storage-opt size`
+/// on Docker/Podman (bytes or k/m/g/t suffix; `0`/`off`/`none` disables).
+pub const SANDBOX_DISK_ENV: &str = "RUNEBOX_SANDBOX_DISK";
+/// Most Citadels one backend runs at once (`0`/`off`/`none` disables).
+pub const MAX_CITADELS_ENV: &str = "RUNEBOX_MAX_CITADELS";
 /// Egress sidecar image.
 pub const EGRESS_IMAGE_ENV: &str = "RUNEBOX_EGRESS_IMAGE";
 /// Kubernetes pull policy for the egress sidecar (Always|Never|IfNotPresent).
@@ -25,7 +30,10 @@ pub const DNS_RESOLVERS_ENV: &str = "RUNEBOX_DNS_RESOLVERS";
 pub const KUBE_CONTEXT_ENV: &str = "RUNEBOX_KUBE_CONTEXT";
 /// Namespace for sandbox pods (default `runebox`).
 pub const K8S_NAMESPACE_ENV: &str = "RUNEBOX_K8S_NAMESPACE";
-/// Installs a default-deny NetworkPolicy when truthy.
+/// The NetworkPolicy for Citadel pods: unset or `public` (default) denies
+/// ingress and allows only DNS and public addresses out; `dns-only` (or a
+/// legacy truthy value) allows only DNS; `off`/`0`/`false`/`no` installs
+/// none.
 pub const K8S_NETWORK_POLICY_ENV: &str = "RUNEBOX_K8S_NETWORK_POLICY";
 /// Pod Security Admission enforce level (privileged|baseline|restricted).
 pub const K8S_PSA_ENFORCE_ENV: &str = "RUNEBOX_K8S_PSA_ENFORCE";
@@ -79,6 +87,8 @@ const ALL_ENV: &[&str] = &[
     SANDBOX_CPUS_ENV,
     SANDBOX_MEMORY_ENV,
     SANDBOX_PIDS_ENV,
+    SANDBOX_DISK_ENV,
+    MAX_CITADELS_ENV,
     EGRESS_IMAGE_ENV,
     EGRESS_PULL_POLICY_ENV,
     DNS_RESOLVERS_ENV,
@@ -103,8 +113,10 @@ const ALL_ENV: &[&str] = &[
     MICROVM_MKFS_ENV,
 ];
 
-/// The image used when neither the Charter nor the operator picks one.
-pub const DEFAULT_IMAGE: &str = "debian:stable-slim";
+/// The image used when neither the Charter nor the operator picks one,
+/// pinned by digest.
+pub const DEFAULT_IMAGE: &str =
+    "debian:stable-slim@sha256:fbfb4059d2127120aa05b6e6064523d2102552f0cf0026ddf0701c12f1f8f3e0";
 /// The egress sidecar image used when `RUNEBOX_EGRESS_IMAGE` is unset.
 pub const DEFAULT_EGRESS_IMAGE: &str = "runebox-egress:latest";
 /// The Kubernetes namespace used when `RUNEBOX_K8S_NAMESPACE` is unset.
@@ -116,6 +128,10 @@ pub const FALLBACK_MEMORY_BYTES: i64 = 4 << 30;
 pub const FALLBACK_NANO_CPUS: i64 = 2_000_000_000;
 /// Secure-by-default process ceiling for a sandbox.
 pub const FALLBACK_PIDS_LIMIT: i64 = 1024;
+/// Default disk ceiling for a sandbox (10 GiB).
+pub const FALLBACK_DISK_BYTES: i64 = 10 << 30;
+/// Default ceiling on Citadels per backend (per namespace on Kubernetes).
+pub const FALLBACK_MAX_CITADELS: i64 = 50;
 /// VM overhead memory when `RUNEBOX_VM_OVERHEAD_MEMORY` is unset: Kata's
 /// shipped `default_memory` (2048 MiB).
 pub const FALLBACK_VM_OVERHEAD_MEMORY_BYTES: i64 = 2048 << 20;
@@ -234,6 +250,29 @@ impl BackendConfig {
         )
     }
 
+    /// The disk cap in bytes (0 = uncapped).
+    pub fn sandbox_disk_bytes(&self) -> i64 {
+        limit_from_env(self.raw(SANDBOX_DISK_ENV), FALLBACK_DISK_BYTES, parse_size)
+    }
+
+    /// Whether the operator set the disk cap explicitly (Docker applies a
+    /// default only on storage drivers known to support it).
+    pub fn sandbox_disk_explicit(&self) -> bool {
+        !self.raw(SANDBOX_DISK_ENV).trim().is_empty()
+    }
+
+    /// The most Citadels a backend runs at once (0 = no limit).
+    pub fn max_citadels(&self) -> i64 {
+        limit_from_env(
+            self.raw(MAX_CITADELS_ENV),
+            FALLBACK_MAX_CITADELS,
+            |s| match s.parse::<i64>() {
+                Ok(n) if n >= 0 => Some(n),
+                _ => None,
+            },
+        )
+    }
+
     /// The egress sidecar image.
     pub fn egress_image(&self) -> String {
         non_empty(self.raw(EGRESS_IMAGE_ENV), DEFAULT_EGRESS_IMAGE)
@@ -264,9 +303,23 @@ impl BackendConfig {
         non_empty(self.raw(K8S_NAMESPACE_ENV), DEFAULT_K8S_NAMESPACE)
     }
 
-    /// Whether the default-deny NetworkPolicy is installed.
+    /// Whether a NetworkPolicy is installed for Citadel pods.
     pub fn k8s_network_policy(&self) -> bool {
-        env_truthy(self.raw(K8S_NETWORK_POLICY_ENV))
+        self.k8s_network_policy_mode() != NetworkPolicyMode::Off
+    }
+
+    /// Which NetworkPolicy Citadel pods get (see [`K8S_NETWORK_POLICY_ENV`]).
+    pub fn k8s_network_policy_mode(&self) -> NetworkPolicyMode {
+        let raw = self.raw(K8S_NETWORK_POLICY_ENV);
+        match raw.trim().to_lowercase().as_str() {
+            "" | "public" => NetworkPolicyMode::PublicEgress,
+            "dns-only" => NetworkPolicyMode::DnsOnly,
+            "0" | "false" | "no" | "off" | "none" => NetworkPolicyMode::Off,
+            // Before it was on by default, a truthy value meant DNS only.
+            _ if env_truthy(raw) => NetworkPolicyMode::DnsOnly,
+            // Unknown values keep the default.
+            _ => NetworkPolicyMode::PublicEgress,
+        }
     }
 
     /// The Pod Security Admission enforce level.
@@ -305,6 +358,19 @@ impl BackendConfig {
             "off" | "0" | "false" | "no"
         )
     }
+}
+
+/// The NetworkPolicy installed for Citadel pods on Kubernetes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NetworkPolicyMode {
+    /// None.
+    Off,
+    /// No ingress; egress to DNS only.
+    DnsOnly,
+    /// No ingress; egress to DNS and public (non-private, non-link-local)
+    /// addresses. The egress proxy or strict rules inside the pod still
+    /// decide which hosts are reached.
+    PublicEgress,
 }
 
 fn non_empty(v: &str, fallback: &str) -> String {
@@ -455,7 +521,8 @@ mod tests {
         assert_eq!(c.psa_enforce_level(), "privileged");
         assert_eq!(c.egress_pull_policy(), "IfNotPresent");
         assert_eq!(c.egress_image(), "runebox-egress:latest");
-        assert!(!c.k8s_network_policy());
+        assert!(c.k8s_network_policy());
+        assert_eq!(c.k8s_network_policy_mode(), NetworkPolicyMode::PublicEgress);
         assert!(c.kube_context().is_none());
 
         let c = BackendConfig::from_pairs([
@@ -468,7 +535,7 @@ mod tests {
         assert_eq!(c.k8s_namespace(), "sbx");
         assert_eq!(c.psa_enforce_level(), "restricted");
         assert_eq!(c.egress_pull_policy(), "Never");
-        assert!(c.k8s_network_policy());
+        assert_eq!(c.k8s_network_policy_mode(), NetworkPolicyMode::DnsOnly);
         assert_eq!(c.kube_context().as_deref(), Some("kind"));
         // Pull policy and PSA level are case-sensitive, as in Go.
         let c = BackendConfig::from_pairs([
@@ -477,6 +544,49 @@ mod tests {
         ]);
         assert_eq!(c.egress_pull_policy(), "IfNotPresent");
         assert_eq!(c.psa_enforce_level(), "privileged");
+    }
+
+    #[test]
+    fn network_policy_modes() {
+        let mode = |v: &str| {
+            BackendConfig::from_pairs([(K8S_NETWORK_POLICY_ENV, v)]).k8s_network_policy_mode()
+        };
+        for v in ["", " ", "public", "PUBLIC", "bogus"] {
+            assert_eq!(mode(v), NetworkPolicyMode::PublicEgress, "{v:?}");
+        }
+        for v in ["dns-only", "1", "true", "yes", "on"] {
+            assert_eq!(mode(v), NetworkPolicyMode::DnsOnly, "{v:?}");
+        }
+        for v in ["off", "0", "false", "No", "none"] {
+            assert_eq!(mode(v), NetworkPolicyMode::Off, "{v:?}");
+            let c = BackendConfig::from_pairs([(K8S_NETWORK_POLICY_ENV, v)]);
+            assert!(!c.k8s_network_policy());
+        }
+    }
+
+    #[test]
+    fn quota_defaults() {
+        let c = BackendConfig::default();
+        assert_eq!(c.sandbox_disk_bytes(), 10 << 30);
+        assert!(!c.sandbox_disk_explicit());
+        assert_eq!(c.max_citadels(), 50);
+        let c = BackendConfig::from_pairs([(SANDBOX_DISK_ENV, "2g"), (MAX_CITADELS_ENV, "7")]);
+        assert_eq!(c.sandbox_disk_bytes(), 2 << 30);
+        assert!(c.sandbox_disk_explicit());
+        assert_eq!(c.max_citadels(), 7);
+        let c = BackendConfig::from_pairs([(SANDBOX_DISK_ENV, "off"), (MAX_CITADELS_ENV, "0")]);
+        assert_eq!(c.sandbox_disk_bytes(), 0);
+        assert_eq!(c.max_citadels(), 0);
+        let c = BackendConfig::from_pairs([(SANDBOX_DISK_ENV, "lots"), (MAX_CITADELS_ENV, "-2")]);
+        assert_eq!(c.sandbox_disk_bytes(), 10 << 30);
+        assert_eq!(c.max_citadels(), 50);
+    }
+
+    #[test]
+    fn default_image_is_pinned() {
+        let (_, digest) = DEFAULT_IMAGE.rsplit_once("@sha256:").expect("digest");
+        assert_eq!(digest.len(), 64);
+        assert!(digest.bytes().all(|b| b.is_ascii_hexdigit()));
     }
 
     #[test]

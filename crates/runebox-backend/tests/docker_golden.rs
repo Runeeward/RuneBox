@@ -14,8 +14,8 @@ use runebox_backend::config::{
 };
 use runebox_backend::evidence::PROBE_MARKER;
 use runebox_backend::{
-    Backend, BackendConfig, Docker, ExecRequest, IsolationTier, LABEL_PROFILE, PtyStream,
-    Resources, Spec,
+    Backend, BackendConfig, BackendError, Docker, ExecRequest, IsolationTier, LABEL_PROFILE,
+    PtyStream, Resources, Spec,
 };
 use runebox_charter::{File, Network, NetworkRule};
 use serde::Deserialize;
@@ -58,7 +58,9 @@ static PROJ_TMP: LazyLock<Regex> =
 
 /// Applies the same normalisation as the Go fixture generator.
 fn norm(s: &str) -> String {
-    let s = HEX_ID.replace_all(s, "<ID>");
+    // Go's default image was the same one, unpinned.
+    let s = s.replace(runebox_backend::config::DEFAULT_IMAGE, "debian:stable-slim");
+    let s = HEX_ID.replace_all(&s, "<ID>");
     let s = PROXY_URL.replace_all(&s, "http://runebox:<ID>@$1:<PORT>");
     PROJ_TMP.replace_all(&s, "<TMP>").into_owned()
 }
@@ -123,11 +125,28 @@ impl FakeCli {
 
     /// Every invocation except the isolation probe, which the Go
     /// implementation never made (see [`FakeCli::probes`]).
+    /// The CLI calls Go also made: probes and the Citadel-count check
+    /// (the `ps` listing before a new workspace volume; Go had no limit)
+    /// are left out.
     fn calls(&self) -> Vec<Vec<String>> {
-        self.all_calls()
+        let calls: Vec<Vec<String>> = self
+            .all_calls()
             .into_iter()
             .filter(|c| !is_probe(c))
-            .collect()
+            .collect();
+        let mut out: Vec<Vec<String>> = Vec::with_capacity(calls.len());
+        for c in calls {
+            if c.starts_with(&["volume".to_owned(), "create".to_owned()]) {
+                while out
+                    .last()
+                    .is_some_and(|p| p.starts_with(&["ps".to_owned(), "-a".to_owned()]))
+                {
+                    out.pop();
+                }
+            }
+            out.push(c);
+        }
+        out
     }
 
     /// The isolation probe invocations.
@@ -252,7 +271,7 @@ async fn create_scenarios_match_go() {
     let sb = d.create(demo("demo")).await.expect("create");
     assert_eq!(sb.backend, "docker");
     assert_eq!(sb.status, "running");
-    assert_eq!(sb.image, "debian:stable-slim");
+    assert_eq!(sb.image, runebox_backend::config::DEFAULT_IMAGE);
     assert_eq!(sb.isolation, IsolationTier::Container);
     let ev = sb.isolation_evidence.as_ref().expect("evidence");
     assert_eq!(ev.runtime, "runc");
@@ -325,40 +344,78 @@ async fn egress_scenarios_match_go() {
     let go = go_fixtures();
     let cli = FakeCli::new();
 
-    let d = backend(&cli, "docker", BackendConfig::default()).await;
-    let spec = Spec {
-        network: deny_network(""),
-        ..demo("net")
-    };
-    let sb = d.create(spec.clone()).await.expect("create");
-    d.kill(&sb.id).await.expect("kill");
-    assert_matches_go("cooperative-docker", &cli, &go);
+    // A deny policy is enforced by the strict sidecar whether or not
+    // `enforce` is spelled out, so all three produce Go's strict argv. (Go
+    // ran a deny policy without `enforce` through proxy settings only; the
+    // "cooperative-*" fixtures record that and no longer apply.)
+    for enforce in ["strict", "", "l3"] {
+        let cfg = BackendConfig::from_pairs([
+            (EGRESS_IMAGE_ENV, "registry.example/egress:2"),
+            (DNS_RESOLVERS_ENV, "1.1.1.1,8.8.8.8"),
+        ]);
+        let d = backend(&cli, "docker", cfg).await;
+        let spec = Spec {
+            network: deny_network(enforce),
+            user: "1000".into(),
+            ..demo("strict")
+        };
+        let sb = d.create(spec).await.expect("create");
+        let ip = d
+            .reachable()
+            .expect("reachable")
+            .container_ip(&sb.id)
+            .await
+            .expect("ip");
+        assert_eq!(ip, "172.17.0.9");
+        d.kill(&sb.id).await.expect("kill");
+        assert_matches_go("strict", &cli, &go);
+    }
 
     let d = backend(&cli, "podman", BackendConfig::default()).await;
     assert_eq!(d.name(), "podman");
-    d.create(spec).await.expect("create");
-    assert_matches_go("cooperative-podman", &cli, &go);
+    d.create(Spec {
+        network: deny_network(""),
+        ..demo("net")
+    })
+    .await
+    .expect("create");
+    let calls = canon(&cli.calls());
+    assert!(
+        calls
+            .iter()
+            .any(|c| c.iter().any(|a| a == "--setup-iptables")),
+        "{calls:#?}"
+    );
+    let run = calls
+        .iter()
+        .find(|c| c.iter().any(|a| a == "runebox-<ID>"))
+        .expect("sandbox run");
+    assert!(
+        run.iter().any(|a| a == "container:runebox-egress-<ID>"),
+        "{run:?}"
+    );
+    assert!(!run.iter().any(|a| a.contains("_PROXY=")), "{run:?}");
+}
 
-    let cfg = BackendConfig::from_pairs([
-        (EGRESS_IMAGE_ENV, "registry.example/egress:2"),
-        (DNS_RESOLVERS_ENV, "1.1.1.1,8.8.8.8"),
-    ]);
-    let d = backend(&cli, "docker", cfg).await;
-    let spec = Spec {
-        network: deny_network("strict"),
-        user: "1000".into(),
-        ..demo("strict")
-    };
-    let sb = d.create(spec).await.expect("create");
-    let ip = d
-        .reachable()
-        .expect("reachable")
-        .container_ip(&sb.id)
-        .await
-        .expect("ip");
-    assert_eq!(ip, "172.17.0.9");
-    d.kill(&sb.id).await.expect("kill");
-    assert_matches_go("strict", &cli, &go);
+#[tokio::test(flavor = "multi_thread")]
+async fn deny_under_a_vm_or_gvisor_runtime_is_refused() {
+    let cli = FakeCli::new();
+    for rc in ["runsc", "kata-qemu"] {
+        let d = backend(&cli, "docker", BackendConfig::default()).await;
+        let err = d
+            .create(Spec {
+                network: deny_network(""),
+                runtime_class: rc.into(),
+                ..demo("net")
+            })
+            .await
+            .expect_err(rc);
+        assert!(
+            matches!(&err, BackendError::Unsupported(m) if m.contains(rc)),
+            "{rc}: {err}"
+        );
+        assert!(cli.calls().is_empty(), "{rc}: nothing is created");
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]

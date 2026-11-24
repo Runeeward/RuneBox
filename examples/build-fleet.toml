@@ -107,7 +107,7 @@ file = "~/.runebox-openai.key"
 name = "ANTHROPIC_API_KEY"
 file = "~/.runebox-anthropic.key"
 
-# Node-based CLIs (Cursor, Claude Code) honor the egress proxy in cooperative mode.
+# Node-based CLIs (Cursor, Claude Code) honor HTTP(S)_PROXY when one is set.
 [[env]]
 name  = "NODE_USE_ENV_PROXY"
 value = "1"

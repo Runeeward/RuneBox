@@ -22,7 +22,7 @@ policy_default = "allow"
 
 [host]
 type    = "container"
-image   = "ghcr.io/runeeward/runebox-sandbox:latest"
+image   = "ghcr.io/runeeward/runebox-sandbox:v0.4.4@sha256:2d474e36f9e26cff4b14757ab4c26dd239e91c14d4b05ca2220fdb7fec7759c1"
 workdir = "/workspace"
 
 # Start with no outbound network access. Add only the hosts the task needs.
@@ -478,7 +478,7 @@ mod tests {
             },
         )
         .unwrap();
-        assert_eq!(p.host.image, "ghcr.io/runeeward/runebox-sandbox:latest");
+        assert_eq!(p.host.image, runebox_charter::DEFAULT_SANDBOX_IMAGE);
         assert_eq!(p.network.default, "deny");
         let findings = runebox_charter::lint(&p);
         assert!(

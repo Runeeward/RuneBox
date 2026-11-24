@@ -205,8 +205,10 @@ async fn alpine_lifecycle() {
     }
 }
 
+/// A deny policy without `enforce` runs behind the strict sidecar: no proxy
+/// settings, and a direct request to an unlisted host still fails.
 #[tokio::test(flavor = "multi_thread")]
-async fn alpine_cooperative_egress_denies_unlisted_hosts() {
+async fn alpine_deny_egress_is_enforced_without_proxy_settings() {
     if !enabled() {
         eprintln!("skipping: set RUNEBOX_TEST_DOCKER=1 to run");
         return;
@@ -230,7 +232,7 @@ async fn alpine_cooperative_egress_denies_unlisted_hosts() {
     };
     let sb = d.create(cleanup.assign(spec)).await.expect("create");
     let (_, out) = exec_out(&d, &sb.id, &["sh", "-c", "echo $HTTP_PROXY"]).await;
-    assert!(out.starts_with("http://runebox:"), "{out}");
+    assert!(out.trim().is_empty(), "{out}");
     let res = d
         .exec(
             &sb.id,
@@ -238,15 +240,7 @@ async fn alpine_cooperative_egress_denies_unlisted_hosts() {
         )
         .await
         .expect("exec");
-    assert_ne!(res.exit_code, 0);
-    assert!(res.stderr.contains("403"), "{}", res.stderr);
-    let (_, v6) = exec_out(
-        &d,
-        &sb.id,
-        &["cat", "/proc/sys/net/ipv6/conf/all/disable_ipv6"],
-    )
-    .await;
-    assert_eq!(v6.trim(), "1");
+    assert_ne!(res.exit_code, 0, "{}", res.stdout);
     d.kill(&sb.id).await.expect("kill");
 }
 

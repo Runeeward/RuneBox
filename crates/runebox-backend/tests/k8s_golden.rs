@@ -15,7 +15,7 @@ use kube::Client;
 use regex::Regex;
 use runebox_backend::config::{
     EGRESS_IMAGE_ENV, EGRESS_PULL_POLICY_ENV, ISOLATION_PROBE_ENV, K8S_DIRECT_VOLUME_CLASS_ENV,
-    K8S_NETWORK_POLICY_ENV, K8S_PSA_ENFORCE_ENV,
+    K8S_NETWORK_POLICY_ENV, K8S_PSA_ENFORCE_ENV, MAX_CITADELS_ENV, SANDBOX_DISK_ENV,
 };
 use runebox_backend::k8s::{quantity_binary_si, quantity_milli_decimal_si, wrap_command};
 use runebox_backend::{Backend, BackendConfig, IsolationTier, K8s, LABEL_PROFILE, Resources, Spec};
@@ -146,6 +146,32 @@ async fn handle(store: Store, req: Request<kube::client::Body>) -> Response<Full
                 .insert(last.to_owned(), obj.clone());
             respond(StatusCode::OK, &obj)
         }
+        Method::PATCH => {
+            // JSON merge patch (RFC 7386) onto the stored object.
+            fn merge(target: &mut Value, patch: &Value) {
+                match (target, patch) {
+                    (Value::Object(t), Value::Object(p)) => {
+                        for (k, v) in p {
+                            if v.is_null() {
+                                t.remove(k);
+                            } else {
+                                merge(t.entry(k.clone()).or_insert(Value::Null), v);
+                            }
+                        }
+                    }
+                    (t, p) => *t = p.clone(),
+                }
+            }
+            let patch: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
+            let mut s = lock(&store);
+            match s.get_mut(parent).and_then(|c| c.get_mut(last)) {
+                Some(obj) => {
+                    merge(obj, &patch);
+                    respond(StatusCode::OK, obj)
+                }
+                None => status(StatusCode::NOT_FOUND, "NotFound"),
+            }
+        }
         Method::DELETE => {
             let mut s = lock(&store);
             match s.get_mut(parent).and_then(|c| c.remove(last)) {
@@ -203,7 +229,11 @@ fn normalize(v: &Value) -> Value {
                     Some(Value::Object(out))
                 }
             }
-            Value::String(s) => Some(Value::String(HEX_ID.replace_all(s, "<ID>").into_owned())),
+            Value::String(s) => {
+                // Go's default image was the same one, unpinned.
+                let s = s.replace(runebox_backend::config::DEFAULT_IMAGE, "debian:stable-slim");
+                Some(Value::String(HEX_ID.replace_all(&s, "<ID>").into_owned()))
+            }
             other => Some(other.clone()),
         }
     }
@@ -229,6 +259,77 @@ fn without_egress_resources(pods: &mut [Value]) {
             }
         }
     }
+}
+
+/// Rust hardens Citadel pods beyond Go: no service-account token, a disk
+/// cap on the sandbox container, and an egress sidecar without capabilities
+/// or privilege escalation. Checks those and removes them, so the rest of
+/// the Pod still compares against Go's.
+fn without_hardening(pods: &mut [Value]) {
+    for pod in pods.iter_mut() {
+        let spec = pod["spec"].as_object_mut().expect("spec");
+        assert_eq!(
+            spec.remove("automountServiceAccountToken"),
+            Some(json!(false))
+        );
+        for c in spec["containers"].as_array_mut().expect("containers") {
+            if c["name"] == "sandbox" {
+                let res = &mut c["resources"];
+                assert_eq!(res["limits"]["ephemeral-storage"], "10Gi");
+                assert_eq!(res["requests"]["ephemeral-storage"], "256Mi");
+                for k in ["limits", "requests"] {
+                    res[k].as_object_mut().expect(k).remove("ephemeral-storage");
+                }
+            }
+            if c["name"] == "egress" {
+                let sec = c["securityContext"]
+                    .as_object_mut()
+                    .expect("egress securityContext");
+                assert_eq!(sec.remove("allowPrivilegeEscalation"), Some(json!(false)));
+                assert_eq!(sec.remove("capabilities"), Some(json!({"drop": ["ALL"]})));
+                if sec.contains_key("runAsUser") {
+                    assert_eq!(sec.remove("runAsNonRoot"), Some(json!(true)));
+                }
+            }
+        }
+    }
+    for pod in pods.iter_mut() {
+        *pod = normalize(pod);
+    }
+}
+
+/// Go's namespace had `baseline` warn/audit labels; Rust's are
+/// `restricted`.
+fn without_restricted_warnings(ns: &mut Value) {
+    let labels = &mut ns["metadata"]["labels"];
+    for k in [
+        "pod-security.kubernetes.io/warn",
+        "pod-security.kubernetes.io/audit",
+    ] {
+        assert_eq!(labels[k], "restricted", "{k}");
+        labels[k] = json!("baseline");
+    }
+}
+
+/// Splits off the Citadel NetworkPolicy, which Rust installs by default
+/// and scopes to Citadel pods (Go's opt-in policy selected every pod).
+/// Checks it against the mode the scenario configured.
+fn without_default_policy(policies: &mut Vec<Value>, env: &[(&str, &str)]) {
+    let i = policies
+        .iter()
+        .position(|p| p["metadata"]["name"] == "runebox-default-deny")
+        .expect("default policy");
+    let np = policies.remove(i);
+    let spec = &np["spec"];
+    assert_eq!(
+        spec["podSelector"],
+        json!({"matchExpressions": [{"key": "runebox.id", "operator": "Exists"}]})
+    );
+    let dns_only = env
+        .iter()
+        .any(|(k, v)| *k == K8S_NETWORK_POLICY_ENV && ["1", "true"].contains(v));
+    let egress = spec["egress"].as_array().expect("egress");
+    assert_eq!(egress.len(), if dns_only { 1 } else { 2 }, "{np}");
 }
 
 /// Rust runs the in-sandbox supervisor on Kubernetes (Go refused it).
@@ -469,13 +570,19 @@ fn scenarios() -> Vec<Scenario> {
             pre_namespace: Some(json!({"metadata": {"name": NS, "labels": psa("privileged")}})),
             want_tier: IsolationTier::Container,
         },
+        // A deny policy without `enforce` gets the same strict Pod as an
+        // explicit `enforce = "l3"`. (Go gave it proxy settings only; its
+        // "cooperative" fixture records that and no longer applies.)
         Scenario {
-            name: "cooperative",
-            env: vec![],
+            name: "strict",
+            env: vec![
+                (EGRESS_IMAGE_ENV, "registry.example/egress:2"),
+                (EGRESS_PULL_POLICY_ENV, "Never"),
+                (K8S_NETWORK_POLICY_ENV, "1"),
+            ],
             spec: Spec {
                 network: deny_network(""),
-                env: BTreeMap::from([("X".into(), "y".into())]),
-                ..demo("net")
+                ..demo("strict")
             },
             pre_namespace: None,
             want_tier: IsolationTier::Container,
@@ -519,7 +626,8 @@ async fn created_objects_match_go() {
 
         let want = &go[sc.name];
         let base = format!("/api/v1/namespaces/{NS}");
-        let ns = lock(&store)["/api/v1/namespaces"][NS].clone();
+        let mut ns = lock(&store)["/api/v1/namespaces"][NS].clone();
+        without_restricted_warnings(&mut ns);
         assert_eq!(
             normalize(&ns),
             normalize(&want["namespace"]),
@@ -538,8 +646,13 @@ async fn created_objects_match_go() {
             let mut got = normalize_all(&collection(&store, &path));
             if key == "pods" {
                 without_egress_resources(&mut got);
+                without_hardening(&mut got);
             }
-            let want = normalize_all(want[key].as_array().map(Vec::as_slice).unwrap_or(&[]));
+            let mut want = normalize_all(want[key].as_array().map(Vec::as_slice).unwrap_or(&[]));
+            if key == "networkpolicies" {
+                without_default_policy(&mut got, &sc.env);
+                want.retain(|p| p["metadata"]["name"] != "runebox-default-deny");
+            }
             if key == "pods" || key == "pvcs" {
                 assert_eq!(got.len(), 1, "{}: {key}", sc.name);
             }
@@ -585,6 +698,7 @@ async fn supervised_pods_are_the_go_pods_plus_the_supervisor() {
         let base = format!("/api/v1/namespaces/{NS}");
         let mut got = normalize_all(&collection(&store, &format!("{base}/pods")));
         without_egress_resources(&mut got);
+        without_hardening(&mut got);
         without_supervisor(&mut got, &egress_image);
         let want = normalize_all(go[sc.name]["pods"].as_array().expect("pods"));
         assert_eq!(
@@ -673,8 +787,8 @@ async fn ensure_namespace_sets_psa_labels() {
     let ns = lock(&store)["/api/v1/namespaces"][NS].clone();
     let labels = &ns["metadata"]["labels"];
     assert_eq!(labels["pod-security.kubernetes.io/enforce"], "privileged");
-    assert_eq!(labels["pod-security.kubernetes.io/warn"], "baseline");
-    assert_eq!(labels["pod-security.kubernetes.io/audit"], "baseline");
+    assert_eq!(labels["pod-security.kubernetes.io/warn"], "restricted");
+    assert_eq!(labels["pod-security.kubernetes.io/audit"], "restricted");
     assert_eq!(labels["runebox.managed"], "true");
 }
 
@@ -698,26 +812,96 @@ async fn ensure_namespace_patches_existing_psa_labels() {
 }
 
 #[tokio::test]
-async fn ensure_network_policy_gated_by_env() {
+async fn ensure_network_policy_defaults_on() {
     let path = format!("/apis/networking.k8s.io/v1/namespaces/{NS}/networkpolicies");
     let store: Store = Arc::default();
-    let k = K8s::with_client(fake_client(&store), BackendConfig::default());
+    let off = BackendConfig::from_pairs([(K8S_NETWORK_POLICY_ENV, "off")]);
+    let k = K8s::with_client(fake_client(&store), off);
     k.ensure_network_policy().await.expect("disabled");
     assert!(collection(&store, &path).is_empty());
 
-    let cfg = BackendConfig::from_pairs([(K8S_NETWORK_POLICY_ENV, "true")]);
-    let k = K8s::with_client(fake_client(&store), cfg);
-    k.ensure_network_policy().await.expect("enabled");
+    // Default: Citadel pods only, no ingress, DNS and public egress.
+    let k = K8s::with_client(fake_client(&store), BackendConfig::default());
+    k.ensure_network_policy().await.expect("default");
     let nps = collection(&store, &path);
     assert_eq!(nps.len(), 1);
     let np = &nps[0];
     assert_eq!(np["metadata"]["name"], "runebox-default-deny");
+    assert_eq!(
+        np["spec"]["podSelector"]["matchExpressions"][0]["key"],
+        "runebox.id"
+    );
     assert!(np["spec"]["ingress"].as_array().is_none_or(Vec::is_empty));
-    let ports = np["spec"]["egress"][0]["ports"].as_array().expect("ports");
+    let egress = np["spec"]["egress"].as_array().expect("egress");
+    assert_eq!(egress.len(), 2);
+    let ports = egress[0]["ports"].as_array().expect("ports");
     assert_eq!(ports.len(), 2);
     assert!(ports.iter().all(|p| p["port"] == 53));
-    // Idempotent: AlreadyExists is not an error.
+    let v4 = &egress[1]["to"][0]["ipBlock"];
+    assert_eq!(v4["cidr"], "0.0.0.0/0");
+    assert!(
+        v4["except"]
+            .as_array()
+            .expect("except")
+            .contains(&json!("169.254.0.0/16"))
+    );
+    // Idempotent: an identical policy is left alone.
     k.ensure_network_policy().await.expect("idempotent");
+
+    // A changed mode (or an old every-pod policy) is replaced in place.
+    let cfg = BackendConfig::from_pairs([(K8S_NETWORK_POLICY_ENV, "true")]);
+    let k = K8s::with_client(fake_client(&store), cfg);
+    k.ensure_network_policy().await.expect("dns-only");
+    let nps = collection(&store, &path);
+    assert_eq!(nps.len(), 1);
+    assert_eq!(nps[0]["spec"]["egress"].as_array().map(Vec::len), Some(1));
+}
+
+#[tokio::test]
+async fn ensure_quota_caps_citadels() {
+    let path = format!("/api/v1/namespaces/{NS}/resourcequotas");
+    let store: Store = Arc::default();
+    let off = BackendConfig::from_pairs([(MAX_CITADELS_ENV, "off")]);
+    K8s::with_client(fake_client(&store), off)
+        .ensure_quota()
+        .await
+        .expect("disabled");
+    assert!(collection(&store, &path).is_empty());
+
+    let k = K8s::with_client(fake_client(&store), BackendConfig::default());
+    k.ensure_quota().await.expect("default");
+    let q = collection(&store, &path);
+    assert_eq!(q.len(), 1);
+    assert_eq!(q[0]["metadata"]["name"], "runebox-citadels");
+    assert_eq!(
+        q[0]["spec"]["hard"],
+        json!({"pods": "50", "persistentvolumeclaims": "50"})
+    );
+    k.ensure_quota().await.expect("idempotent");
+
+    let cfg = BackendConfig::from_pairs([(MAX_CITADELS_ENV, "5")]);
+    K8s::with_client(fake_client(&store), cfg)
+        .ensure_quota()
+        .await
+        .expect("update");
+    let q = collection(&store, &path);
+    assert_eq!(q.len(), 1);
+    assert_eq!(q[0]["spec"]["hard"]["pods"], "5");
+}
+
+#[tokio::test]
+async fn create_installs_quota_and_disk_cap() {
+    let store: Store = Arc::default();
+    let cfg = BackendConfig::from_pairs([(SANDBOX_DISK_ENV, "2g"), (MAX_CITADELS_ENV, "3")])
+        .with(ISOLATION_PROBE_ENV, "off");
+    let k = K8s::with_client(fake_client(&store), cfg);
+    k.create(demo("q")).await.expect("create");
+    let q = collection(&store, &format!("/api/v1/namespaces/{NS}/resourcequotas"));
+    assert_eq!(q[0]["spec"]["hard"]["pods"], "3");
+    let pods = collection(&store, &format!("/api/v1/namespaces/{NS}/pods"));
+    let sandbox = &pods[0]["spec"]["containers"][0];
+    assert_eq!(sandbox["resources"]["limits"]["ephemeral-storage"], "2Gi");
+    assert_eq!(pods[0]["spec"]["automountServiceAccountToken"], false);
 }
 
 #[test]

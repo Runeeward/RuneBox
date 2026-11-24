@@ -24,10 +24,8 @@ task_board = [
   "write factorial.py that prints 10! and run it",
 ]
 
-# Deny-by-default egress; only Cursor's endpoints are reachable. The Cursor CLI
-# is Node-based, so NODE_USE_ENV_PROXY=1 (below) makes it honor the cooperative
-# Docker proxy. For bypass-proof L3 enforcement, run on the k8s backend with
-# `enforce = "strict"`.
+# Deny-by-default egress; only Cursor's endpoints are reachable. The deny
+# policy is enforced in the kernel by the egress sidecar.
 [network]
 default = "deny"
 

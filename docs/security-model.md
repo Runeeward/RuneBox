@@ -25,6 +25,12 @@ Please disclose privately; do not open a public issue.
   capabilities dropped, `no-new-privileges`, a `--pids-limit`, and default
   memory/CPU ceilings (overridable via `RUNEBOX_SANDBOX_MEMORY`,
   `RUNEBOX_SANDBOX_CPUS`, `RUNEBOX_SANDBOX_PIDS`; set to `0` to disable).
+  `RUNEBOX_SANDBOX_DISK` (default `10g`) caps disk: ephemeral storage on
+  Kubernetes, `--storage-opt size` on Docker/Podman (applied by default on
+  btrfs, zfs and devicemapper; overlay2 needs xfs with `pquota`, so set it
+  explicitly there). `RUNEBOX_MAX_CITADELS` (default `50`) caps Citadels per
+  backend; on Kubernetes it is a ResourceQuota on pods and claims in the
+  namespace.
   Setting `host.read_only = true` mounts the root filesystem read-only (with a
   writable `/tmp` and the writable workspace) on both Docker and Kubernetes.
   `host.seccomp` / `host.apparmor` pin a seccomp/AppArmor profile (Docker
@@ -86,17 +92,25 @@ Please disclose privately; do not open a public issue.
   RBAC principal name, else `X-Runebox-Actor`, else the peer address) in the
   audit ledger.
 - **Deny-by-default egress, enforced at L3 on both backends.** Network access is
-  denied unless explicitly allowlisted. Cooperative mode points the sandbox at
-  the proxy via `HTTP(S)_PROXY` (the host proxy requires a per-cell credential);
-  strict mode (`network.enforce = "strict"`) enforces transparently at the
-  kernel: on Kubernetes via an iptables init container + sidecar sharing the pod
-  netns, and on Docker via a `NET_ADMIN` egress sidecar that owns the netns
-  (the sandbox joins it with `--network container:…`). In strict mode all TCP is
-  redirected through the proxy regardless of proxy env, so code that ignores it
-  can't bypass the allowlist. The strict path also drops non-DNS UDP (blocking
-  QUIC/HTTP3 bypass) and IPv6 egress; setting `RUNEBOX_DNS_RESOLVERS`
-  (comma-separated IPs) additionally confines DNS (UDP+TCP :53) to those
-  resolvers, closing DNS as a covert exfil channel.
+  denied unless explicitly allowlisted. `default = "deny"` is always enforced
+  transparently at the kernel (strict mode; `network.enforce` may be left out
+  or set to `"strict"`): on Kubernetes via an iptables init container +
+  sidecar sharing the pod netns, and on Docker via a `NET_ADMIN` egress
+  sidecar that owns the netns (the sandbox joins it with `--network
+  container:…`). All TCP is redirected through the proxy regardless of proxy
+  env, so code that ignores it can't bypass the allowlist. A backend that
+  cannot do this refuses the Citadel instead of running it with proxy
+  settings only: on Docker/Podman that is a deny Citadel under gVisor or
+  Kata, whose traffic the sidecar's rules cannot see (use runc or crun, or
+  the k8s or microvm backend). The proxy-settings path (`HTTP(S)_PROXY`, with
+  a per-cell credential) remains only for a broker under an open network
+  policy, where it swaps placeholders and polices nothing else. The strict
+  path also drops non-DNS UDP (blocking QUIC/HTTP3 bypass), outbound ICMP
+  other than replies to existing flows, and IPv6 egress, and confines DNS
+  (UDP and TCP :53, IPv4 and IPv6) to the resolvers: `RUNEBOX_DNS_RESOLVERS`
+  (comma-separated IPs) when set, else the nameservers in the Citadel's own
+  `/etc/resolv.conf`. With neither, strict egress fails to start and the
+  Citadel is refused.
 - **Credential broker.** A Charter's `[[credential]]`s are resolved by the
   control plane (from `env://`, `vault://`, `aws://`, `gcp://` or 1Password
   `op://` references) and never enter the Citadel: the agent gets an opaque
@@ -153,7 +167,12 @@ Please disclose privately; do not open a public issue.
 - **Guardrails.** Hard caps on wall-clock, exec count, egress requests, and
   token/spend budgets, plus retry-loop detection.
 - **Tamper-evident audit.** An append-only, hash-chained, ed25519-signed ledger,
-  independently verifiable offline. Events can also stream in real time to a
+  independently verifiable offline. The signing key lives in `keys/` beside
+  the ledger (0700, key 0400), or in `RUNEBOX_LEDGER_KEY_DIR`; a key found
+  next to the ledger moves there on start. `RUNEBOX_LEDGER_ANCHOR` appends
+  the ledger head to a file every `RUNEBOX_LEDGER_ANCHOR_INTERVAL` (default
+  `5m`) and on shutdown, and verification checks the ledger still matches
+  it; put both on storage the node can't rewrite. Events can also stream in real time to a
   webhook or file sink (`RUNEBOX_AUDIT_WEBHOOK_URL` / `RUNEBOX_AUDIT_FILE`)
   for SIEM ingestion, over a non-blocking queue that never stalls the ledger. A
   built-in anomaly detector flags novel egress targets, exec bursts, and denial
@@ -178,10 +197,13 @@ Please disclose privately; do not open a public issue.
   disable privilege escalation (a supervised one adds back `SETUID`, `SETGID`
   and `CHOWN` for the supervisor, which the `baseline` standard allows, and
   runs as root until the supervisor drops to the agent, which `restricted`
-  does not), and an optional default-deny NetworkPolicy
-  (DNS-only egress) isolates Citadel pods (`RUNEBOX_K8S_NETWORK_POLICY`, or the
-  chart's `networkPolicy.enabled`) so environments can't reach each other or the control
-  plane laterally.
+  does not). Warn and audit labels are `restricted`; enforce stays
+  `privileged` by default because strict egress needs `NET_ADMIN`. Citadel
+  pods get no service-account token, and a NetworkPolicy, on by default,
+  gives them no ingress and only DNS and public egress, so they can't reach
+  each other, the control plane, nodes or cloud metadata
+  (`RUNEBOX_K8S_NETWORK_POLICY`: `dns-only` or `off`). It needs a CNI that
+  enforces NetworkPolicy; allow private destinations with your own policy.
 - **Admission enforcement defaults.** The validating ClusterPolicy webhook is
   fail-closed (`failurePolicy: Fail`) so webhook outages block admission for
   governed resources. The mutating default-profile webhook is best-effort
@@ -412,8 +434,8 @@ on the host kernel. What crosses the boundary, and why:
 
 ### Broker secrets in the egress sidecar
 
-In cooperative mode on Docker/Podman the broker runs inside the control plane,
-so resolved credentials never leave it. Strict mode and Kubernetes run the
+Under an open network policy on Docker/Podman (cooperative mode) the broker
+runs inside the control plane, so resolved credentials never leave it. Strict mode and Kubernetes run the
 proxy in a sidecar, which needs the secrets to inject them. The control plane
 hands the sidecar a `runebox.egress.broker.v1` document (endpoints, resolved
 credential values, the placeholders already set in the Citadel, and the
@@ -433,8 +455,9 @@ per-Citadel CA certificate and private key) through `runebox-egress
 Anyone who can read the sidecar's filesystem or memory, or read Secrets in the
 Citadel namespace, can read those credentials: the container engine, node
 root, and Kubernetes principals with Secret read or `pods/exec` on the egress
-container. Grant that access accordingly, or use cooperative mode on
-Docker/Podman when credentials must stay on the control-plane host. Approval
+container. Grant that access accordingly, or use an open network policy on
+Docker/Podman when credentials must stay on the control-plane host (a deny
+policy always runs the sidecar). Approval
 routing is not available in the sidecar yet: a `require-approval` request
 there is refused. Strict-mode decisions are read back from the sidecar's log
 stream into the perimeter list and the Chronicle, on Docker/Podman and on

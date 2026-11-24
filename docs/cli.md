@@ -29,9 +29,13 @@ for `enter <charter>`.
 | `RUNEBOX_COPY_FROM_ROOTS` | Colon-separated allowlist restricting `copy_from`/seed source directories. |
 | `RUNEBOX_MCP_DEFAULT_TOKEN` | Selects the principal for a stdio MCP process; falls back to `runebox auth login`. |
 | `RUNEBOX_K8S_NAMESPACE` | Namespace for k8s Citadel pods (default `runebox`). |
-| `RUNEBOX_K8S_PSA_ENFORCE` | Pod Security Admission enforce level for the managed namespace (`privileged`\|`baseline`\|`restricted`; default `privileged`). |
+| `RUNEBOX_K8S_PSA_ENFORCE` | Pod Security Admission enforce level for the managed namespace (`privileged`\|`baseline`\|`restricted`; default `privileged`; warn/audit are `restricted`). |
 | `RUNEBOX_K8S_DIRECT_VOLUME_CLASS` | StorageClass whose CSI driver hands volumes to Kata as direct-assigned block devices; workspaces on Kata with Firecracker (`kata-fc`) use it so they are a real disk and can persist. See [Isolation](isolation.md#kata-with-firecracker-kata-fc). |
-| `RUNEBOX_K8S_NETWORK_POLICY` | Truthy creates a default-deny (DNS-only egress) NetworkPolicy in the managed namespace. |
+| `RUNEBOX_K8S_NETWORK_POLICY` | NetworkPolicy for Citadel pods: default `public` (no ingress, DNS and public egress), `dns-only` (or a truthy value), or `off`. |
+| `RUNEBOX_SANDBOX_DISK` | Disk cap per Citadel (default `10g`; `0`/`off` disables). See [Security model](security-model.md). |
+| `RUNEBOX_MAX_CITADELS` | Citadels per backend, per namespace on Kubernetes (default `50`; `0`/`off` disables). |
+| `RUNEBOX_LEDGER_KEY_DIR` | Directory for the Chronicle signing key (default `keys/` beside the ledger). |
+| `RUNEBOX_LEDGER_ANCHOR` / `RUNEBOX_LEDGER_ANCHOR_INTERVAL` | File the ledger head is appended to, and how often (default `5m`). |
 | `RUNEBOX_MICROVM_DIR` | State and image-disk cache of the native microVM backend (`host.type = "microvm"`; default `~/.runebox/microvm`). Keep it short: its Unix socket paths must fit about 100 bytes. See [Isolation](isolation.md#native-microvms-hosttype-microvm). |
 | `RUNEBOX_MICROVM_VMM` | The monitor a `microvm` Charter without `host.runtime` gets: `firecracker` or `libkrun` (default: Firecracker when configured). |
 | `RUNEBOX_MICROVM_AGENT` | The static `runebox-vmagent` binary booted as the guest's PID 1 (default: next to `runebox`, then `PATH`). |
@@ -40,7 +44,7 @@ for `enter <charter>`.
 | `RUNEBOX_KRUN_HELPER` / `RUNEBOX_LIBKRUN` | The `runebox-krun` helper (default: `PATH`) and the libkrun library it loads (default `libkrun.so.1`, `libkrun.1.dylib` on macOS); libkrun must be built with block-device support. |
 | `RUNEBOX_MICROVM_DISK_SIZE` | Size of a new persistent workspace disk (sparse; default `8g`). |
 | `RUNEBOX_MICROVM_MKFS` | `mkfs.ext4` used to build image and workspace disks (`debugfs` is taken from the same directory). |
-| `RUNEBOX_DNS_RESOLVERS` | Comma-separated resolver IPs to confine DNS to under strict egress. |
+| `RUNEBOX_DNS_RESOLVERS` | Comma-separated resolver IPs that DNS (UDP and TCP port 53) may reach under strict egress. Unset, the Citadel's own resolvers (its `/etc/resolv.conf`) are used; if it lists none, the Citadel is refused. |
 | `RUNEBOX_ENABLE_EXPERIMENTAL_BROWSER` | Set to `1` to enable the experimental browser surface in a trusted deployment; disabled by default. |
 | `RUNEBOX_ENABLE_EXPERIMENTAL_IDE` | Set to `1` to enable the optional in-Citadel browser IDE (code-server) + ticketed reverse proxy; disabled by default. See [Browser IDE](browser-ide.md). |
 | `RUNEBOX_OP_BIN` / `OP_SERVICE_ACCOUNT_TOKEN` | Locate and authenticate the 1Password CLI (`op`) that resolves `op://` Charter references; the desktop app integration works without a token. See [Charters](profiles.md#1password-op). |

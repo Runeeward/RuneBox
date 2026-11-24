@@ -15,9 +15,11 @@ use crate::error::{BundleProblem, LedgerError};
 use crate::gojson::{self, go_struct};
 use crate::ledger::{Event, Ledger, check_link, hash_event};
 
-/// On-disk name of the signing key (raw 64-byte `seed || public`, 0600),
-/// stored alongside the ledger.
+/// On-disk name of the signing key (raw 64-byte `seed || public`).
 pub const KEY_FILE_NAME: &str = "ledger.key";
+/// The directory, beside the ledger, that holds the signing key when no
+/// other key directory is configured.
+pub const KEY_DIR_NAME: &str = "keys";
 /// On-disk name of the base64 public key (0644).
 pub const PUB_FILE_NAME: &str = "ledger.pub";
 
@@ -82,6 +84,47 @@ impl Signer {
         Ok(Self::new(key))
     }
 
+    /// Loads the signing key from `key_dir`, kept apart from the ledger in
+    /// `ledger_dir`, generating one on first use. A key still beside the
+    /// ledger (the layout before key directories) moves into `key_dir`.
+    /// `key_dir` is made 0700 and the key 0400; the public key is also
+    /// written beside the ledger, where verifiers look for it.
+    pub fn load_or_create_apart(key_dir: &Path, ledger_dir: &Path) -> Result<Self, LedgerError> {
+        if same_dir(key_dir, ledger_dir) {
+            return Self::load_or_create(key_dir);
+        }
+        create_dir_private(key_dir).map_err(LedgerError::SignerDir)?;
+        set_mode(key_dir, 0o700).map_err(LedgerError::SignerDir)?;
+        let key_path = key_dir.join(KEY_FILE_NAME);
+        let legacy = ledger_dir.join(KEY_FILE_NAME);
+        match (key_path.exists(), legacy.exists()) {
+            (false, true) => move_file(&legacy, &key_path).map_err(LedgerError::WriteKey)?,
+            (true, true) => {
+                let a = fs::read(&key_path).map_err(LedgerError::ReadKey)?;
+                let b = fs::read(&legacy).map_err(LedgerError::ReadKey)?;
+                if a != b {
+                    return Err(LedgerError::KeyConflict {
+                        key: key_path,
+                        legacy,
+                    });
+                }
+                fs::remove_file(&legacy).map_err(LedgerError::WriteKey)?;
+            }
+            _ => {}
+        }
+        let signer = Self::load_or_create(key_dir)?;
+        set_mode(&key_path, 0o400).map_err(LedgerError::WriteKey)?;
+        let pub_line = format!("{}\n", runebox_keys::encode_public(&signer.public()));
+        for dir in [key_dir, ledger_dir] {
+            let path = dir.join(PUB_FILE_NAME);
+            if fs::read(&path).ok().as_deref() != Some(pub_line.as_bytes()) {
+                write_file(&path, pub_line.as_bytes(), 0o644)
+                    .map_err(LedgerError::WritePublicKey)?;
+            }
+        }
+        Ok(signer)
+    }
+
     /// Returns the base64 ed25519 signature over a record hash.
     pub fn sign(&self, hash_hex: &str) -> String {
         runebox_keys::encode(&self.key.sign(hash_hex.as_bytes()).to_bytes())
@@ -107,6 +150,38 @@ fn create_dir_private(dir: &Path) -> io::Result<()> {
         b.mode(0o700);
     }
     b.create(dir)
+}
+
+fn same_dir(a: &Path, b: &Path) -> bool {
+    a == b
+        || matches!(
+            (fs::canonicalize(a), fs::canonicalize(b)),
+            (Ok(x), Ok(y)) if x == y
+        )
+}
+
+fn set_mode(path: &Path, mode: u32) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(path, fs::Permissions::from_mode(mode))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (path, mode);
+        Ok(())
+    }
+}
+
+/// Renames `from` to `to`, copying (0600) and removing across filesystems.
+fn move_file(from: &Path, to: &Path) -> io::Result<()> {
+    if fs::rename(from, to).is_ok() {
+        return Ok(());
+    }
+    let data = fs::read(from)?;
+    write_file(&to.to_path_buf(), &data, 0o600)?;
+    fs::File::open(to)?.sync_all()?;
+    fs::remove_file(from)
 }
 
 /// Like Go's os.WriteFile: the mode applies only when the file is created.
@@ -358,6 +433,70 @@ mod tests {
             l.verify_signatures(Some(&other.public()), true),
             Err(LedgerError::BadSignature { seq: 1 })
         ));
+    }
+
+    #[test]
+    fn key_lives_apart_from_the_ledger() {
+        let state = tempfile::tempdir().expect("tempdir");
+        let keys = state.path().join(KEY_DIR_NAME);
+        let a = Signer::load_or_create_apart(&keys, state.path()).expect("create");
+        assert!(keys.join(KEY_FILE_NAME).exists());
+        assert!(!state.path().join(KEY_FILE_NAME).exists());
+        let pub_line = format!("{}\n", runebox_keys::encode_public(&a.public()));
+        for dir in [keys.as_path(), state.path()] {
+            assert_eq!(
+                fs::read_to_string(dir.join(PUB_FILE_NAME)).expect("pub"),
+                pub_line
+            );
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = |p: &Path| fs::metadata(p).expect("stat").permissions().mode() & 0o777;
+            assert_eq!(mode(&keys), 0o700);
+            assert_eq!(mode(&keys.join(KEY_FILE_NAME)), 0o400);
+        }
+        // Reloads the same key (the read-only file is never rewritten).
+        let b = Signer::load_or_create_apart(&keys, state.path()).expect("reload");
+        assert_eq!(a.public(), b.public());
+    }
+
+    #[test]
+    fn key_beside_the_ledger_moves_into_the_key_dir() {
+        let state = tempfile::tempdir().expect("tempdir");
+        let old = Signer::load_or_create(state.path()).expect("old layout");
+        let keys = state.path().join("elsewhere");
+        let moved = Signer::load_or_create_apart(&keys, state.path()).expect("migrate");
+        assert_eq!(old.public(), moved.public());
+        assert!(!state.path().join(KEY_FILE_NAME).exists());
+        assert!(keys.join(KEY_FILE_NAME).exists());
+
+        // An identical leftover copy is removed; a different one is refused.
+        fs::write(
+            state.path().join(KEY_FILE_NAME),
+            fs::read(keys.join(KEY_FILE_NAME)).expect("read"),
+        )
+        .expect("copy");
+        Signer::load_or_create_apart(&keys, state.path()).expect("same key");
+        assert!(!state.path().join(KEY_FILE_NAME).exists());
+        let other = tempfile::tempdir().expect("tempdir");
+        Signer::load_or_create(other.path()).expect("other key");
+        fs::copy(
+            other.path().join(KEY_FILE_NAME),
+            state.path().join(KEY_FILE_NAME),
+        )
+        .expect("copy");
+        assert!(matches!(
+            Signer::load_or_create_apart(&keys, state.path()),
+            Err(LedgerError::KeyConflict { .. })
+        ));
+    }
+
+    #[test]
+    fn key_dir_equal_to_the_ledger_dir_keeps_the_old_layout() {
+        let state = tempfile::tempdir().expect("tempdir");
+        Signer::load_or_create_apart(state.path(), state.path()).expect("same dir");
+        assert!(state.path().join(KEY_FILE_NAME).exists());
     }
 
     #[test]

@@ -265,7 +265,10 @@ impl Linter {
                 ),
             );
         }
-        if !p.host.read_only && (strict || !p.host.oci_runtime().is_empty()) {
+        // Every deny policy is strict; the hint is for authors who spelled
+        // out `enforce = "strict"` as part of hardening the Citadel.
+        let hardened = strict && !p.network.enforce.is_empty();
+        if !p.host.read_only && (hardened || !p.host.oci_runtime().is_empty()) {
             self.add(
                 Severity::Warn,
                 "host.read_only",
@@ -298,19 +301,11 @@ impl Linter {
             && !rules.iter().any(|r| is_allow_verdict(&r.verdict))
             && p.endpoints.is_empty()
         {
-            if p.network.strict_egress() {
-                self.add(
-                    Severity::Warn,
-                    "network.enforce",
-                    "strict egress is enabled but there are no allow rules; all outbound traffic is blocked",
-                );
-            } else {
-                self.add(
-                    Severity::Warn,
-                    "network.default",
-                    "network.default is \"deny\" but there are no allow rules; nothing can egress",
-                );
-            }
+            self.add(
+                Severity::Warn,
+                "network.default",
+                "network.default is \"deny\" but there are no allow rules; nothing can egress",
+            );
         }
 
         // A hostname matches one host (or one wildcard); a comma or space
@@ -533,7 +528,7 @@ impl Linter {
                 Severity::Error,
                 f.clone(),
                 format!(
-                    "endpoint {label:?} lists binaries, which are only enforced with strict egress ([network] default = \"deny\", enforce = \"strict\"): the broker must share the Citadel's network namespace to ask the in-sandbox supervisor which executable opened each connection. Without it the Citadel is refused at create"
+                    "endpoint {label:?} lists binaries, which are only enforced with strict egress ([network] default = \"deny\"): the broker must share the Citadel's network namespace to ask the in-sandbox supervisor which executable opened each connection. Without it the Citadel is refused at create"
                 ),
             );
         }
@@ -975,6 +970,20 @@ fn lint_host_runtime(p: &Charter, os: &str, out: &mut Vec<Finding>) {
             Severity::Error,
             "host.runtime_class",
             format!("runtime {oci:?} cannot run a Rune Box sandbox: {KRUN_NO_EXEC}"),
+        );
+    }
+    if container_host
+        && p.network.strict_egress()
+        && !oci.is_empty()
+        && family != RuntimeFamily::Container
+    {
+        finding(
+            out,
+            Severity::Error,
+            "network.default",
+            format!(
+                "Docker and Podman enforce a deny policy with an egress sidecar whose kernel rules cannot see the traffic of a {oci:?} sandbox, so the Citadel is refused at create; use a container runtime (runc, crun) or host.type = \"k8s\" or \"microvm\""
+            ),
         );
     }
     if p.host.host_type == crate::HostType::K8s
@@ -1722,17 +1731,76 @@ mod tests {
     }
 
     #[test]
-    fn warns_on_strict_egress_without_allow_rules() {
-        let p = Charter {
-            host: img(),
+    fn warns_on_deny_without_allow_rules() {
+        for enforce in ["", "strict"] {
+            let p = Charter {
+                host: img(),
+                network: Network {
+                    enforce: enforce.into(),
+                    ..deny_net(vec![])
+                },
+                policy: allow_all(),
+                ..Charter::default()
+            };
+            assert!(
+                has(&lint(&p), Severity::Warn, "network.default"),
+                "{enforce:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn deny_on_docker_needs_a_container_runtime() {
+        let charter = |host_type: &str, runtime_class: &str, default: &str| Charter {
+            host: Host {
+                host_type: host_type.into(),
+                runtime_class: runtime_class.into(),
+                ..img()
+            },
             network: Network {
-                enforce: "strict".into(),
-                ..deny_net(vec![])
+                default: default.into(),
+                rules: vec![rule("allow", "example.com", "")],
+                ..Network::default()
             },
             policy: allow_all(),
             ..Charter::default()
         };
-        assert!(has(&lint(&p), Severity::Warn, "network.enforce"));
+        for rc in ["runsc", "io.containerd.kata-qemu.v2"] {
+            assert!(
+                has(
+                    &lint(&charter("container", rc, "deny")),
+                    Severity::Error,
+                    "network.default"
+                ),
+                "{rc}"
+            );
+            assert!(
+                !has(
+                    &lint(&charter("k8s", rc, "deny")),
+                    Severity::Error,
+                    "network.default"
+                ),
+                "{rc} on k8s"
+            );
+            assert!(
+                !has(
+                    &lint(&charter("container", rc, "allow")),
+                    Severity::Error,
+                    "network.default"
+                ),
+                "{rc} open"
+            );
+        }
+        for rc in ["", "runc", "crun"] {
+            assert!(
+                !has(
+                    &lint(&charter("container", rc, "deny")),
+                    Severity::Error,
+                    "network.default"
+                ),
+                "{rc:?}"
+            );
+        }
     }
 
     #[test]

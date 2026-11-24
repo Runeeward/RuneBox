@@ -9,6 +9,14 @@ use runebox_charter::SignedCharters;
 pub const STATE_DIR_ENV: &str = "RUNEBOX_STATE_DIR";
 /// `off` disables ledger signing.
 pub const LEDGER_SIGN_ENV: &str = "RUNEBOX_LEDGER_SIGN";
+/// Directory for the ledger signing key (default `keys/` beside the
+/// ledger). Point it at a path the ledger's writers can't reach.
+pub const LEDGER_KEY_DIR_ENV: &str = "RUNEBOX_LEDGER_KEY_DIR";
+/// File the ledger head is appended to periodically (off when unset). Put
+/// it on storage the node can append to but not rewrite.
+pub const LEDGER_ANCHOR_ENV: &str = "RUNEBOX_LEDGER_ANCHOR";
+/// How often the head is anchored (Go duration; default 5m).
+pub const LEDGER_ANCHOR_INTERVAL_ENV: &str = "RUNEBOX_LEDGER_ANCHOR_INTERVAL";
 /// Cohort claim lease (Go duration; `0`/`off`/`none` disables expiry).
 pub const FLEET_LEASE_ENV: &str = "RUNEBOX_FLEET_LEASE";
 /// Ignores client-reported usage when enforcing budgets.
@@ -36,6 +44,12 @@ pub struct ManagerConfig {
     pub state_dir: Option<PathBuf>,
     /// Signs ledger records (default on).
     pub sign_ledger: bool,
+    /// Where the signing key lives; `None` is `keys/` beside the ledger.
+    pub ledger_key_dir: Option<PathBuf>,
+    /// The anchor file the ledger head is appended to; `None` disables it.
+    pub ledger_anchor: Option<PathBuf>,
+    /// How often the head is anchored.
+    pub ledger_anchor_interval: Duration,
     /// How long a require-approval call blocks before returning pending;
     /// `None` waits until the call is dropped.
     pub approval_wait: Option<Duration>,
@@ -93,6 +107,13 @@ impl ManagerConfig {
                 .filter(|s| !s.is_empty())
                 .map(PathBuf::from),
             sign_ledger: !get(LEDGER_SIGN_ENV).eq_ignore_ascii_case("off"),
+            ledger_key_dir: lookup(LEDGER_KEY_DIR_ENV)
+                .filter(|s| !s.trim().is_empty())
+                .map(PathBuf::from),
+            ledger_anchor: lookup(LEDGER_ANCHOR_ENV)
+                .filter(|s| !s.trim().is_empty())
+                .map(PathBuf::from),
+            ledger_anchor_interval: anchor_interval(&get(LEDGER_ANCHOR_INTERVAL_ENV)),
             approval_wait: Some(Duration::from_secs(5 * 60)),
             fleet_lease: fleet_lease(&get(FLEET_LEASE_ENV)),
             sweep_interval: Some(Duration::from_secs(30)),
@@ -135,6 +156,16 @@ fn fleet_lease(v: &str) -> Duration {
         .ok()
         .and_then(|n| u64::try_from(n).ok())
         .map_or(default, Duration::from_nanos)
+}
+
+/// `$RUNEBOX_LEDGER_ANCHOR_INTERVAL`: default 5m; an unparsable or
+/// non-positive value keeps the default.
+fn anchor_interval(v: &str) -> Duration {
+    runebox_charter::parse_go_duration(v.trim())
+        .ok()
+        .and_then(|n| u64::try_from(n).ok())
+        .filter(|n| *n > 0)
+        .map_or(Duration::from_secs(5 * 60), Duration::from_nanos)
 }
 
 /// `$RUNEBOX_STATE_DIR`, else `<user cache dir>/runebox` (or the pre-v0.4.4
@@ -195,6 +226,23 @@ mod tests {
         let c = cfg(&[]);
         assert!(c.sign_ledger && !c.experimental_ide && !c.experimental_browser);
         assert!(c.state_dir.is_none());
+        assert!(c.ledger_key_dir.is_none() && c.ledger_anchor.is_none());
+        assert_eq!(c.ledger_anchor_interval, Duration::from_secs(300));
+        let c = cfg(&[
+            (LEDGER_KEY_DIR_ENV, "/secure/keys"),
+            (LEDGER_ANCHOR_ENV, "/mnt/anchor/head.jsonl"),
+            (LEDGER_ANCHOR_INTERVAL_ENV, "30s"),
+        ]);
+        assert_eq!(c.ledger_key_dir, Some(PathBuf::from("/secure/keys")));
+        assert_eq!(
+            c.ledger_anchor,
+            Some(PathBuf::from("/mnt/anchor/head.jsonl"))
+        );
+        assert_eq!(c.ledger_anchor_interval, Duration::from_secs(30));
+        for bad in ["", "soon", "0s", "-1m"] {
+            let c = cfg(&[(LEDGER_ANCHOR_INTERVAL_ENV, bad)]);
+            assert_eq!(c.ledger_anchor_interval, Duration::from_secs(300), "{bad}");
+        }
         let c = cfg(&[
             (LEDGER_SIGN_ENV, "OFF"),
             (EXPERIMENTAL_IDE_ENV, "1"),
