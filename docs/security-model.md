@@ -197,8 +197,11 @@ Please disclose privately; do not open a public issue.
   disable privilege escalation (a supervised one adds back `SETUID`, `SETGID`
   and `CHOWN` for the supervisor, which the `baseline` standard allows, and
   runs as root until the supervisor drops to the agent, which `restricted`
-  does not). Warn and audit labels are `restricted`; enforce stays
-  `privileged` by default because strict egress needs `NET_ADMIN`. Citadel
+  does not). Enforce, warn and audit are `restricted` by default; an
+  unsupervised sandbox runs as a non-root `host.user` (uid 1000 when unset).
+  A Charter whose pod needs more is refused before anything is created
+  ([Pod Security on Kubernetes](isolation.md#pod-security-on-kubernetes)).
+  Citadel
   pods get no service-account token, and a NetworkPolicy, on by default,
   gives them no ingress and only DNS and public egress, so they can't reach
   each other, the control plane, nodes or cloud metadata

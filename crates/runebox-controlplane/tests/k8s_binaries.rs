@@ -68,10 +68,16 @@ fn backend_config() -> BackendConfig {
         "RUNEBOX_EGRESS_IMAGE",
         "RUNEBOX_EGRESS_PULL_POLICY",
         "RUNEBOX_K8S_NAMESPACE",
+        "RUNEBOX_K8S_PSA_ENFORCE",
     ] {
         if let Ok(v) = std::env::var(k) {
             pairs.push((k.to_owned(), v));
         }
+    }
+    // Strict egress needs the privileged level (its init container adds
+    // NET_ADMIN and NET_RAW).
+    if !pairs.iter().any(|(k, _)| k == "RUNEBOX_K8S_PSA_ENFORCE") {
+        pairs.push(("RUNEBOX_K8S_PSA_ENFORCE".into(), "privileged".into()));
     }
     BackendConfig::from_pairs(pairs.iter().map(|(k, v)| (k.as_str(), v.as_str())))
 }

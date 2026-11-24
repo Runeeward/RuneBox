@@ -35,7 +35,9 @@ pub const K8S_NAMESPACE_ENV: &str = "RUNEBOX_K8S_NAMESPACE";
 /// legacy truthy value) allows only DNS; `off`/`0`/`false`/`no` installs
 /// none.
 pub const K8S_NETWORK_POLICY_ENV: &str = "RUNEBOX_K8S_NETWORK_POLICY";
-/// Pod Security Admission enforce level (privileged|baseline|restricted).
+/// Pod Security Admission enforce level of the managed namespace
+/// (restricted|baseline|privileged; default restricted). Charters that need
+/// more are refused before their Pod is created, with the reason.
 pub const K8S_PSA_ENFORCE_ENV: &str = "RUNEBOX_K8S_PSA_ENFORCE";
 /// A StorageClass whose CSI driver hands volumes to Kata as direct-assigned
 /// block devices and keeps each disk until its volume is deleted (Kata's
@@ -326,12 +328,12 @@ impl BackendConfig {
         }
     }
 
-    /// The Pod Security Admission enforce level.
+    /// The Pod Security Admission enforce level (default `restricted`).
     pub fn psa_enforce_level(&self) -> &'static str {
         match self.raw(K8S_PSA_ENFORCE_ENV) {
-            "restricted" => "restricted",
             "baseline" => "baseline",
-            _ => "privileged",
+            "privileged" => "privileged",
+            _ => "restricted",
         }
     }
 
@@ -522,7 +524,7 @@ mod tests {
     fn k8s_settings() {
         let c = BackendConfig::default();
         assert_eq!(c.k8s_namespace(), "runebox");
-        assert_eq!(c.psa_enforce_level(), "privileged");
+        assert_eq!(c.psa_enforce_level(), "restricted");
         assert_eq!(c.egress_pull_policy(), "IfNotPresent");
         assert_eq!(c.egress_image(), DEFAULT_EGRESS_IMAGE);
         assert!(DEFAULT_EGRESS_IMAGE.starts_with("ghcr.io/runeeward/runebox-egress:v"));
@@ -532,13 +534,13 @@ mod tests {
 
         let c = BackendConfig::from_pairs([
             (K8S_NAMESPACE_ENV, "sbx"),
-            (K8S_PSA_ENFORCE_ENV, "restricted"),
+            (K8S_PSA_ENFORCE_ENV, "privileged"),
             (EGRESS_PULL_POLICY_ENV, "Never"),
             (K8S_NETWORK_POLICY_ENV, " Yes "),
             (KUBE_CONTEXT_ENV, "kind"),
         ]);
         assert_eq!(c.k8s_namespace(), "sbx");
-        assert_eq!(c.psa_enforce_level(), "restricted");
+        assert_eq!(c.psa_enforce_level(), "privileged");
         assert_eq!(c.egress_pull_policy(), "Never");
         assert_eq!(c.k8s_network_policy_mode(), NetworkPolicyMode::DnsOnly);
         assert_eq!(c.kube_context().as_deref(), Some("kind"));
@@ -548,7 +550,7 @@ mod tests {
             (K8S_PSA_ENFORCE_ENV, "Baseline"),
         ]);
         assert_eq!(c.egress_pull_policy(), "IfNotPresent");
-        assert_eq!(c.psa_enforce_level(), "privileged");
+        assert_eq!(c.psa_enforce_level(), "restricted");
     }
 
     #[test]

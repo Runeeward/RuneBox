@@ -102,3 +102,17 @@ secret:
 {{- define "runebox.serverTLSSecretName" -}}
 {{- default (printf "%s-server-tls" (include "runebox.fullname" .)) .Values.server.tls.existingSecret -}}
 {{- end -}}
+
+{{/* Pod Security enforce level of the namespace hosting Citadels. The
+direct-volume node plugin is privileged and runs in that namespace, so it
+needs enforce=privileged. */}}
+{{- define "runebox.psaEnforce" -}}
+{{- $level := .Values.podSecurityStandard.enforce | default "restricted" -}}
+{{- if not (has $level (list "restricted" "baseline" "privileged")) -}}
+{{- fail (printf "podSecurityStandard.enforce must be restricted, baseline or privileged, not %q" $level) -}}
+{{- end -}}
+{{- if and .Values.sandbox.directVolumeDriver.enabled (ne $level "privileged") -}}
+{{- fail "sandbox.directVolumeDriver runs a privileged node plugin in the release namespace: set podSecurityStandard.enforce=privileged" -}}
+{{- end -}}
+{{- $level -}}
+{{- end -}}

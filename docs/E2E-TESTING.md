@@ -501,8 +501,7 @@ export RUNEBOX_KUBE_CONTEXT=orbstack        # or: kind-kind, minikube, ...
 kubectl create namespace runebox
 
 # Only needed for strict L3 egress (NET_ADMIN in an init container):
-kubectl label namespace runebox \
-  pod-security.kubernetes.io/enforce=privileged --overwrite
+export RUNEBOX_K8S_PSA_ENFORCE=privileged
 ```
 
 ### 6a. Basic k8s sandbox
@@ -1897,7 +1896,7 @@ rm -rf "$RUNEBOX_STATE_DIR" /tmp/rw-keys /tmp/cases.toml /tmp/authz.json \
 | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `serve` errors creating a sandbox                                           | Docker/OrbStack not running (`docker info`), the profile's image isn't pulled, or `docker`/`podman` isn't on `PATH` in the shell that started `serve`.                              |
 | K8s sandbox stuck `Pending`                                                 | No default StorageClass for the workspace PVC, or the image can't be pulled by the cluster. `kubectl -n runebox describe pod ...`.                                                 |
-| Strict egress: init container `CreateContainerError`/denied                 | Namespace PodSecurity blocks `NET_ADMIN` — label it `privileged` (6).                                                                                                              |
+| Create refused: "needs Pod Security privileged"                            | Strict egress adds `NET_ADMIN` — set `RUNEBOX_K8S_PSA_ENFORCE=privileged` (6).                                                                                                     |
 | Strict egress: `runebox-egress` ImagePullBackOff                           | Build the image (`deploy/Dockerfile.egress`) or set `RUNEBOX_EGRESS_IMAGE` to a pushed ref.                                                                                        |
 | Strict egress: allowed host still blocked                                   | The app connected by raw IP with no SNI/Host — add a `cidr` rule, or use a hostname. Check the `egress` sidecar logs.                                                               |
 | MCP client shows no tools                                                   | Use absolute paths in the config; check the client's MCP logs; verify `bin/runebox mcp` runs standalone.                                                                           |
