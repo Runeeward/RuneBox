@@ -38,6 +38,9 @@ pub use schema::{
 pub use signature::{SIGNATURE_FORMAT, Signature, SignatureError, sign, verify};
 pub use validate::ValidationError;
 
+/// The image a Charter without `host.image` runs, pinned by digest.
+pub const DEFAULT_SANDBOX_IMAGE: &str = "ghcr.io/runeeward/runebox-sandbox:v0.4.4@sha256:2d474e36f9e26cff4b14757ab4c26dd239e91c14d4b05ca2220fdb7fec7759c1";
+
 /// Host uid reserved for the strict-mode egress proxy; sandboxes may not run
 /// as it, because iptables exempts its traffic from interception.
 pub const STRICT_PROXY_UID: u32 = 1337;

@@ -97,6 +97,31 @@ pub enum LedgerError {
     #[error("ledger: write signing key: {0}")]
     WriteKey(io::Error),
 
+    #[error("ledger: signing keys {key:?} and {legacy:?} differ; keep one")]
+    KeyConflict { key: PathBuf, legacy: PathBuf },
+
+    #[error("ledger: anchor {path:?}: {source}")]
+    Anchor { path: PathBuf, source: io::Error },
+
+    #[error("ledger: anchor {path:?} line {line}: {source}")]
+    AnchorParse {
+        path: PathBuf,
+        line: usize,
+        source: serde_json::Error,
+    },
+
+    #[error(
+        "ledger: anchored seq {seq} is past the ledger head (seq {head}); records were removed"
+    )]
+    AnchorPastHead { seq: i64, head: i64 },
+
+    #[error("ledger: record seq {seq} hash {got:?} differs from its anchor {anchored:?}")]
+    AnchorMismatch {
+        seq: i64,
+        anchored: String,
+        got: String,
+    },
+
     #[error("ledger: write public key: {0}")]
     WritePublicKey(io::Error),
 

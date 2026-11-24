@@ -8,5 +8,6 @@ mod context;
 mod fleets;
 mod govern;
 mod governance;
+mod ledger_keys;
 mod support;
 mod workspaces;

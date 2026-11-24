@@ -138,11 +138,11 @@ pub struct Ledger {
 }
 
 #[derive(Debug)]
-struct Inner {
+pub(crate) struct Inner {
     file: Option<File>,
     /// Hash of the most recent record, "" when empty.
-    tip_hash: String,
-    seq: i64,
+    pub(crate) tip_hash: String,
+    pub(crate) seq: i64,
     signer: Option<Signer>,
 }
 
@@ -287,7 +287,7 @@ impl Ledger {
         Ok(Some(recs))
     }
 
-    fn lock(&self) -> MutexGuard<'_, Inner> {
+    pub(crate) fn lock(&self) -> MutexGuard<'_, Inner> {
         // A panic mid-append cannot leave the chain state half-updated (it
         // is assigned only after a successful write), so poisoning is safe
         // to ignore.

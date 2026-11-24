@@ -147,7 +147,7 @@ async fn resolve_profile(
                 c.host.workdir = "/workspace".into();
             }
             if c.host.image.is_empty() {
-                c.host.image = "ghcr.io/runeeward/runebox-sandbox:latest".into();
+                c.host.image = runebox_charter::DEFAULT_SANDBOX_IMAGE.into();
             }
             c.validate()
                 .map_err(|e| format!("invalid inline profile: {e}"))?;
