@@ -50,7 +50,7 @@ use tokio::task::JoinHandle;
 use crate::backend::{Backend, Reachable};
 use crate::config::{
     BackendConfig, DEFAULT_IMAGE, K8S_DIRECT_VOLUME_CLASS_ENV, K8S_NETWORK_POLICY_ENV,
-    MAX_CITADELS_ENV, NetworkPolicyMode,
+    K8S_PSA_ENFORCE_ENV, MAX_CITADELS_ENV, NetworkPolicyMode,
 };
 use crate::docker::{check_seed_dir, projected_data};
 use crate::egress::{policy_json, proxy_env};
@@ -62,6 +62,7 @@ use crate::incell::{
     SYSTEM_ROOTS, SupervisorPlan, ca_env, supervised_command_with,
 };
 use crate::isolation::{IsolationTier, classify_runtime};
+use crate::psa::{PsaLevel, pod_security};
 use crate::seed::{self, filtered_file_stream, join_producer, seed_tar_stream};
 use crate::streams::{SharedWriter, drain, drain_shared, shared};
 use crate::types::{
@@ -897,6 +898,10 @@ impl K8s {
                 )));
             }
         }
+        if supervisor.is_none() {
+            sandbox_user(&spec.user)?;
+        }
+        check_pod_security(&pod, self.config.psa_enforce_level())?;
         self.ensure_namespace().await?;
         self.ensure_network_policy().await?;
         self.ensure_quota().await?;
@@ -1680,10 +1685,13 @@ fn egress_resources() -> ResourceRequirements {
     }
 }
 
-/// The egress sidecar runs without capabilities or privilege escalation:
-/// it only proxies (strict mode's NET_ADMIN lives in the init container).
+/// The egress sidecar runs as the egress image's non-root user, without
+/// capabilities or privilege escalation: it only proxies (strict mode's
+/// NET_ADMIN lives in the init container).
 fn egress_security_context() -> SecurityContext {
     SecurityContext {
+        run_as_user: Some(i64::from(runebox_egress::STRICT_PROXY_UID)),
+        run_as_non_root: Some(true),
         allow_privilege_escalation: Some(false),
         capabilities: Some(Capabilities {
             add: None,
@@ -1947,8 +1955,10 @@ pub(crate) fn sandbox_pod(
         ));
     }
     // The sandbox container is always hardened (the egress sidecar and init
-    // need NET_ADMIN/NET_RAW). RunAsNonRoot stays unset: arbitrary images
-    // may legitimately need root.
+    // need NET_ADMIN/NET_RAW). Unsupervised, it runs as `host.user` or
+    // [`K8S_DEFAULT_SANDBOX_UID`], non-root unless the Charter asks for
+    // root; the workspace is group-owned by its gid. A supervised sandbox
+    // starts as root (see [`supervise_pod`]).
     let mut sec = SecurityContext {
         allow_privilege_escalation: Some(false),
         capabilities: Some(Capabilities {
@@ -1957,6 +1967,17 @@ pub(crate) fn sandbox_pod(
         }),
         ..SecurityContext::default()
     };
+    let mut fs_group = None;
+    if supervisor.is_none() {
+        let (uid, gid) =
+            sandbox_user(&spec.user).unwrap_or((K8S_DEFAULT_SANDBOX_UID, K8S_DEFAULT_SANDBOX_UID));
+        sec.run_as_user = Some(uid);
+        sec.run_as_group = Some(gid);
+        if uid != 0 {
+            sec.run_as_non_root = Some(true);
+            fs_group = Some(gid);
+        }
+    }
     if spec.read_only {
         sec.read_only_root_filesystem = Some(true);
         mounts.push(VolumeMount {
@@ -2061,6 +2082,7 @@ pub(crate) fn sandbox_pod(
             enable_service_links: Some(false),
             security_context: Some(PodSecurityContext {
                 seccomp_profile: Some(seccomp),
+                fs_group,
                 ..PodSecurityContext::default()
             }),
             init_containers: (!init_containers.is_empty()).then_some(init_containers),
@@ -2070,6 +2092,52 @@ pub(crate) fn sandbox_pod(
         }),
         ..Pod::default()
     }
+}
+
+/// The uid a sandbox runs as when its Charter names no `host.user`: a
+/// non-root user, as Pod Security `restricted` requires (the published
+/// sandbox and IDE images use it for their own user).
+pub const K8S_DEFAULT_SANDBOX_UID: i64 = 1000;
+
+/// The uid and gid of `host.user` on Kubernetes, which runs a container as
+/// numbers only: empty is [`K8S_DEFAULT_SANDBOX_UID`], `root` is 0, and
+/// `uid[:gid]` is used as is (gid defaults to the uid).
+pub(crate) fn sandbox_user(user: &str) -> Result<(i64, i64)> {
+    let user = user.trim();
+    if user.is_empty() {
+        return Ok((K8S_DEFAULT_SANDBOX_UID, K8S_DEFAULT_SANDBOX_UID));
+    }
+    let (u, g) = user.split_once(':').unwrap_or((user, ""));
+    let num = |s: &str| s.trim().parse::<u32>().ok().map(i64::from);
+    let uid = if u == "root" { Some(0) } else { num(u) };
+    let gid = match g.trim() {
+        "" => uid,
+        "root" => Some(0),
+        g => num(g),
+    };
+    match (uid, gid) {
+        (Some(uid), Some(gid)) => Ok((uid, gid)),
+        _ => Err(BackendError::Unsupported(format!(
+            "host.user {user:?}: Kubernetes runs a sandbox by numeric id; set host.user to uid[:gid] (or root)"
+        ))),
+    }
+}
+
+/// Refuses a Pod the managed namespace's Pod Security level would not
+/// admit, naming what needs more and the setting that allows it.
+pub(crate) fn check_pod_security(pod: &Pod, enforce: &str) -> Result<()> {
+    let allowed = PsaLevel::parse(enforce).unwrap_or(PsaLevel::Restricted);
+    let needs = pod_security(pod);
+    let above = needs.above(allowed);
+    if above.is_empty() {
+        return Ok(());
+    }
+    Err(BackendError::Unsupported(format!(
+        "this Charter's Pod needs Pod Security {needs} but {K8S_PSA_ENFORCE_ENV} is {allowed} ({reasons}); set {K8S_PSA_ENFORCE_ENV}={needs} to run it (see docs/isolation.md)",
+        needs = needs.level.as_str(),
+        allowed = allowed.as_str(),
+        reasons = above.join("; "),
+    )))
 }
 
 /// Resolves the supervisor plan for a create. Kubernetes cannot read an
@@ -2174,6 +2242,7 @@ fn supervise_pod(
         .get_or_insert_with(SecurityContext::default);
     sec.run_as_user = Some(0);
     sec.run_as_group = Some(0);
+    sec.run_as_non_root = None;
     sec.capabilities = Some(Capabilities {
         add: Some(SUPERVISOR_CAPS.map(String::from).to_vec()),
         drop: Some(vec!["ALL".into()]),
@@ -2383,8 +2452,9 @@ pub fn app_armor_profile(name: &str) -> AppArmorProfile {
 }
 
 /// Pod Security Admission labels for the managed namespace: `enforce` is
-/// configurable (default `privileged`, since strict egress needs NET_ADMIN);
-/// warn/audit are `restricted` so anything short of it is surfaced.
+/// configurable (default `restricted`; strict egress needs `privileged` and
+/// the supervisor or a root sandbox `baseline`); warn/audit are
+/// `restricted` so anything short of it is surfaced.
 pub fn psa_labels(enforce: &str) -> BTreeMap<String, String> {
     [
         ("pod-security.kubernetes.io/enforce", enforce),
@@ -3295,5 +3365,183 @@ mod tests {
             r#"set -e; mkdir -p "$(dirname "$1")"; cat > "$1"; chmod 0600 "$1"; chown root:root "$1" 2>/dev/null || true"#
         );
         assert_eq!(cmd[4], "/root/.gitconfig");
+    }
+
+    fn deny() -> runebox_charter::Network {
+        runebox_charter::Network {
+            default: "deny".into(),
+            enforce: "strict".into(),
+            ..runebox_charter::Network::default()
+        }
+    }
+
+    fn level(pod: &Pod) -> PsaLevel {
+        pod_security(pod).level
+    }
+
+    #[test]
+    fn sandbox_user_is_numeric_on_kubernetes() {
+        assert_eq!(
+            sandbox_user("").expect("default"),
+            (K8S_DEFAULT_SANDBOX_UID, K8S_DEFAULT_SANDBOX_UID)
+        );
+        assert_eq!(sandbox_user("1500").expect("uid"), (1500, 1500));
+        assert_eq!(sandbox_user(" 1500:2000 ").expect("uid:gid"), (1500, 2000));
+        assert_eq!(sandbox_user("root").expect("root"), (0, 0));
+        assert_eq!(sandbox_user("0:0").expect("0:0"), (0, 0));
+        for bad in ["agent", "1500:staff", "-1"] {
+            let err = sandbox_user(bad).expect_err(bad).to_string();
+            assert!(err.contains("numeric"), "{err}");
+        }
+    }
+
+    #[test]
+    fn plain_pods_meet_restricted() {
+        for network in [
+            runebox_charter::Network::default(),
+            runebox_charter::Network {
+                rules: vec![runebox_charter::NetworkRule {
+                    verdict: "deny".into(),
+                    hostname: "blocked.example".into(),
+                    cidr: String::new(),
+                }],
+                ..runebox_charter::Network::default()
+            },
+        ] {
+            let pod = plain_pod(&BackendConfig::default(), network);
+            let p = pod_security(&pod);
+            assert_eq!(p.level, PsaLevel::Restricted, "{:?}", p.reasons);
+            check_pod_security(&pod, "restricted").expect("admitted");
+            let ps = pod.spec.expect("spec");
+            let sec = ps.containers[0].security_context.clone().expect("sec");
+            assert_eq!(sec.run_as_non_root, Some(true));
+            assert_eq!(sec.run_as_user, Some(K8S_DEFAULT_SANDBOX_UID));
+            assert_eq!(sec.run_as_group, Some(K8S_DEFAULT_SANDBOX_UID));
+            let pod_sec = ps.security_context.expect("pod sec");
+            assert_eq!(pod_sec.fs_group, Some(K8S_DEFAULT_SANDBOX_UID));
+            assert_eq!(
+                pod_sec.seccomp_profile.expect("seccomp").type_,
+                "RuntimeDefault"
+            );
+            for c in &ps.containers {
+                let sec = c.security_context.clone().expect("sec");
+                assert_eq!(sec.allow_privilege_escalation, Some(false), "{}", c.name);
+                assert_eq!(sec.run_as_non_root, Some(true), "{}", c.name);
+                assert_eq!(
+                    sec.capabilities.and_then(|c| c.drop),
+                    Some(vec!["ALL".to_owned()]),
+                    "{}",
+                    c.name
+                );
+            }
+            assert!(ps.host_network.is_none() && ps.host_pid.is_none());
+            assert!(ps.volumes.iter().flatten().all(|v| v.host_path.is_none()));
+        }
+    }
+
+    #[test]
+    fn host_user_sets_the_sandbox_identity() {
+        let pod_for = |user: &str| {
+            let spec = Spec {
+                user: user.into(),
+                ..Spec::default()
+            };
+            sandbox_pod(
+                "abc",
+                &spec,
+                &BTreeMap::new(),
+                &BackendConfig::default(),
+                None,
+            )
+        };
+        let pod = pod_for("1500:2000");
+        assert_eq!(level(&pod), PsaLevel::Restricted);
+        let ps = pod.spec.expect("spec");
+        let sec = ps.containers[0].security_context.clone().expect("sec");
+        assert_eq!(
+            (sec.run_as_user, sec.run_as_group),
+            (Some(1500), Some(2000))
+        );
+        assert_eq!(ps.security_context.expect("pod").fs_group, Some(2000));
+
+        let root = pod_for("root");
+        assert_eq!(level(&root), PsaLevel::Baseline);
+        let err = check_pod_security(&root, "restricted")
+            .expect_err("root refused")
+            .to_string();
+        assert!(err.contains("needs Pod Security baseline"), "{err}");
+        assert!(err.contains("container \"sandbox\" runs as root"), "{err}");
+        assert!(err.contains("RUNEBOX_K8S_PSA_ENFORCE=baseline"), "{err}");
+        check_pod_security(&root, "baseline").expect("baseline admits root");
+        let ps = root.spec.expect("spec");
+        assert_eq!(
+            ps.containers[0]
+                .security_context
+                .clone()
+                .expect("sec")
+                .run_as_non_root,
+            None
+        );
+        assert_eq!(ps.security_context.expect("pod").fs_group, None);
+    }
+
+    #[test]
+    fn strict_egress_needs_privileged() {
+        let pod = plain_pod(&BackendConfig::default(), deny());
+        let p = pod_security(&pod);
+        assert_eq!(p.level, PsaLevel::Privileged);
+        let above = p.above(PsaLevel::Baseline);
+        assert_eq!(
+            above,
+            [
+                "privileged: container \"egress-init\" adds NET_ADMIN",
+                "privileged: container \"egress-init\" adds NET_RAW"
+            ]
+        );
+        let err = check_pod_security(&pod, "restricted")
+            .expect_err("refused")
+            .to_string();
+        assert!(err.contains("RUNEBOX_K8S_PSA_ENFORCE=privileged"), "{err}");
+        check_pod_security(&pod, "privileged").expect("privileged admits it");
+        // Everything but the init container still meets restricted.
+        let ps = pod.spec.expect("spec");
+        for c in &ps.containers {
+            let one = Pod {
+                spec: Some(PodSpec {
+                    containers: vec![c.clone()],
+                    security_context: ps.security_context.clone(),
+                    ..PodSpec::default()
+                }),
+                ..Pod::default()
+            };
+            assert_eq!(level(&one), PsaLevel::Restricted, "{}", c.name);
+        }
+    }
+
+    #[test]
+    fn supervisor_needs_baseline() {
+        let ps = supervised_pod(runebox_charter::Network::default());
+        let pod = Pod {
+            spec: Some(ps.clone()),
+            ..Pod::default()
+        };
+        assert_eq!(level(&pod), PsaLevel::Baseline);
+        check_pod_security(&pod, "baseline").expect("baseline admits it");
+        let sec = ps.containers[0].security_context.clone().expect("sec");
+        assert_eq!(sec.run_as_user, Some(0));
+        assert_eq!(sec.run_as_non_root, None);
+    }
+
+    #[test]
+    fn namespace_enforces_restricted_by_default() {
+        let ns = namespace_object("runebox", BackendConfig::default().psa_enforce_level());
+        let labels = ns.metadata.labels.expect("labels");
+        for mode in ["enforce", "warn", "audit"] {
+            assert_eq!(
+                labels[&format!("pod-security.kubernetes.io/{mode}")],
+                "restricted",
+                "{mode}"
+            );
+        }
     }
 }

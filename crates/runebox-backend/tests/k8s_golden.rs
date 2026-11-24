@@ -262,9 +262,10 @@ fn without_egress_resources(pods: &mut [Value]) {
 }
 
 /// Rust hardens Citadel pods beyond Go: no service-account token, a disk
-/// cap on the sandbox container, and an egress sidecar without capabilities
-/// or privilege escalation. Checks those and removes them, so the rest of
-/// the Pod still compares against Go's.
+/// cap on the sandbox container, a non-root sandbox (its gid owning the
+/// workspace) unless supervised, and a non-root egress sidecar without
+/// capabilities or privilege escalation. Checks those and removes them, so
+/// the rest of the Pod still compares against Go's.
 fn without_hardening(pods: &mut [Value]) {
     for pod in pods.iter_mut() {
         let spec = pod["spec"].as_object_mut().expect("spec");
@@ -272,8 +273,28 @@ fn without_hardening(pods: &mut [Value]) {
             spec.remove("automountServiceAccountToken"),
             Some(json!(false))
         );
+        let strict = spec
+            .get("initContainers")
+            .and_then(Value::as_array)
+            .is_some_and(|cs| cs.iter().any(|c| c["name"] == "egress-init"));
+        let fs_group = spec["securityContext"]
+            .as_object_mut()
+            .and_then(|s| s.remove("fsGroup"));
         for c in spec["containers"].as_array_mut().expect("containers") {
             if c["name"] == "sandbox" {
+                let sec = c["securityContext"]
+                    .as_object_mut()
+                    .expect("sandbox securityContext");
+                if sec.get("runAsUser") != Some(&json!(0)) {
+                    assert_eq!(sec.remove("runAsNonRoot"), Some(json!(true)));
+                    let uid = sec.remove("runAsUser").expect("runAsUser");
+                    let gid = sec.remove("runAsGroup").expect("runAsGroup");
+                    assert!(
+                        uid.as_i64().is_some_and(|u| u > 0),
+                        "runAsUser must be a positive uid"
+                    );
+                    assert_eq!(fs_group.as_ref(), Some(&gid));
+                }
                 let res = &mut c["resources"];
                 assert_eq!(res["limits"]["ephemeral-storage"], "10Gi");
                 assert_eq!(res["requests"]["ephemeral-storage"], "256Mi");
@@ -287,8 +308,12 @@ fn without_hardening(pods: &mut [Value]) {
                     .expect("egress securityContext");
                 assert_eq!(sec.remove("allowPrivilegeEscalation"), Some(json!(false)));
                 assert_eq!(sec.remove("capabilities"), Some(json!({"drop": ["ALL"]})));
-                if sec.contains_key("runAsUser") {
-                    assert_eq!(sec.remove("runAsNonRoot"), Some(json!(true)));
+                assert_eq!(sec.remove("runAsNonRoot"), Some(json!(true)));
+                let uid = json!(runebox_charter::STRICT_PROXY_UID);
+                if strict {
+                    assert_eq!(sec.get("runAsUser"), Some(&uid));
+                } else {
+                    assert_eq!(sec.remove("runAsUser"), Some(uid));
                 }
             }
         }
@@ -299,9 +324,13 @@ fn without_hardening(pods: &mut [Value]) {
 }
 
 /// Go's namespace had `baseline` warn/audit labels; Rust's are
-/// `restricted`.
-fn without_restricted_warnings(ns: &mut Value) {
+/// `restricted`. Enforce is the configured level, which defaults to
+/// `restricted` (Go's was `privileged`): checked, then set to Go's.
+fn without_restricted_warnings(ns: &mut Value, enforce: &str, go: &Value) {
     let labels = &mut ns["metadata"]["labels"];
+    let key = "pod-security.kubernetes.io/enforce";
+    assert_eq!(labels[key], enforce, "{key}");
+    labels[key] = go["metadata"]["labels"][key].clone();
     for k in [
         "pod-security.kubernetes.io/warn",
         "pod-security.kubernetes.io/audit",
@@ -562,7 +591,7 @@ fn scenarios() -> Vec<Scenario> {
         },
         Scenario {
             name: "apparmor-unconfined",
-            env: vec![],
+            env: vec![(K8S_PSA_ENFORCE_ENV, "privileged")],
             spec: Spec {
                 apparmor: "unconfined".into(),
                 ..demo("aa")
@@ -579,6 +608,7 @@ fn scenarios() -> Vec<Scenario> {
                 (EGRESS_IMAGE_ENV, "registry.example/egress:2"),
                 (EGRESS_PULL_POLICY_ENV, "Never"),
                 (K8S_NETWORK_POLICY_ENV, "1"),
+                (K8S_PSA_ENFORCE_ENV, "privileged"),
             ],
             spec: Spec {
                 network: deny_network(""),
@@ -593,6 +623,7 @@ fn scenarios() -> Vec<Scenario> {
                 (EGRESS_IMAGE_ENV, "registry.example/egress:2"),
                 (EGRESS_PULL_POLICY_ENV, "Never"),
                 (K8S_NETWORK_POLICY_ENV, "1"),
+                (K8S_PSA_ENFORCE_ENV, "privileged"),
             ],
             spec: Spec {
                 network: deny_network("l3"),
@@ -619,6 +650,7 @@ async fn created_objects_match_go() {
         // runtime names; `probe_failure_downgrades` covers the probe.
         let cfg =
             BackendConfig::from_pairs(sc.env.iter().copied()).with(ISOLATION_PROBE_ENV, "off");
+        let enforce = cfg.psa_enforce_level();
         let k = K8s::with_client(fake_client(&store), cfg);
         let sb = k.create(sc.spec).await.expect("create");
         assert_eq!(sb.backend, "k8s");
@@ -627,7 +659,7 @@ async fn created_objects_match_go() {
         let want = &go[sc.name];
         let base = format!("/api/v1/namespaces/{NS}");
         let mut ns = lock(&store)["/api/v1/namespaces"][NS].clone();
-        without_restricted_warnings(&mut ns);
+        without_restricted_warnings(&mut ns, enforce, &want["namespace"]);
         assert_eq!(
             normalize(&ns),
             normalize(&want["namespace"]),
@@ -686,8 +718,12 @@ async fn supervised_pods_are_the_go_pods_plus_the_supervisor() {
         .filter(|sc| ["minimal", "strict"].contains(&sc.name))
     {
         let store: Store = Arc::default();
-        let cfg =
+        let mut cfg =
             BackendConfig::from_pairs(sc.env.iter().copied()).with(ISOLATION_PROBE_ENV, "off");
+        // The supervisor starts as root with SETUID, SETGID and CHOWN.
+        if cfg.psa_enforce_level() == "restricted" {
+            cfg = cfg.with(K8S_PSA_ENFORCE_ENV, "baseline");
+        }
         let egress_image = cfg.egress_image();
         let k = K8s::with_client(fake_client(&store), cfg);
         let spec = Spec {
@@ -786,7 +822,7 @@ async fn ensure_namespace_sets_psa_labels() {
     k.ensure_namespace().await.expect("ensure");
     let ns = lock(&store)["/api/v1/namespaces"][NS].clone();
     let labels = &ns["metadata"]["labels"];
-    assert_eq!(labels["pod-security.kubernetes.io/enforce"], "privileged");
+    assert_eq!(labels["pod-security.kubernetes.io/enforce"], "restricted");
     assert_eq!(labels["pod-security.kubernetes.io/warn"], "restricted");
     assert_eq!(labels["pod-security.kubernetes.io/audit"], "restricted");
     assert_eq!(labels["runebox.managed"], "true");
@@ -807,7 +843,7 @@ async fn ensure_namespace_patches_existing_psa_labels() {
     let ns = lock(&store)["/api/v1/namespaces"][NS].clone();
     assert_eq!(
         ns["metadata"]["labels"]["pod-security.kubernetes.io/enforce"],
-        "privileged"
+        "restricted"
     );
 }
 
@@ -1027,7 +1063,12 @@ async fn failed_create_leaves_no_objects_behind() {
             ..demo("leak")
         }
     };
-    let cfg = || BackendConfig::from_pairs([(K8S_NETWORK_POLICY_ENV, "true")]);
+    let cfg = || {
+        BackendConfig::from_pairs([
+            (K8S_NETWORK_POLICY_ENV, "true"),
+            (K8S_PSA_ENFORCE_ENV, "privileged"),
+        ])
+    };
 
     // Each object's create fails in turn, including a Pod the server kept
     // although the client saw an error.
@@ -1244,6 +1285,7 @@ async fn firecracker_refuses_a_pod_over_the_drive_budget() {
         BackendConfig::default()
             .with(ISOLATION_PROBE_ENV, "off")
             .with(K8S_DIRECT_VOLUME_CLASS_ENV, "kata-directvolume")
+            .with(K8S_PSA_ENFORCE_ENV, "privileged")
     };
     let store: Store = Arc::default();
     firecracker_runtime_class(&store);
@@ -1274,6 +1316,7 @@ async fn firecracker_counts_the_supervisor_install() {
         BackendConfig::default()
             .with(ISOLATION_PROBE_ENV, "off")
             .with(K8S_DIRECT_VOLUME_CLASS_ENV, "kata-directvolume")
+            .with(K8S_PSA_ENFORCE_ENV, "privileged")
     };
     let base = format!("/api/v1/namespaces/{NS}");
     let spec = |network: Network, broker: bool| Spec {
@@ -1351,4 +1394,38 @@ async fn firecracker_counts_the_supervisor_install() {
     let inits = pod["spec"]["initContainers"].as_array().expect("init");
     assert_eq!(inits.len(), 1, "{pod}");
     assert_eq!(inits[0]["name"], "egress-init");
+}
+
+/// Under the default `restricted` level a Charter whose Pod needs more is
+/// refused before any object exists, naming what needs it.
+#[tokio::test]
+async fn pod_security_refuses_before_creating_anything() {
+    let id = "00112233445566778899aabbccddeeff";
+    let store: Store = Arc::default();
+    let k = K8s::with_client(fake_client(&store), BackendConfig::default());
+    let err = k
+        .create(Spec {
+            id: id.into(),
+            network: deny_network("strict"),
+            ..demo("strict")
+        })
+        .await
+        .expect_err("refused")
+        .to_string();
+    assert!(err.contains("needs Pod Security privileged"), "{err}");
+    assert!(
+        err.contains("container \"egress-init\" adds NET_ADMIN"),
+        "{err}"
+    );
+    assert!(err.contains("RUNEBOX_K8S_PSA_ENFORCE=privileged"), "{err}");
+    assert_eq!(leftovers(&store, id), Vec::<String>::new());
+
+    // A plain Charter meets restricted and runs as a non-root user.
+    let sb = k.create(demo("plain")).await.expect("create");
+    let pod = &collection(&store, &format!("/api/v1/namespaces/{NS}/pods"))[0];
+    let sec = &pod["spec"]["containers"][0]["securityContext"];
+    assert_eq!(sec["runAsNonRoot"], true, "{pod}");
+    assert_eq!(sec["runAsUser"], 1000, "{pod}");
+    assert_eq!(pod["spec"]["securityContext"]["fsGroup"], 1000, "{pod}");
+    k.kill(&sb.id).await.expect("kill");
 }

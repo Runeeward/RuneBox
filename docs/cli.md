@@ -29,7 +29,7 @@ for `enter <charter>`.
 | `RUNEBOX_COPY_FROM_ROOTS` | Colon-separated allowlist restricting `copy_from`/seed source directories. |
 | `RUNEBOX_MCP_DEFAULT_TOKEN` | Selects the principal for a stdio MCP process; falls back to `runebox auth login`. |
 | `RUNEBOX_K8S_NAMESPACE` | Namespace for k8s Citadel pods (default `runebox`). |
-| `RUNEBOX_K8S_PSA_ENFORCE` | Pod Security Admission enforce level for the managed namespace (`privileged`\|`baseline`\|`restricted`; default `privileged`; warn/audit are `restricted`). |
+| `RUNEBOX_K8S_PSA_ENFORCE` | Pod Security Admission enforce level for the managed namespace (`restricted`\|`baseline`\|`privileged`; default `restricted`; warn/audit are `restricted`). A Charter whose pod needs more is refused with the reason; see [Pod Security on Kubernetes](isolation.md#pod-security-on-kubernetes). |
 | `RUNEBOX_K8S_DIRECT_VOLUME_CLASS` | StorageClass whose CSI driver hands volumes to Kata as direct-assigned block devices; workspaces on Kata with Firecracker (`kata-fc`) use it so they are a real disk and can persist. See [Isolation](isolation.md#kata-with-firecracker-kata-fc). |
 | `RUNEBOX_K8S_NETWORK_POLICY` | NetworkPolicy for Citadel pods: default `public` (no ingress, DNS and public egress), `dns-only` (or a truthy value), or `off`. |
 | `RUNEBOX_SANDBOX_DISK` | Disk cap per Citadel (default `10g`; `0`/`off` disables). See [Security model](security-model.md). |

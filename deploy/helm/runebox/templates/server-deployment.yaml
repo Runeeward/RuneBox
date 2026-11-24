@@ -73,6 +73,8 @@ spec:
                   key: {{ .Values.server.auth.tokenKey }}
             - name: RUNEBOX_EGRESS_IMAGE
               value: {{ include "runebox.egressImage" . | quote }}
+            - name: RUNEBOX_K8S_PSA_ENFORCE
+              value: {{ include "runebox.psaEnforce" . | quote }}
             {{- with include "runebox.directVolumeClass" . }}
             - name: RUNEBOX_K8S_DIRECT_VOLUME_CLASS
               value: {{ . | quote }}

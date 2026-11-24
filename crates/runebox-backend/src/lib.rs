@@ -58,6 +58,7 @@ pub mod k8s;
 #[cfg(unix)]
 mod microvm;
 mod pathutil;
+pub mod psa;
 pub mod runtime_install;
 mod seed;
 mod streams;

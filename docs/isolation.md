@@ -223,6 +223,26 @@ and `/proc`. The egress init container falls back to `iptables-legacy`
 there, since gVisor has no nftables. Kata was not run: neither available
 host has KVM.
 
+## Pod Security on Kubernetes
+
+The managed namespace enforces the Pod Security level in
+`RUNEBOX_K8S_PSA_ENFORCE` (Helm: `podSecurityStandard.enforce`), default
+`restricted`. Rune Box checks each Citadel's pod against it and refuses a
+Charter that needs more, naming the container and the control.
+
+| Charter | Level | Why |
+| --- | --- | --- |
+| Open or proxy egress, no supervisor | `restricted` | Non-root (`host.user` as `uid[:gid]`, uid 1000 when unset), no capabilities, `RuntimeDefault` seccomp. |
+| `host.user = "root"` | `baseline` | The sandbox runs as root. |
+| `[filesystem]` or `[process]` | `baseline` | The supervisor starts as root with `SETUID`, `SETGID` and `CHOWN`. |
+| `[network] default = "deny"` | `privileged` | The egress init container adds `NET_ADMIN` and `NET_RAW` to install the iptables redirect. |
+
+On Kubernetes `host.user` must be numeric (or `root`). A non-root sandbox
+cannot write outside its workspace and `/tmp`, so `[[file]]` targets
+elsewhere need `host.user = "root"`. The Helm chart's direct-volume driver
+runs a privileged node plugin in the release namespace and needs
+`privileged`.
+
 ## Tested hosts
 
 On a KVM host (Debian 13 cloud VM, 2 vCPUs, 3.8 GiB RAM, host kernel
