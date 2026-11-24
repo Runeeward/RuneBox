@@ -3467,7 +3467,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-attribution"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "hex",
  "hmac",
@@ -3482,7 +3482,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-auditsink"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "chrono",
  "opentelemetry",
@@ -3504,7 +3504,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-authz"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -3523,7 +3523,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-backend"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "async-trait",
  "bytes",
@@ -3563,7 +3563,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-browser"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "base64 0.23.1",
  "bytes",
@@ -3586,7 +3586,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-charter"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "base64 0.23.1",
  "ed25519-dalek",
@@ -3602,7 +3602,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-cli"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3646,7 +3646,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-controlplane"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -3684,7 +3684,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-credentials"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "chrono",
  "runebox-keys",
@@ -3697,7 +3697,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-egress"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "base64 0.23.1",
  "bytes",
@@ -3729,7 +3729,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-fleet"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -3747,7 +3747,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-k8s"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "async-trait",
  "axum",
@@ -3781,7 +3781,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-keys"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "base64 0.23.1",
  "ed25519-dalek",
@@ -3794,7 +3794,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-krun"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "libc",
  "runebox-vmagent",
@@ -3803,7 +3803,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-ledger"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -3822,7 +3822,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-mcp"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "async-trait",
  "axum",
@@ -3859,7 +3859,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-obs"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "chrono",
  "prometheus",
@@ -3874,7 +3874,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-policy"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "cel-interpreter",
  "cel-parser",
@@ -3891,7 +3891,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-policybundle"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -3913,7 +3913,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-secrets"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -3931,7 +3931,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-server"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "async-trait",
  "axum",
@@ -3974,7 +3974,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-supervisor"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "caps",
  "landlock",
@@ -3992,7 +3992,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-termrec"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "chrono",
  "runebox-ledger",
@@ -4004,7 +4004,7 @@ dependencies = [
 
 [[package]]
 name = "runebox-vmagent"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "nix",
  "pty-process",

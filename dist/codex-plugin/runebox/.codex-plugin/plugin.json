@@ -1,6 +1,6 @@
 {
   "name": "runebox",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Govern Codex execution with isolated Citadels, scoped Charters, approvals, budgets, and signed Chronicles.",
   "author": {
     "name": "Rune Box"
