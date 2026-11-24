@@ -1645,6 +1645,7 @@ fn secret_key_volume(name: &str, secret: &str, key: &str, path: &str, mode: i32)
                 key: key.into(),
                 path: path.into(),
                 mode: Some(mode),
+                ..KeyToPath::default()
             }]),
             ..SecretVolumeSource::default()
         }),
