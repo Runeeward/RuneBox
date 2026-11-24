@@ -38,7 +38,7 @@ to the same authorization model as local tokens.
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/v1/charters` | List reachable Charters (under RBAC, scoped to the caller's `allowed_profiles`). |
+| `GET` | `/v1/charters` | List reachable Charters (under RBAC, scoped to the caller's `allowed_profiles`). Each entry has `name`, `host`, `egress`, `image`, `capabilities` and the effective isolation settings: `enforce` (`strict`, `l3` or `none`), `dns_resolvers` (pinned resolver IPs, empty when none) and `runtime` (OCI runtime, or `null` for the engine default). |
 
 ## Citadels
 

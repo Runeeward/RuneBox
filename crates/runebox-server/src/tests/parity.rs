@@ -27,6 +27,10 @@ const ADDED_FIELDS: &[&str] = &[
     "isolation",
     "isolation_evidence",
     "enforcement",
+    // Effective isolation settings on each `/v1/charters` entry.
+    "enforce",
+    "dns_resolvers",
+    "runtime",
     // The standard refusal (runebox_controlplane::refusal).
     "refusal",
 ];
