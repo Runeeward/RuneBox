@@ -403,6 +403,47 @@ async fn rbac_charters_filtered_by_can_launch() {
 }
 
 #[tokio::test]
+async fn charters_report_effective_isolation() {
+    let h = harness_with(
+        |_| {},
+        |dir| {
+            std::fs::write(
+                dir.join("charters").join("plain.toml"),
+                "[host]\ntype = \"container\"\nimage = \"debian:stable-slim\"\n",
+            )
+            .expect("write charter");
+            std::fs::write(
+                dir.join("charters").join("locked.toml"),
+                "[host]\ntype = \"container\"\nimage = \"debian:stable-slim\"\nruntime_class = \"crun\"\n[network]\ndefault = \"deny\"\nenforce = \"strict\"\n",
+            )
+            .expect("write charter");
+        },
+    )
+    .await;
+    let r = router_with_rbac(&h);
+    let resp = get(&r, "/v1/charters", Some("tok-admin")).await;
+    assert_eq!(resp.status, 200, "{}", resp.text());
+    let body = resp.json();
+    let entry = |n: &str| {
+        body["profiles"]
+            .as_array()
+            .and_then(|a| a.iter().find(|p| p["name"] == n))
+            .cloned()
+            .unwrap_or_else(|| panic!("charter {n} listed"))
+    };
+    let plain = entry("plain");
+    assert_eq!(plain["egress"], "open");
+    assert_eq!(plain["enforce"], "none");
+    assert_eq!(plain["dns_resolvers"], serde_json::json!([]));
+    assert!(plain["runtime"].is_null());
+    let locked = entry("locked");
+    assert_eq!(locked["egress"], "deny-by-default");
+    assert_eq!(locked["enforce"], "strict");
+    assert_eq!(locked["dns_resolvers"], serde_json::json!([]));
+    assert_eq!(locked["runtime"], "crun");
+}
+
+#[tokio::test]
 async fn rbac_policy_simulate_requires_can_launch() {
     let h = harness().await;
     let r = router_with_rbac(&h);

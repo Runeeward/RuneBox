@@ -404,6 +404,22 @@ pub(crate) async fn harness_with(
     Harness { mgr, fake, dir }
 }
 
+/// A harness whose Manager carries the given backend operator settings.
+pub(crate) async fn harness_with_backend_config(
+    backend: runebox_backend::BackendConfig,
+) -> Harness {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let fake = Arc::new(FakeBackend::default());
+    let mgr = Manager::builder(config(dir.path(), None))
+        .registry(fake_registry(&fake))
+        .resolver(test_resolver())
+        .backend_config(backend)
+        .build()
+        .await
+        .expect("manager");
+    Harness { mgr, fake, dir }
+}
+
 pub(crate) async fn harness(approval_wait: Option<Duration>) -> Harness {
     harness_with(approval_wait, |_| {}).await
 }
