@@ -289,7 +289,10 @@ fn without_hardening(pods: &mut [Value]) {
                     assert_eq!(sec.remove("runAsNonRoot"), Some(json!(true)));
                     let uid = sec.remove("runAsUser").expect("runAsUser");
                     let gid = sec.remove("runAsGroup").expect("runAsGroup");
-                    assert!(uid.as_i64().is_some_and(|u| u > 0), "{uid}");
+                    assert!(
+                        uid.as_i64().is_some_and(|u| u > 0),
+                        "runAsUser must be a positive uid"
+                    );
                     assert_eq!(fs_group.as_ref(), Some(&gid));
                 }
                 let res = &mut c["resources"];
