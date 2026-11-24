@@ -28,6 +28,12 @@ ignore = [
     # RUSTSEC-2024-0436 (paste unmaintained) is a proc-macro used at compile
     # time by cel-interpreter; nothing of it ships in a binary.
     { id = "RUSTSEC-2024-0436", reason = "unmaintained compile-time proc-macro via cel-interpreter; no known vulnerability" },
+    # RUSTSEC-2026-0543 / -0555 (chrono and chrono-tz unmaintained, no fixed
+    # release). chrono arrives through cel-interpreter, croner, oci-client,
+    # regorus, rmcp and our audit sink; no known vulnerability. Re-check when
+    # the dependents move to jiff or time.
+    { id = "RUSTSEC-2026-0543", reason = "chrono unmaintained, no known vulnerability; pulled in by several dependencies" },
+    { id = "RUSTSEC-2026-0555", reason = "chrono-tz unmaintained, no known vulnerability; pulled in by regorus" },
 ]
 
 [licenses]

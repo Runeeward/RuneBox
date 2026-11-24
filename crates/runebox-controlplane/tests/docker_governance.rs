@@ -2,16 +2,17 @@
 //!
 //! Runs only with `RUNEBOX_TEST_DOCKER=1`. It builds a small test image
 //! holding `runebox-supervisor` (compiled for Linux in a `rust:1.95-bookworm`
-//! builder with `docker build`), starts an HTTPS upstream on the host's
-//! loopback, and creates a Citadel from a Charter with `[filesystem]`,
-//! `[process]`, an `[[endpoint]]` and an `env://` `[[credential]]`. It then
+//! builder with `docker build`), starts an HTTPS upstream on the host,
+//! reachable from containers as `host.docker.internal`, and creates a
+//! Citadel from a Charter with `[filesystem]`, `[process]`, a deny
+//! `[network]`, an `[[endpoint]]` and an `env://` `[[credential]]`. It then
 //! proves that:
 //!
 //! - the agent only ever sees the credential placeholder;
 //! - a request to the endpoint reaches the upstream with the real secret
-//!   injected (through the cooperative proxy at `host.docker.internal`,
-//!   with TLS terminated by the broker CA the sandbox trusts);
-//! - a path the endpoint denies is refused before it leaves the host;
+//!   injected (the strict-egress sidecar redirects the connection to its
+//!   broker, which terminates TLS with the broker CA the sandbox trusts);
+//! - a path the endpoint denies is refused before it leaves the sidecar;
 //! - a read outside the allowed filesystem paths fails (Landlock), and the
 //!   agent runs as the Charter's uid;
 //! - the signed ledger holds the broker decisions and the supervisor's
@@ -19,8 +20,10 @@
 //!
 //! The `env://` secret is set for a child copy of this test process (the
 //! parent never mutates its own environment). Everything the test creates
-//! (containers with their anonymous volumes, the workspace volume, the test
-//! image tag) is removed on the way out, and nothing else is touched.
+//! (containers with their anonymous volumes, the workspace volume, the
+//! egress sidecar, the test image tag) is removed on the way out, and
+//! nothing else is touched. `RUNEBOX_EGRESS_IMAGE`, when set, picks the
+//! sidecar image (CI builds it from this tree).
 #![cfg(unix)]
 
 use std::io::{BufRead, BufReader};
@@ -30,7 +33,7 @@ use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use runebox_backend::{BackendConfig, container_name, volume_name};
+use runebox_backend::{BackendConfig, container_name, egress_container_name, volume_name};
 use runebox_charter::SignedCharters;
 use runebox_controlplane::{CreateOptions, Manager, ManagerConfig};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -86,6 +89,9 @@ impl Drop for SandboxGuard {
         for id in ids.iter() {
             let _ = Command::new("docker")
                 .args(["rm", "-f", "-v", &container_name(id)])
+                .output();
+            let _ = Command::new("docker")
+                .args(["rm", "-f", "-v", &egress_container_name(id)])
                 .output();
             let _ = Command::new("docker")
                 .args(["volume", "rm", "-f", &volume_name(id)])
@@ -203,10 +209,13 @@ struct Seen {
     authorization: String,
 }
 
-/// An HTTPS origin on 127.0.0.1 with a private CA, recording requests and
+/// The name the endpoint uses for the host running this test.
+const UPSTREAM_HOST: &str = "host.docker.internal";
+
+/// An HTTPS origin on the host with a private CA, recording requests and
 /// echoing the Authorization header back (as a careless API might).
 async fn start_upstream() -> (SocketAddr, String, Arc<Mutex<Vec<Seen>>>) {
-    let cert = rcgen::generate_simple_self_signed(vec!["127.0.0.1".to_owned()]).expect("cert");
+    let cert = rcgen::generate_simple_self_signed(vec![UPSTREAM_HOST.to_owned()]).expect("cert");
     let pem = cert.cert.pem();
     let der = rustls::pki_types::CertificateDer::from(cert.cert.der().to_vec());
     let key = rustls::pki_types::PrivateKeyDer::Pkcs8(rustls::pki_types::PrivatePkcs8KeyDer::from(
@@ -220,7 +229,8 @@ async fn start_upstream() -> (SocketAddr, String, Arc<Mutex<Vec<Seen>>>) {
         .with_single_cert(vec![der], key)
         .expect("server config");
     let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(server));
-    let ln = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    // Containers reach the host through its gateway address, not loopback.
+    let ln = TcpListener::bind("0.0.0.0:0").await.expect("bind");
     let addr = ln.local_addr().expect("addr");
     let seen = Arc::new(Mutex::new(Vec::new()));
     let log = Arc::clone(&seen);
@@ -301,7 +311,7 @@ inject = "bearer"
 
 [[endpoint]]
 name = "upstream"
-host = "127.0.0.1"
+host = "{UPSTREAM_HOST}"
 port = {port}
 protocol = "rest"
 credential = "api"
@@ -348,11 +358,15 @@ async fn child_async() {
     cfg.approval_wait = Some(Duration::from_secs(5));
     cfg.broker_upstream_ca = Some(ca_path);
     cfg.supervisor_report_wait = Duration::from_secs(60);
-    let backend = BackendConfig::from_pairs([
-        ("RUNEBOX_CONTAINER_RUNTIME", "docker"),
-        ("RUNEBOX_SANDBOX_MEMORY", "512m"),
-        ("RUNEBOX_SANDBOX_CPUS", "1"),
-    ]);
+    let mut pairs = vec![
+        ("RUNEBOX_CONTAINER_RUNTIME", "docker".to_owned()),
+        ("RUNEBOX_SANDBOX_MEMORY", "512m".to_owned()),
+        ("RUNEBOX_SANDBOX_CPUS", "1".to_owned()),
+    ];
+    if let Ok(img) = std::env::var("RUNEBOX_EGRESS_IMAGE") {
+        pairs.push(("RUNEBOX_EGRESS_IMAGE", img));
+    }
+    let backend = BackendConfig::from_pairs(pairs.iter().map(|(k, v)| (*k, v.as_str())));
     let mgr: Arc<Manager> = Manager::builder(cfg)
         .backend_config(backend)
         .build()
@@ -391,11 +405,12 @@ async fn child_async() {
     assert_eq!(lines.next(), Some("0"), "no secret anywhere in the env");
 
     // A governed request gets the real secret injected upstream; the
-    // response echo comes back with the placeholder, never the secret.
+    // response echo comes back with the placeholder, never the secret. No
+    // proxy settings: the sidecar's rules carry the connection to the broker.
     let port = upstream.port();
     let curl = |path: &str| {
         format!(
-            "curl -sS --noproxy '' --max-time 30 -H \"Authorization: Bearer $API_TOKEN\" -w '\\n%{{http_code}}' https://127.0.0.1:{port}{path}"
+            "curl -sS --max-time 30 -H \"Authorization: Bearer $API_TOKEN\" -w '\\n%{{http_code}}' https://{UPSTREAM_HOST}:{port}{path}"
         )
     };
     let r = sh(curl("/v1/data")).await;

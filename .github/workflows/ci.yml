@@ -95,6 +95,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUNEBOX_TEST_DOCKER: "1"
+      RUNEBOX_EGRESS_IMAGE: runebox-egress:ci
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Rust toolchain
@@ -106,6 +107,9 @@ jobs:
         run: |
           docker pull alpine
           docker pull debian:stable-slim
+      # Deny Citadels run behind the egress sidecar; test this commit's build.
+      - name: Build the egress image
+        run: docker build -f deploy/Dockerfile.egress -t runebox-egress:ci .
       - name: Backend lifecycle on Docker
         run: cargo test --locked -p runebox-backend --test docker_integration -- --test-threads=1 --nocapture
       - name: Workspaces, governance and credentials on Docker

@@ -555,7 +555,13 @@ impl Docker {
         broker: Option<&Arc<Broker>>,
     ) -> Result<String> {
         let name = egress_container_name(id);
-        let args = egress_run_args(id, &policy_json(net)?, &self.config, broker.is_some());
+        let args = egress_run_args(
+            id,
+            &policy_json(net)?,
+            &self.config,
+            broker.is_some(),
+            self.name() == "docker",
+        );
         if let Err(e) = self.run(&args).await {
             // A failed `run`/`create` can still leave the container behind
             // (created but never started).
@@ -1874,11 +1880,20 @@ fn run_image(spec: &Spec) -> String {
 }
 
 /// The `run -d ...` argv for the strict-egress sidecar.
+///
+/// With `host_gateway` (the Docker engine; Podman adds
+/// `host.containers.internal` itself) the sidecar maps
+/// `host.docker.internal` to the host gateway, as the cooperative path did,
+/// so an endpoint on the host can be named. The sandbox shares the
+/// sidecar's network namespace and hosts file. The name grants nothing on
+/// its own: every connection to it is still redirected to the proxy and
+/// judged by the policy.
 pub(crate) fn egress_run_args(
     id: &str,
     policy_json: &str,
     cfg: &BackendConfig,
     broker: bool,
+    host_gateway: bool,
 ) -> Vec<String> {
     // With a broker the sidecar is created stopped so its document can be
     // copied in before it starts.
@@ -1906,6 +1921,12 @@ pub(crate) fn egress_run_args(
         "-e".into(),
         format!("RUNEBOX_EGRESS_POLICY={policy_json}"),
     ]);
+    if host_gateway {
+        a.extend([
+            "--add-host".into(),
+            "host.docker.internal:host-gateway".into(),
+        ]);
+    }
     let resolvers = cfg.dns_resolvers();
     if !resolvers.is_empty() {
         a.extend(["-e".into(), format!("RUNEBOX_DNS_RESOLVERS={resolvers}")]);
@@ -2562,17 +2583,17 @@ mod tests {
     #[test]
     fn egress_args_include_resolvers_only_when_set() {
         let cfg = BackendConfig::default();
-        let a = egress_run_args("x", "{}", &cfg, false);
+        let a = egress_run_args("x", "{}", &cfg, false, true);
         assert!(!a.iter().any(|s| s.starts_with("RUNEBOX_DNS_RESOLVERS")));
-        assert_eq!(a[a.len() - 7], "runebox-egress:latest");
+        assert_eq!(a[a.len() - 7], crate::config::DEFAULT_EGRESS_IMAGE);
         let cfg = cfg.with(crate::config::DNS_RESOLVERS_ENV, " 9.9.9.9 ");
-        let a = egress_run_args("x", "{}", &cfg, false);
+        let a = egress_run_args("x", "{}", &cfg, false, true);
         assert!(a.contains(&"RUNEBOX_DNS_RESOLVERS=9.9.9.9".to_owned()));
     }
 
     #[test]
     fn egress_args_with_broker_stage_the_document() {
-        let a = egress_run_args("x", "{}", &BackendConfig::default(), true);
+        let a = egress_run_args("x", "{}", &BackendConfig::default(), true, true);
         assert_eq!(
             a[0], "create",
             "created stopped, document copied, then started"
@@ -2587,6 +2608,23 @@ mod tests {
             !a.iter()
                 .any(|s| s.contains("rwph_") || s.contains("PRIVATE"))
         );
+    }
+
+    #[test]
+    fn egress_args_name_the_host_gateway_on_docker_only() {
+        let pair = |a: &[String]| {
+            a.windows(2)
+                .any(|w| w[0] == "--add-host" && w[1] == "host.docker.internal:host-gateway")
+        };
+        for broker in [false, true] {
+            let a = egress_run_args("x", "{}", &BackendConfig::default(), broker, true);
+            assert!(pair(&a), "{a:?}");
+            // Only the name: no port is published and no network is opened.
+            assert!(!a.iter().any(|s| s == "-p" || s == "--publish"));
+            assert!(!a.iter().any(|s| s == "--network" || s.contains("_PROXY=")));
+            let a = egress_run_args("x", "{}", &BackendConfig::default(), broker, false);
+            assert!(!a.iter().any(|s| s == "--add-host"), "{a:?}");
+        }
     }
 
     #[test]

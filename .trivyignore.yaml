@@ -17,6 +17,16 @@ misconfigurations:
       Rune Box's Kubernetes backend uses the pods/exec POST subresource to
       seed workspaces and execute governed commands inside Citadels. Access is
       limited to the Rune Box controller and server service accounts.
+  - id: KSV-0056
+    paths:
+      - "deploy/helm/runebox/templates/rbac.yaml"
+      - "crates/runebox-k8s/manifests/install/20-rbac.yaml"
+    expired_at: 2027-11-24
+    statement: >-
+      Rune Box creates, updates and deletes its own default-deny
+      NetworkPolicy for Citadel pods, so the controller's namespaced Role
+      needs networkpolicies write access. It grants no cluster-wide
+      networking and no access outside the Rune Box namespace.
   - id: KSV-0114
     paths:
       - "deploy/helm/runebox/templates/webhook.yaml"
