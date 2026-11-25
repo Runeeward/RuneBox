@@ -117,6 +117,12 @@ cosign verify ghcr.io/runeeward/runebox:<tag> \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
+Each release also publishes `images.json`, the digest of every image it built, with a signature
+(`images.json.sigstore.json`; verify it like `checksums.txt`). The release's Helm chart already pins
+Rune Box's own images by digest. The binary's built-in egress image is the release tag
+(`ghcr.io/runeeward/runebox-egress:v<version>`), since the binary is built before the image exists;
+to pin it outside the chart, set `RUNEBOX_EGRESS_IMAGE` to the `runebox-egress` entry in `images.json`.
+
 See [SECURITY.md](https://github.com/Runeeward/RuneBox/blob/main/SECURITY.md) for more.
 
 ## Runtime prerequisites

@@ -1,9 +1,16 @@
 //! Every default image Rune Box ships is pinned by digest (`name:tag@sha256:…`):
 //! the built-in sandbox images, the base images of `deploy/Dockerfile*`, and
-//! the images the Helm chart names. Rune Box's own release images (the
-//! server, the egress sidecar and the CSI driver) are published by the same
-//! release that builds the binary and the chart, so they are pinned to this
-//! release's version tag, never a floating one.
+//! the images the Helm chart names.
+//!
+//! Rune Box's own release images (the server, the egress sidecar and the
+//! CSI driver) are built by the same release as the binary and the chart.
+//! The release workflow pins them in the published chart and lists every
+//! image's digest in the signed `images.json`
+//! (`scripts/pin-release-images.py`). The one documented exception is the
+//! binary's built-in [`DEFAULT_EGRESS_IMAGE`]: the binary cannot know a
+//! digest built after it, so it carries exactly this release's version tag
+//! (operators pin it with `RUNEBOX_EGRESS_IMAGE`, the chart or
+//! `images.json`).
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -108,7 +115,7 @@ fn helm_chart_images_are_pinned() {
     for path in files {
         let text = std::fs::read_to_string(&path).expect("read chart file");
         for line in text.lines() {
-            let line = line.trim();
+            let line = line.split(" #").next().unwrap_or_default().trim();
             if line.starts_with('#') {
                 continue;
             }
@@ -132,4 +139,26 @@ fn helm_chart_images_are_pinned() {
         }
     }
     assert!(checked > 0, "no chart images found");
+}
+
+/// The lines of the chart's values that the release workflow rewrites to
+/// pin Rune Box's own images (`scripts/pin-release-images.py`).
+#[test]
+fn chart_has_the_release_pin_slots() {
+    let values = std::fs::read_to_string(repo_root().join("deploy/helm/runebox/values.yaml"))
+        .expect("read values.yaml");
+    let script = std::fs::read_to_string(repo_root().join("scripts/pin-release-images.py"))
+        .expect("read pin script");
+    for slot in [
+        "  digest: \"\"",
+        "  image: \"\"  # egress",
+        "    image: \"\"  # csi-directvolume",
+    ] {
+        let lines = values.lines().filter(|l| *l == slot).count();
+        assert_eq!(lines, 1, "values.yaml must have exactly one line {slot:?}");
+        assert!(
+            script.contains(&format!("'{slot}'")),
+            "pin script does not rewrite {slot:?}"
+        );
+    }
 }
