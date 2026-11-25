@@ -4,6 +4,11 @@ image:
   repository: ghcr.io/runeeward/runebox
   # tag defaults to "v" + .Chart.AppVersion (the release tag) when empty.
   tag: ""
+  # The image's index digest (sha256:...), appended as tag@digest. The
+  # published chart sets it, and egress.image and the direct-volume driver
+  # image, to the release's digests (also listed in the release's
+  # images.json).
+  digest: ""
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -103,7 +108,7 @@ egress:
   # runebox-supervisor to sandboxes with [filesystem] or [process] (an
   # init container copies it in), so it must be built from the same
   # release's deploy/Dockerfile.egress.
-  image: ""
+  image: ""  # egress
 
 sandbox:
   # A StorageClass whose CSI driver hands volumes to Kata as direct-assigned
@@ -120,7 +125,7 @@ sandbox:
   directVolumeDriver:
     enabled: false
     # Default: image.repository + "-csi-directvolume", tagged like the chart.
-    image: ""
+    image: ""  # csi-directvolume
     driverName: directvolume.csi.runebox.runeward.io
     storageClassName: runebox-kata-directvolume
     # Host paths for the backing disks and the driver's volume state; keep

@@ -48,9 +48,10 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- default (printf "v%s" .Chart.AppVersion) .Values.image.tag -}}
 {{- end -}}
 
-{{/* Container image reference. */}}
+{{/* Container image reference: repository:tag, pinned as @digest when set. */}}
 {{- define "runebox.image" -}}
 {{- printf "%s:%s" .Values.image.repository (include "runebox.imageTag" .) -}}
+{{- with .Values.image.digest }}@{{ . }}{{ end -}}
 {{- end -}}
 
 {{/* Egress sidecar image: egress.image, or the matching runebox-egress release. */}}
