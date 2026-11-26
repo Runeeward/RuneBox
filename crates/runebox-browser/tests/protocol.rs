@@ -1,6 +1,8 @@
 //! Ports of Go `internal/browser/protocol_test.go`, plus the exact bytes the
 //! Go encoder writes.
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 use runebox_browser::protocol::decode;
 use runebox_browser::{Command, CommandResult};
 

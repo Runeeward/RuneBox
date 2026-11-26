@@ -2,6 +2,7 @@
 //! (no VM, no identity switching).
 
 #![cfg(unix)]
+#![allow(clippy::expect_used, reason = "test helpers")]
 
 use std::collections::BTreeMap;
 use std::os::unix::net::UnixStream;

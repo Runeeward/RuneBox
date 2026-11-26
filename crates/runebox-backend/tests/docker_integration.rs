@@ -5,6 +5,7 @@
 //! snapshots and restores, and removes everything it created (and nothing
 //! else), even when an assertion fails.
 #![cfg(unix)]
+#![allow(clippy::expect_used, reason = "tests")]
 
 use std::collections::BTreeMap;
 use std::sync::Mutex;

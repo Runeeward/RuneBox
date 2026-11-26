@@ -15,6 +15,7 @@
 //! and the workspace volumes) is removed on the way out; nothing else is
 //! touched.
 #![cfg(unix)]
+#![allow(clippy::expect_used, reason = "tests")]
 
 use std::process::Command;
 use std::sync::{Arc, Mutex};

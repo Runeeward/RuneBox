@@ -97,6 +97,10 @@ pub(crate) fn valid_placeholder(p: &str) -> bool {
 }
 
 /// A fresh opaque placeholder: the prefix plus 160 random bits as hex.
+#[expect(
+    clippy::expect_used,
+    reason = "no fallback exists if the OS random source fails"
+)]
 pub(crate) fn new_placeholder() -> String {
     let mut b = [0u8; 20];
     rand::rngs::SysRng

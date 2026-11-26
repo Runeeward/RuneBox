@@ -265,6 +265,7 @@ async fn spawn_retrying_busy(
 }
 
 #[cfg(all(test, unix))]
+#[allow(clippy::expect_used, reason = "test helpers")]
 mod tests {
     use std::os::unix::fs::PermissionsExt;
     use std::path::Path;

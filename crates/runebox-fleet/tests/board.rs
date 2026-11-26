@@ -1,5 +1,7 @@
 //! Ports of Go `internal/fleet/board_test.go`.
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::thread;

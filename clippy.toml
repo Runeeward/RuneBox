@@ -1,0 +1,3 @@
+# Tests may panic on failure; production code may not (docs/rust-style.md).
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true

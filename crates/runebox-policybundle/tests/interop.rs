@@ -4,6 +4,8 @@
 //! (e.g. `127.0.0.1:5000`). When `RUNEBOX_TEST_GO_CLI` points at a built Go
 //! `runebox` binary, bundles are also exchanged with it in both directions.
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 use std::path::Path;
 use std::process::Command;
 

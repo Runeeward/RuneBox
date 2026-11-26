@@ -105,6 +105,14 @@ pub struct Key(Zeroizing<Vec<u8>>);
 
 impl Key {
     /// A fresh random key.
+    ///
+    /// # Panics
+    ///
+    /// If the OS random source fails.
+    #[expect(
+        clippy::expect_used,
+        reason = "no fallback exists if the OS random source fails"
+    )]
     pub fn generate() -> Self {
         let mut b = Zeroizing::new(vec![0u8; KEY_LEN]);
         rand::rngs::SysRng
@@ -194,6 +202,14 @@ pub struct Query {
 
 impl Query {
     /// A query with a fresh nonce.
+    ///
+    /// # Panics
+    ///
+    /// If the OS random source fails.
+    #[expect(
+        clippy::expect_used,
+        reason = "no fallback exists if the OS random source fails"
+    )]
     pub fn new(local: SocketAddr, remote: Option<SocketAddr>) -> Self {
         let mut n = [0u8; 16];
         rand::rngs::SysRng

@@ -3,6 +3,8 @@
 //! the same scenarios (`fixtures/go-k8s-objects.json`), and ports the Go
 //! namespace/NetworkPolicy tenancy tests.
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 use std::collections::{BTreeMap, HashMap};
 use std::convert::Infallible;
 use std::path::Path;

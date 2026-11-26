@@ -1,6 +1,8 @@
 //! Transparent-proxy connection handling with a supplied original
 //! destination (no iptables or root needed).
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 mod common;
 
 use std::net::{IpAddr, SocketAddr};

@@ -1,6 +1,8 @@
 //! Ports of Go `internal/credentials/store_test.go`, plus JSON fixtures the
 //! Go package wrote.
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 use std::fs;
 use std::process::Command;
 

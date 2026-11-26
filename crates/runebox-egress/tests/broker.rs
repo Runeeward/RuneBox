@@ -2,6 +2,8 @@
 //! the per-sandbox CA, request rules, budgets, audit mode, approval, and
 //! credential placeholders. No network beyond 127.0.0.1.
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 mod common;
 
 use std::collections::HashMap;

@@ -1,6 +1,8 @@
 //! Ports of Go `internal/controlplane/leasetoken_test.go`, plus interop with
 //! tokens minted by the Go implementation.
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 use std::fs;
 
 use chrono::TimeDelta;

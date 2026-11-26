@@ -8,6 +8,8 @@
 //! Evaluation-error reasons embed engine-specific error text, so only their
 //! `… evaluation error: ` prefix is compared.
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 use std::path::{Path, PathBuf};
 
 use runebox_charter::{Options, SignedCharters, Verdict, load};

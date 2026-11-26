@@ -1,6 +1,8 @@
 //! Ports of Go `cmd/runebox-browser/main_test.go` and driver exchanges
 //! over in-memory and real sockets.
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 use runebox_browser::driver::{
     Disposition, Driver, Network, listen_control, no_sandbox_from, read_json_value,
 };

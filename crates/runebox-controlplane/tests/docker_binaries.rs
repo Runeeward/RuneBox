@@ -28,6 +28,7 @@
 //! the workspace volume, the sidecar, the image tags it built) is removed on
 //! the way out.
 #![cfg(unix)]
+#![allow(clippy::expect_used, reason = "tests")]
 
 use std::path::Path;
 use std::process::Command;

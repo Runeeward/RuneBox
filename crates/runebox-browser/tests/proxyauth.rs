@@ -1,5 +1,7 @@
 //! Ports of Go `cmd/runebox-browser/proxyauth_test.go`.
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use runebox_browser::proxyauth::start_proxy_auth_forwarder;
