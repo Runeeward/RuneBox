@@ -193,10 +193,12 @@ impl Ledger {
         self.lock().signer = signer;
     }
 
-    /// Releases the file handle (and with it the writer lock). Later appends
-    /// fail; reads keep working. Closing twice is a no-op.
+    /// Releases the writer lock and the file handle. Later appends fail;
+    /// reads keep working. Closing twice is a no-op.
     pub fn close(&self) {
-        self.lock().file = None;
+        if let Some(file) = self.lock().file.take() {
+            unlock_file(&file);
+        }
     }
 
     /// Writes ev as one JSON line with the chain fields set, fsyncs, and
@@ -295,6 +297,12 @@ impl Ledger {
     }
 }
 
+impl Drop for Ledger {
+    fn drop(&mut self) {
+        self.close();
+    }
+}
+
 /// Checks record i's sequence number, link to `prev` and stored hash.
 pub(crate) fn check_link(i: usize, ev: &Event, prev: &str) -> Result<(), LedgerError> {
     let index = i + 1;
@@ -322,11 +330,21 @@ pub(crate) fn check_link(i: usize, ev: &Event, prev: &str) -> Result<(), LedgerE
 #[cfg(unix)]
 fn lock_file(file: &File, path: &Path) -> Result<(), LedgerError> {
     // Non-blocking: a second writer would silently break the chain, so fail
-    // fast at startup instead. Released when the file is closed.
+    // fast at startup instead. Released by `unlock_file` on close.
     fs2::FileExt::try_lock_exclusive(file).map_err(|source| LedgerError::Locked {
         path: path.to_path_buf(),
         source,
     })
+}
+
+/// Releases the writer lock before the handle is dropped. The lock belongs
+/// to the open file, which a process spawned meanwhile shares until it
+/// execs, so dropping the handle alone can leave the lock held for a moment
+/// and make an immediate reopen fail.
+#[cfg(unix)]
+fn unlock_file(file: &File) {
+    // Failing to unlock leaves the old behaviour: released on last close.
+    let _ = fs2::FileExt::unlock(file);
 }
 
 /// The single-writer guarantee is only enforced on unix, as in Go: Windows
@@ -335,6 +353,9 @@ fn lock_file(file: &File, path: &Path) -> Result<(), LedgerError> {
 fn lock_file(_file: &File, _path: &Path) -> Result<(), LedgerError> {
     Ok(())
 }
+
+#[cfg(not(unix))]
+fn unlock_file(_file: &File) {}
 
 /// Returns a copy of ev with payload fields replaced by their
 /// `sha256:<hex>` digests and `redacted` set. `payload_hash` records the
@@ -574,6 +595,25 @@ mod tests {
         assert!(matches!(err, LedgerError::Locked { .. }), "{err}");
         l.close();
         Ledger::open(&path).expect("open after close");
+    }
+
+    /// A process spawned while the ledger is open holds a copy of its
+    /// descriptor until exec. The writer lock belongs to the shared open
+    /// file, so close must release it even while such a copy is alive.
+    #[cfg(unix)]
+    #[test]
+    fn close_releases_lock_while_descriptor_copy_is_alive() {
+        let (l, _dir, path) = new_ledger();
+        let copy = l
+            .lock()
+            .file
+            .as_ref()
+            .expect("open file")
+            .try_clone()
+            .expect("dup");
+        l.close();
+        Ledger::open(&path).expect("reopen while a descriptor copy is alive");
+        drop(copy);
     }
 
     #[test]
