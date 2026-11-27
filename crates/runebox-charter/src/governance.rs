@@ -266,8 +266,6 @@ pub struct RequestRule {
 const PROTOCOLS: [&str; 5] = ["tcp", "rest", "websocket", "mcp", "json-rpc"];
 const EFFECTS: [&str; 3] = ["read", "write", "irreversible"];
 
-/// Checks the governance sections, returning the first problem as a message
-/// in the same `field: problem` style as the rest of validation.
 /// Checks `[workspace]`.
 pub(crate) fn validate_workspace(w: Option<&Workspace>) -> Result<(), String> {
     let Some(w) = w else {

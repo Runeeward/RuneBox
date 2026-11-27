@@ -417,7 +417,7 @@ pub struct PolicyRule {
     /// Glob over the action's primary argument (command, path or hostname).
     #[serde(rename = "match")]
     pub match_glob: String,
-    /// Glob over argv[0], so `sh -c 'rm …'` or `/bin/rm` cannot sidestep a
+    /// Glob over `argv[0]`, so `sh -c 'rm …'` or `/bin/rm` cannot sidestep a
     /// rule written against the joined command line.
     pub match_argv: String,
     /// `allow`, `deny` or `require-approval`; required.

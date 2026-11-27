@@ -277,8 +277,8 @@ fn is_zero(v: &i64) -> bool {
     *v == 0
 }
 
-/// A reconnectable transcript record. `stream` is `stdout`, `stderr` or
-/// `status`; `data` has already been scrubbed.
+/// A reconnectable transcript record. `stream` is `stdout`, `stderr`,
+/// `status` or `turn`; `data` has already been scrubbed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentEvent {
     /// Position in the transcript: starts at 1 and keeps rising across turns.

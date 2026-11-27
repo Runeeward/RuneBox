@@ -305,7 +305,7 @@ pub struct Bundle {
     pub key_id: String,
     /// Base64 ed25519 public key every event signature must verify against.
     pub public_key: String,
-    /// "all" or "session:<id>". Session exports may contain sequence gaps
+    /// `"all"` or `"session:<id>"`. Session exports may contain sequence gaps
     /// where other sessions' events were intentionally omitted.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub scope: String,
