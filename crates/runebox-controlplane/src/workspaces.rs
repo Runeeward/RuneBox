@@ -63,75 +63,92 @@ const ORPHAN_BACKEND_TIMEOUT: Duration = Duration::from_secs(5);
 /// The durable record of one persistent Citadel.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkspaceRecord {
+    /// The persistent Citadel's id.
     #[serde(default, deserialize_with = "nullable")]
     pub citadel_id: String,
+    /// The Charter name.
     #[serde(default, deserialize_with = "nullable")]
     pub profile: String,
+    /// Backend name (`docker`, `podman`, `k8s`, ...).
     #[serde(default, deserialize_with = "nullable")]
     pub backend: String,
+    /// Image the sandbox runs; omitted when empty.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub image: String,
+    /// The isolation tier recorded for the sandbox.
     #[serde(default)]
     pub isolation: IsolationTier,
     /// `running` or `sleeping`.
     #[serde(default, deserialize_with = "nullable")]
     pub state: String,
+    /// Tenant that owns the Citadel; omitted when unowned.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub owner: String,
+    /// The principal that created the Citadel; omitted when unknown.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub actor: String,
+    /// The Citadel's run id.
     #[serde(default, deserialize_with = "nullable")]
     pub run_id: String,
+    /// The run of the parent Citadel, for a delegated child; omitted
+    /// otherwise.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub parent_run_id: String,
+    /// The run this workspace was forked from; omitted when not a fork.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub forked_from: String,
+    /// Agent name recorded for attribution (e.g. `cursor`); omitted when empty.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub agent: String,
+    /// Model provider recorded for attribution; omitted when empty.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub provider: String,
+    /// Model name recorded for attribution; omitted when empty.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub model: String,
+    /// When the record was first written (RFC 3339).
     #[serde(with = "crate::timefmt", default = "gotime::zero")]
     pub created_at: Time,
+    /// When the workspace last went to sleep; omitted if it never has.
     #[serde(
         with = "crate::timefmt::opt",
         default,
         skip_serializing_if = "Option::is_none"
     )]
     pub slept_at: Option<Time>,
+    /// When the workspace last woke; omitted if it never has.
     #[serde(
         with = "crate::timefmt::opt",
         default,
@@ -160,6 +177,7 @@ impl WorkspaceRecord {
 /// A persistent Citadel's workspace status.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct WorkspaceStatus {
+    /// The persistent Citadel's id.
     pub citadel_id: String,
     /// The session state (`running`, `sleeping`, `waking`, ...).
     pub state: String,
@@ -167,10 +185,14 @@ pub struct WorkspaceStatus {
     pub idle_timeout_secs: u64,
     /// Seconds since the last governed activity (0 while asleep).
     pub idle_secs: u64,
+    /// When the workspace last went to sleep (RFC 3339); omitted if it never
+    /// has.
     #[serde(with = "crate::timefmt::opt", skip_serializing_if = "Option::is_none")]
     pub slept_at: Option<Time>,
+    /// When the workspace last woke (RFC 3339); omitted if it never has.
     #[serde(with = "crate::timefmt::opt", skip_serializing_if = "Option::is_none")]
     pub woke_at: Option<Time>,
+    /// The run this workspace was forked from; omitted when not a fork.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub forked_from: String,
 }

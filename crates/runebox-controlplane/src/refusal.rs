@@ -132,10 +132,13 @@ impl std::fmt::Display for RefusalReason {
 pub struct Refusal {
     /// Always true; lets clients test one field.
     pub refused: bool,
+    /// The refusal class.
     pub reason: RefusalReason,
+    /// Whether re-sending the same request is safe and may succeed later.
     pub retryable: bool,
     /// The caller's `X-Request-Id`, or a generated id.
     pub request_id: String,
+    /// Human-readable explanation, as the transport shows it.
     pub message: String,
 }
 

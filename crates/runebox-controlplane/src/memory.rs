@@ -52,21 +52,26 @@ pub const MAX_MEMORY_RESULTS: usize = 100;
 /// One shared memory entry.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemoryEntry {
+    /// Entry name, unique within the Cohort (at most 256 bytes).
     #[serde(default, deserialize_with = "nullable")]
     pub key: String,
+    /// The note text (at most 16 KiB).
     #[serde(default, deserialize_with = "nullable")]
     pub text: String,
     /// The principal that last wrote the entry.
     #[serde(default, deserialize_with = "nullable")]
     pub author: String,
+    /// Tags, trimmed, sorted and deduplicated; omitted when none.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "Vec::is_empty"
     )]
     pub tags: Vec<String>,
+    /// When the key was first written (RFC 3339).
     #[serde(with = "crate::timefmt", default = "gotime::zero")]
     pub created_at: Time,
+    /// When the entry was last written (RFC 3339).
     #[serde(with = "crate::timefmt", default = "gotime::zero")]
     pub updated_at: Time,
     /// Starts at 1 and increases on every write.
@@ -77,8 +82,11 @@ pub struct MemoryEntry {
 /// A memory write.
 #[derive(Debug, Clone, Default)]
 pub struct MemoryPut {
+    /// Entry name; surrounding whitespace is trimmed.
     pub key: String,
+    /// The note text (at most 16 KiB).
     pub text: String,
+    /// At most 16 tags of up to 64 bytes each.
     pub tags: Vec<String>,
     /// `None` writes unconditionally; `Some(0)` requires the key to be new;
     /// `Some(n)` requires the current version to be `n`.

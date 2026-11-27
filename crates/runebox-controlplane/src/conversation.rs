@@ -21,15 +21,25 @@ const SUBSCRIBER_BUFFER: usize = 64;
 /// One turn of the feed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ConversationMessage {
+    /// Per-Citadel sequence number, starting at 1.
     pub id: u64,
+    /// The Citadel the turn belongs to.
     pub sandbox: String,
+    /// `user`, `assistant`, `tool` or `system`.
     pub role: String,
+    /// The authenticated principal that posted it, else the role.
     pub author: String,
+    /// The turn text: scrubbed of secrets and terminal control characters,
+    /// at most 64 KiB.
     pub content: String,
+    /// The run the turn belongs to (default: the Citadel's run); omitted when
+    /// empty.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub run_id: String,
+    /// When the turn was posted (RFC 3339).
     #[serde(with = "crate::timefmt")]
     pub created_at: Time,
+    /// True when secrets were scrubbed from the content; omitted when false.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub redacted: bool,
 }

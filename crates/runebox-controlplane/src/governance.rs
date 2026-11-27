@@ -86,9 +86,11 @@ pub struct IsolationEvidence {
     pub landlock_abi: u32,
     /// The self-protection seccomp filter is installed.
     pub seccomp: bool,
+    /// `no_new_privs` is set on the agent.
     pub no_new_privs: bool,
     /// The agent's uid and gid.
     pub uid: Option<u32>,
+    /// The agent's gid; `null` when not reported.
     pub gid: Option<u32>,
     /// Every capability set of the agent is empty.
     pub capabilities_dropped: bool,

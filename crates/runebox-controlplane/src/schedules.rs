@@ -65,7 +65,9 @@ pub struct ScheduleSpec {
     pub command: Vec<String>,
     /// Appended to `command` as its last argument when set.
     pub prompt: String,
+    /// Agent name recorded for attribution (e.g. `cursor`); empty when not given.
     pub agent: String,
+    /// Model name recorded for attribution; empty when not given.
     pub model: String,
     /// Runs first; the agent starts only if it exits 0.
     pub precheck: Vec<String>,
@@ -74,6 +76,7 @@ pub struct ScheduleSpec {
 /// A stored schedule.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Schedule {
+    /// Schedule id (32 hex characters).
     #[serde(default, deserialize_with = "nullable")]
     pub id: String,
     /// The tenant of the target.
@@ -90,50 +93,60 @@ pub struct Schedule {
         skip_serializing_if = "String::is_empty"
     )]
     pub actor: String,
+    /// Target Cohort; omitted for a Citadel schedule.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub cohort_id: String,
+    /// Target Citadel; omitted for a Cohort schedule.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub citadel_id: String,
+    /// 5-field cron expression in UTC; omitted for an interval schedule.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub cron: String,
+    /// Fixed interval as a Go duration (`"30m"`); omitted for a cron
+    /// schedule.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub every: String,
+    /// The agent command (argv).
     #[serde(default, deserialize_with = "nullable")]
     pub command: Vec<String>,
+    /// Appended to `command` as its last argument; omitted when empty.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub prompt: String,
+    /// Agent name recorded for attribution (e.g. `cursor`); omitted when empty.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub agent: String,
+    /// Model name recorded for attribution; omitted when empty.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub model: String,
+    /// Runs first; the agent starts only if it exits 0. Omitted when none.
     #[serde(
         default,
         deserialize_with = "nullable",
@@ -147,14 +160,17 @@ pub struct Schedule {
         skip_serializing_if = "std::ops::Not::not"
     )]
     pub self_service: bool,
+    /// When the schedule was created (RFC 3339).
     #[serde(with = "crate::timefmt", default = "gotime::zero")]
     pub created_at: Time,
+    /// The next firing (RFC 3339); omitted when none can be computed.
     #[serde(
         with = "crate::timefmt::opt",
         default,
         skip_serializing_if = "Option::is_none"
     )]
     pub next_fire_at: Option<Time>,
+    /// The last firing (RFC 3339); omitted until it first fires.
     #[serde(
         with = "crate::timefmt::opt",
         default,
@@ -168,18 +184,22 @@ pub struct Schedule {
         skip_serializing_if = "String::is_empty"
     )]
     pub last_outcome: String,
+    /// Why the last firing did not start an agent; omitted when it did.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub last_reason: String,
+    /// The agent session the last successful firing started; omitted until
+    /// one has.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub last_session_id: String,
+    /// Times the schedule has fired, whatever the outcome; omitted when 0.
     #[serde(
         default,
         deserialize_with = "nullable",
@@ -195,12 +215,18 @@ fn is_zero(v: &u64) -> bool {
 /// The result of one firing.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ScheduleFiring {
+    /// The schedule that fired.
     pub schedule_id: String,
+    /// `started`, `skipped_precheck`, `skipped_busy`, `denied` or `error`.
     pub outcome: String,
+    /// The Citadel picked to run it; omitted when the firing stopped before
+    /// picking one.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub citadel_id: String,
+    /// The agent session started; omitted unless `outcome` is `started`.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub session_id: String,
+    /// Why it did not start an agent; omitted when it did.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub reason: String,
 }

@@ -59,12 +59,18 @@ impl Fleet {
 /// The JSON projection of a Cohort.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct FleetView {
+    /// Cohort id (32 hex characters).
     pub id: String,
+    /// The Charter every member runs.
     pub profile: String,
+    /// Tenant that owns the Cohort; omitted when unowned.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub owner: String,
+    /// Member Citadel ids; `null` when a record from disk had none.
     pub sandboxes: Option<Vec<String>>,
+    /// Task board counts by state.
     pub stats: Stats,
+    /// When the Cohort was created (RFC 3339).
     #[serde(with = "crate::timefmt")]
     pub created: Time,
 }

@@ -83,15 +83,27 @@ pub struct ServerChecks {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[non_exhaustive]
 pub enum Rule {
+    /// TLS on every non-loopback listener.
     Tls,
+    /// Per-principal authentication (authz file or OIDC) and no shared static
+    /// API token.
     Auth,
+    /// Signed Charters required, with a verify key configured.
     SignedCharters,
+    /// Chronicle signing on.
     LedgerSigning,
+    /// Every Charter has an isolation floor of kernel or above, or runs on a
+    /// tier of kernel or above.
     Isolation,
+    /// Every Charter denies egress by default (`[network] default = "deny"`).
     Egress,
+    /// Every Charter's `host.image` is pinned as `name@sha256:<64 hex>`.
     ImageDigest,
+    /// Per-principal rate limiting on.
     RateLimit,
+    /// No Charter sets `host.seccomp = "unconfined"`.
     Seccomp,
+    /// Every resolvable Charter loads (and verifies).
     Charter,
 }
 
@@ -116,6 +128,7 @@ impl Rule {
 /// One failed requirement.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Violation {
+    /// The rule that failed.
     pub rule: Rule,
     /// What failed: a listener, a Charter name, or `server`.
     pub subject: String,

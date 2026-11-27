@@ -16,42 +16,52 @@ pub(crate) const RUNS_FILE_NAME: &str = "runs.json";
 /// the Go `Run`, so `runs.json` round-trips byte for byte.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Run {
+    /// Run id: caller-chosen, else 32 hex characters.
     #[serde(default, deserialize_with = "nullable")]
     pub id: String,
+    /// The run of the parent Citadel, for a delegated child; omitted
+    /// otherwise.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub parent_run_id: String,
+    /// The Citadel the run executed in.
     #[serde(default, deserialize_with = "nullable")]
     pub citadel_id: String,
+    /// Tenant that owns the Citadel; omitted when unowned.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub tenant: String,
+    /// The principal that created the Citadel; omitted when unknown.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub actor: String,
+    /// The Charter name.
     #[serde(default, deserialize_with = "nullable")]
     pub charter: String,
+    /// Agent name recorded for attribution (e.g. `cursor`); omitted when empty.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub agent: String,
+    /// Model provider recorded for attribution; omitted when empty.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub provider: String,
+    /// Model name recorded for attribution; omitted when empty.
     #[serde(
         default,
         deserialize_with = "nullable",
@@ -61,14 +71,17 @@ pub struct Run {
     /// `running`, `completed`, `failed` or `interrupted`.
     #[serde(default, deserialize_with = "nullable")]
     pub status: String,
+    /// When the run started (RFC 3339).
     #[serde(with = "crate::timefmt", default = "gotime::zero")]
     pub created_at: Time,
+    /// When the run ended; omitted while running.
     #[serde(
         with = "crate::timefmt::opt",
         default,
         skip_serializing_if = "Option::is_none"
     )]
     pub finished_at: Option<Time>,
+    /// Why the run failed or was interrupted; omitted otherwise.
     #[serde(
         default,
         deserialize_with = "nullable",
