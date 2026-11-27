@@ -23,6 +23,7 @@
 //! workspace survives sleep and wake, and that destroying the sandbox
 //! leaves no VMM process, socket or file behind.
 #![cfg(unix)]
+#![allow(clippy::expect_used, reason = "tests")]
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;

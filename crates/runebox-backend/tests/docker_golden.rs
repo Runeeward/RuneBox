@@ -2,6 +2,7 @@
 //! invocation with the argv the Go implementation produced for the same
 //! scenarios (`fixtures/go-docker-argv.json`).
 #![cfg(unix)]
+#![allow(clippy::expect_used, reason = "tests")]
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};

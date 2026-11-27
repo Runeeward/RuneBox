@@ -1,5 +1,7 @@
 //! Ports of Go `internal/fleet/lease_test.go`.
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 use std::thread;
 use std::time::Duration;
 

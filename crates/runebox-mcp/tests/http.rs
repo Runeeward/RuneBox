@@ -2,6 +2,7 @@
 //! through tower, and `serve_http_on` over loopback TCP (plain and TLS).
 
 #![allow(clippy::unwrap_used)]
+#![allow(clippy::expect_used, reason = "tests")]
 
 mod support;
 

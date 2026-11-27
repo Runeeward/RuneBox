@@ -35,6 +35,7 @@
 //! Everything the test creates (the Citadels, the Service and its
 //! EndpointSlice) is removed on the way out.
 #![cfg(unix)]
+#![allow(clippy::expect_used, reason = "tests")]
 
 use std::collections::BTreeMap;
 use std::sync::Arc;

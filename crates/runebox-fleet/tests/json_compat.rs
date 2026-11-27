@@ -1,6 +1,8 @@
 //! Task JSON is byte-identical to Go's `encoding/json` output, so
 //! `fleets.json` written by either implementation reads back in the other.
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 use runebox_fleet::{Board, Stats, Task, TaskState};
 use runebox_ledger::gojson;
 

@@ -97,6 +97,9 @@ pub enum LedgerError {
     #[error("ledger: write signing key: {0}")]
     WriteKey(io::Error),
 
+    #[error("ledger: generate signing key: {0}")]
+    GenerateKey(io::Error),
+
     #[error("ledger: signing keys {key:?} and {legacy:?} differ; keep one")]
     KeyConflict { key: PathBuf, legacy: PathBuf },
 

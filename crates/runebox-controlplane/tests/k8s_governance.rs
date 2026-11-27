@@ -22,6 +22,7 @@
 //!
 //! Everything the test creates is removed on the way out.
 #![cfg(unix)]
+#![allow(clippy::expect_used, reason = "tests")]
 
 use std::sync::Arc;
 use std::time::Duration;

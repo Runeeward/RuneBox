@@ -5,6 +5,7 @@
 //! namespace or cluster: startup reconciles every `runebox.managed=true`
 //! Pod in the configured namespace.
 #![cfg(unix)]
+#![allow(clippy::expect_used, reason = "tests")]
 
 use std::sync::Arc;
 

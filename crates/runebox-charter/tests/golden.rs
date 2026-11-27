@@ -1,6 +1,8 @@
 //! Interoperability with detached Charter signatures written by the Go
 //! implementation (`tools/golden`).
 
+#![allow(clippy::expect_used, reason = "test helpers")]
+
 use std::path::{Path, PathBuf};
 
 use ed25519_dalek::SigningKey;

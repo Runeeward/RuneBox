@@ -4,6 +4,8 @@
 //! `health_path` can close a 503 breaker early. Time is a manual clock, so
 //! nothing here waits on the wall clock.
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 mod common;
 
 use std::collections::HashMap;

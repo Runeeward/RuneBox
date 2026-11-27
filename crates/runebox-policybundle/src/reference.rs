@@ -10,16 +10,28 @@ use regex::Regex;
 
 use crate::digest;
 
+#[expect(
+    clippy::expect_used,
+    reason = "constant pattern, exercised by the tests"
+)]
 static REGISTRY: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^(?:\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9._~%!$&'()*+,;=-]+)(?::[0-9]*)?$")
         .expect("static registry regex")
 });
+#[expect(
+    clippy::expect_used,
+    reason = "constant pattern, exercised by the tests"
+)]
 static REPOSITORY: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r"^[a-z0-9]+(?:(?:[._]|__|[-]*)[a-z0-9]+)*(?:/[a-z0-9]+(?:(?:[._]|__|[-]*)[a-z0-9]+)*)*$",
     )
     .expect("static repository regex")
 });
+#[expect(
+    clippy::expect_used,
+    reason = "constant pattern, exercised by the tests"
+)]
 static TAG: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^\w[\w.-]{0,127}$").expect("static tag regex"));
 

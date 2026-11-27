@@ -1,6 +1,8 @@
 //! Ports of Go `internal/termrec/recorder_test.go`, plus byte-for-byte
 //! comparison with casts the Go recorder wrote.
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 use std::io::{self, Write};
 use std::sync::Arc;
 use std::thread;

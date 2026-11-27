@@ -13,6 +13,7 @@
 //! The agent is this test binary itself, re-run with `RUNEBOX_PROBE=1` so
 //! that [`probe_entry`] performs the escape attempts and prints the results.
 #![cfg(target_os = "linux")]
+#![allow(clippy::expect_used, reason = "tests")]
 
 use std::collections::BTreeMap;
 use std::io::{IoSliceMut, Read as _};

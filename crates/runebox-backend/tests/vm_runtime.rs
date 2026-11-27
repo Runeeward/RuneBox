@@ -16,6 +16,7 @@
 //!   (a RuntimeClass of that name); `RUNEBOX_TEST_VM_IMAGE` overrides the
 //!   `alpine` image.
 #![cfg(unix)]
+#![allow(clippy::expect_used, reason = "tests")]
 
 use std::sync::Arc;
 

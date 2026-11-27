@@ -1,6 +1,8 @@
 //! Ports of Go `internal/browser/cdp_test.go` against an in-test fake CDP
 //! WebSocket server (no browser needed).
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};

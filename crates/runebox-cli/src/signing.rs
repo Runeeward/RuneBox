@@ -71,7 +71,7 @@ pub fn mkdir_all(dir: &str, mode: u32) -> std::io::Result<()> {
 pub fn keygen(out: &str) -> Result<()> {
     let mut secret = [0u8; 32];
     rand::TryRng::try_fill_bytes(&mut rand::rngs::SysRng, &mut secret)
-        .expect("system random source");
+        .map_err(|e| anyhow!("system random source: {e}"))?;
     let key = SigningKey::from_bytes(&secret);
     let public = key.verifying_key();
     let pub_b64 = runebox_policybundle::encode_key(public.as_bytes());

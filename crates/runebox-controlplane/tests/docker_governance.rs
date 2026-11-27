@@ -25,6 +25,7 @@
 //! nothing else is touched. `RUNEBOX_EGRESS_IMAGE`, when set, picks the
 //! sidecar image (CI builds it from this tree).
 #![cfg(unix)]
+#![allow(clippy::expect_used, reason = "tests")]
 
 use std::io::{BufRead, BufReader};
 use std::net::SocketAddr;

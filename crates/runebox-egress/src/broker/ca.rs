@@ -54,6 +54,10 @@ fn common_name(cn: &str) -> DistinguishedName {
     dn
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "no fallback exists if the OS random source fails"
+)]
 fn random_serial() -> SerialNumber {
     let mut b = [0u8; 16];
     rand::rngs::SysRng

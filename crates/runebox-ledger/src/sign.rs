@@ -75,7 +75,7 @@ impl Signer {
 
         let mut secret = [0u8; 32];
         rand::TryRng::try_fill_bytes(&mut rand::rngs::SysRng, &mut secret)
-            .expect("system random source");
+            .map_err(|e| LedgerError::GenerateKey(io::Error::other(e)))?;
         let key = SigningKey::from_bytes(&secret);
         write_file(&key_path, &key.to_keypair_bytes(), 0o600).map_err(LedgerError::WriteKey)?;
         let pub_line = format!("{}\n", runebox_keys::encode_public(&key.verifying_key()));

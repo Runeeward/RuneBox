@@ -1,5 +1,7 @@
 //! Forward-proxy behaviour against loopback upstreams.
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 mod common;
 
 use std::net::IpAddr;

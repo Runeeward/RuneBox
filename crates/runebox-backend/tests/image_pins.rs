@@ -12,6 +12,8 @@
 //! (operators pin it with `RUNEBOX_EGRESS_IMAGE`, the chart or
 //! `images.json`).
 
+#![allow(clippy::expect_used, reason = "tests")]
+
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 

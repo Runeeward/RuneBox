@@ -1,6 +1,7 @@
 //! End-to-end runs of the `runebox-browser` binary with a fake `chromium`
 //! on PATH and an in-test fake DevTools endpoint.
 #![cfg(unix)]
+#![allow(clippy::expect_used, reason = "tests")]
 
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
