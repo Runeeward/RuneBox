@@ -1,8 +1,12 @@
 $ runebox -c $EX doctor nope
 exit: 1
 --- stdout
-[ok]  version      $VERSION
-[ok]  policies     31 found
-[fail] charter      profile not found: "nope" (searched $REPO/examples)
+[ok]   cli.version      $VERSION
+[ok]   config.dir       Charters are not writable by group or others
+[ok]   config.policies  31 found
+[warn] state.dir        $TMP/state does not exist yet; it is created on first use
+                        fix: create $TMP/state (mode 0700)
+[fail] charter.lint     profile not found: "nope" (searched $REPO/examples)
+run `runebox fix` to see the repairs, `--yes` to apply
 --- stderr
 error: setup is not ready; fix the failed checks above

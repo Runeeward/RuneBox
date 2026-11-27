@@ -126,6 +126,26 @@ $RUNEBOX_CONFIG_DIR, typically a mounted ConfigMap in-cluster."
         #[arg(long)]
         json: bool,
     },
+    /// Repair what doctor found, where a safe local repair exists
+    #[command(
+        long_about = "Repair what `runebox doctor` found, where a safe local repair exists: create
+missing directories, tighten file modes, write a missing starter policy.
+Without --yes it prints the plan and changes nothing. Checks with no safe
+repair print the manual step instead."
+    )]
+    Fix {
+        /// Charter to check (same default as doctor)
+        charter: Option<String>,
+        /// only repair this check ID (repeatable)
+        #[arg(long = "check", value_name = "ID")]
+        checks: Vec<String>,
+        /// print the planned repairs and change nothing
+        #[arg(long)]
+        dry_run: bool,
+        /// apply the planned repairs
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
     /// Provision a sandbox from a policy and step into it
     #[command(
         long_about = "Provision a sandbox (Citadel) for the named policy (Charter/profile) and attach an interactive
@@ -964,6 +984,7 @@ pub const RESERVED: &[&str] = &[
     "init",
     "quickstart",
     "doctor",
+    "fix",
     "evidence",
     "help",
     "completion",
@@ -1098,8 +1119,14 @@ async fn dispatch(cli: Cli) -> Result<()> {
             all_namespaces,
         } => crate::kube::controller(workers, all_namespaces, cfg).await,
         Command::Doctor { charter, json } => {
-            crate::onboarding::doctor(charter.as_deref(), json, cfg).await
+            crate::doctor::doctor(charter.as_deref(), json, cfg).await
         }
+        Command::Fix {
+            charter,
+            checks,
+            dry_run,
+            yes,
+        } => crate::doctor::fix(charter.as_deref(), &checks, dry_run, yes, cfg).await,
         Command::Enter {
             charter,
             command,

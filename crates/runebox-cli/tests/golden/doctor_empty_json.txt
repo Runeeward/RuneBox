@@ -4,14 +4,30 @@ exit: 1
 {
   "checks": [
     {
+      "id": "cli.version",
       "name": "version",
       "status": "ok",
       "message": "$VERSION"
     },
     {
+      "id": "config.dir",
+      "name": "config",
+      "status": "ok",
+      "message": "Charters are not writable by group or others"
+    },
+    {
+      "id": "config.policies",
       "name": "policies",
       "status": "fail",
-      "message": "no policies found; run `runebox init`"
+      "message": "no policies found; run `runebox init`",
+      "fix": "write the starter policy empty/quickstart.toml"
+    },
+    {
+      "id": "state.dir",
+      "name": "state",
+      "status": "warn",
+      "message": "$TMP/state does not exist yet; it is created on first use",
+      "fix": "create $TMP/state (mode 0700)"
     }
   ],
   "ready": false

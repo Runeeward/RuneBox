@@ -27,7 +27,7 @@ pub use governance::{
 pub use lint::{Finding, Severity, lint};
 pub use load::{
     CHARTER_EXTENSIONS, LoadError, Options, REQUIRE_SIGNED_ENV, SignatureFailure, SignedCharters,
-    VERIFY_KEY_ENV, list, load, parse_bytes, parse_file,
+    VERIFY_KEY_ENV, list, load, parse_bytes, parse_file, search_path,
 };
 pub use print::{REDACTED, print, render};
 pub use runtimes::{FIRECRACKER_NO_SHARED_FS, KRUN_NO_EXEC, RuntimeFamily, is_engine_name};

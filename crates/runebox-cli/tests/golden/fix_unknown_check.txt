@@ -1,0 +1,5 @@
+$ runebox -c empty fix --check nope
+exit: 1
+--- stdout
+--- stderr
+error: unknown check "nope"; known checks: cli.version, config.dir, config.policies, state.dir, charter.lint, runtime.backend, secrets.sources, image.reference

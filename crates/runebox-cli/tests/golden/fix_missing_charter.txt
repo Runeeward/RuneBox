@@ -1,0 +1,7 @@
+$ runebox -c $EX fix nope --dry-run
+exit: 0
+--- stdout
+plan    state.dir        create $TMP/state (mode 0700)
+manual  charter.lint     profile not found: "nope" (searched $REPO/examples)
+dry run: nothing changed
+--- stderr
