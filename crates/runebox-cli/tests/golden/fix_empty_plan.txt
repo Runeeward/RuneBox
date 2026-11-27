@@ -1,0 +1,7 @@
+$ runebox -c empty fix
+exit: 0
+--- stdout
+plan    config.policies  write the starter policy empty/quickstart.toml
+plan    state.dir        create $TMP/state (mode 0700)
+nothing changed; run again with --yes to apply
+--- stderr

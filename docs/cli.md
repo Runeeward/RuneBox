@@ -63,7 +63,8 @@ and the Charter's egress policy.
 | `runebox auth login\|status\|logout` | Save or remove a client credential using OIDC device flow or `--token-stdin`. |
 | `runebox init [project-dir]` | Create `.runebox/quickstart.toml` without overwriting an existing policy. |
 | `runebox quickstart [project-dir]` | Prove allow, pre-execution denial, and signed audit. |
-| `runebox doctor [charter] [--json]` | Check policy, runtime, required secret sources, image, and state readiness. |
+| `runebox doctor [charter] [--json]` | Check policy, runtime, required secret sources, image, and state readiness. Each check has a stable ID. |
+| `runebox fix [charter] [--check ID] [--dry-run] [--yes]` | Apply the safe local repairs `doctor` found. Prints the plan without `--yes`. |
 | `runebox enter <charter> [-- cmd...]` | Create a Citadel and open a shell, or run a one-shot command. |
 | `runebox serve [--bind ADDR] [--port N] [--token ... --tls-cert ... --tls-key ...] [--allow-insecure-http] [--no-ui] [--hardened]` | Start the control plane: REST API + web dashboard (default `--bind 127.0.0.1 --port 8080`). A non-loopback `--bind` requires authentication (`--token`/`RUNEBOX_API_TOKEN` of at least 32 characters, or `RUNEBOX_AUTHZ_FILE`) and TLS, unless `--allow-insecure-http` is passed for a trusted TLS-terminating proxy; `--no-ui` serves the REST API without the dashboard. `--hardened` (or `RUNEBOX_HARDENED=1`) refuses to start unless every hardened-mode check passes. |
 | `runebox mcp [--http --tls-cert ... --tls-key ...]` | Run stdio or streamable-HTTP MCP exposing governed tools to an IDE/agent. |

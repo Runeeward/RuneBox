@@ -276,6 +276,23 @@ const CASES: &[Case] = &[
         "doctor_missing_charter",
         &[&["-c", "$EX", "doctor", "nope"]],
     ),
+    case("fix_empty_plan", &[&["-c", "empty", "fix"]]),
+    case(
+        "fix_empty_dry_run",
+        &[&["-c", "empty", "fix", "--dry-run", "--yes"]],
+    ),
+    case(
+        "fix_empty_only_state",
+        &[&["-c", "empty", "fix", "--check", "state.dir", "--dry-run"]],
+    ),
+    case(
+        "fix_unknown_check",
+        &[&["-c", "empty", "fix", "--check", "nope"]],
+    ),
+    case(
+        "fix_missing_charter",
+        &[&["-c", "$EX", "fix", "nope", "--dry-run"]],
+    ),
     case("replay", &[&["replay", "--no-timing", "session.cast"]]),
     case(
         "replay_realtime_false",

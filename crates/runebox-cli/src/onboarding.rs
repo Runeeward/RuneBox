@@ -1,19 +1,15 @@
-//! First-run commands: `init` (starter Charter), `doctor` (readiness checks)
-//! and `quickstart` (starter Charter plus an allow/deny/audit proof).
+//! First-run commands: `init` (starter Charter) and `quickstart` (starter
+//! Charter plus an allow/deny/audit proof). `doctor` lives in
+//! [`crate::doctor`].
 
 use std::io::Write;
 
 use anyhow::{Result, anyhow, bail};
-use runebox_charter::{Charter, HostType, Severity, Verdict};
-use runebox_controlplane::{CreateOptions, Manager, ManagerConfig};
-use serde::Serialize;
+use runebox_charter::Verdict;
+use runebox_controlplane::{CreateOptions, Manager};
 
-use crate::common::{
-    charter_options, expand_home, go_dir, go_io_error, go_join, go_quote, manager_config_dir,
-    resolve_config_dir,
-};
+use crate::common::{go_dir, go_io_error, go_join, go_quote, manager_config_dir};
 use crate::signing::mkdir_all;
-use crate::version::VERSION;
 
 /// The Charter written by `init` and `quickstart`.
 pub const STARTER_CHARTER: &str = r#"# Rune Box starter policy (a "Charter").
@@ -66,25 +62,6 @@ max_execs  = 200
 redact = true
 "#;
 
-/// One readiness check reported by `doctor`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct DoctorCheck {
-    /// What was checked.
-    pub name: String,
-    /// `ok`, `warn` or `fail`.
-    pub status: String,
-    /// Details.
-    pub message: String,
-}
-
-fn check(name: &str, status: &str, message: impl Into<String>) -> DoctorCheck {
-    DoctorCheck {
-        name: name.into(),
-        status: status.into(),
-        message: message.into(),
-    }
-}
-
 #[cfg(unix)]
 fn chmod(path: &str, mode: u32) -> std::io::Result<()> {
     use std::os::unix::fs::PermissionsExt;
@@ -100,24 +77,29 @@ fn chmod(_path: &str, _mode: u32) -> std::io::Result<()> {
 /// (0600 in a 0700 directory). An existing file is kept (and re-secured)
 /// unless `force`. Returns the path and whether it was written.
 pub fn write_starter_charter(project_dir: &str, name: &str, force: bool) -> Result<(String, bool)> {
+    write_starter_into(&go_join(&[project_dir, ".runebox"]), name, force)
+}
+
+/// Writes the starter Charter to `<config_dir>/<name>.toml`, with the same
+/// modes and rules as [`write_starter_charter`].
+pub fn write_starter_into(config_dir: &str, name: &str, force: bool) -> Result<(String, bool)> {
     let name = name.trim();
     if name.is_empty() || name.contains(['/', '\\']) || name == "." || name == ".." {
         bail!("invalid starter policy name {}", go_quote(name));
     }
-    let config_dir = go_join(&[project_dir, ".runebox"]);
-    mkdir_all(&config_dir, 0o700).map_err(|e| {
+    mkdir_all(config_dir, 0o700).map_err(|e| {
         anyhow!(
             "create {config_dir}: {}",
-            go_io_error("mkdir", &config_dir, &e)
+            go_io_error("mkdir", config_dir, &e)
         )
     })?;
-    chmod(&config_dir, 0o700).map_err(|e| {
+    chmod(config_dir, 0o700).map_err(|e| {
         anyhow!(
             "secure {config_dir}: {}",
-            go_io_error("chmod", &config_dir, &e)
+            go_io_error("chmod", config_dir, &e)
         )
     })?;
-    let path = go_join(&[&config_dir, &format!("{name}.toml")]);
+    let path = go_join(&[config_dir, &format!("{name}.toml")]);
     match std::fs::metadata(&path) {
         Ok(_) if !force => {
             chmod(&path, 0o600)
@@ -148,234 +130,6 @@ pub fn init(dir: Option<&str>, name: &str, force: bool) -> Result<()> {
     Ok(())
 }
 
-fn doctor_marker(status: &str) -> &'static str {
-    match status {
-        "ok" => "[ok]",
-        "warn" => "[warn]",
-        _ => "[fail]",
-    }
-}
-
-fn render_checks(checks: &[DoctorCheck]) -> String {
-    checks
-        .iter()
-        .map(|c| {
-            format!(
-                "{:<5} {:<12} {}\n",
-                doctor_marker(&c.status),
-                c.name,
-                c.message
-            )
-        })
-        .collect()
-}
-
-#[derive(Serialize)]
-struct DoctorReport<'a> {
-    checks: &'a [DoctorCheck],
-    ready: bool,
-}
-
-/// `runebox doctor [charter]`.
-pub async fn doctor(name: Option<&str>, as_json: bool, config_dir: &str) -> Result<()> {
-    let (checks, ready) = run_doctor(&resolve_config_dir(config_dir), name.unwrap_or("")).await;
-    let mut stdout = std::io::stdout().lock();
-    if as_json {
-        runebox_ledger::gojson::encode_indent(
-            &mut stdout,
-            &DoctorReport {
-                checks: &checks,
-                ready,
-            },
-        )?;
-    } else {
-        stdout.write_all(render_checks(&checks).as_bytes())?;
-    }
-    if !ready {
-        bail!("setup is not ready; fix the failed checks above");
-    }
-    Ok(())
-}
-
-/// Runs every readiness check; the bool reports whether all passed.
-pub async fn run_doctor(config_dir: &str, requested: &str) -> (Vec<DoctorCheck>, bool) {
-    let mut checks = vec![check("version", "ok", VERSION)];
-    let mut ready = true;
-    let opts = charter_options(config_dir);
-    let names = runebox_charter::list(&opts);
-    if names.is_empty() {
-        checks.push(check(
-            "policies",
-            "fail",
-            "no policies found; run `runebox init`",
-        ));
-        return (checks, false);
-    }
-    checks.push(check("policies", "ok", format!("{} found", names.len())));
-
-    let name = if requested.is_empty() {
-        preferred_doctor_profile(&names, config_dir)
-    } else {
-        requested.to_owned()
-    };
-    let p = match runebox_charter::load(&name, &opts) {
-        Ok(p) => p,
-        Err(e) => {
-            checks.push(check("charter", "fail", e.to_string()));
-            return (checks, false);
-        }
-    };
-    let findings = runebox_charter::lint(&p);
-    let errs = findings
-        .iter()
-        .filter(|f| f.severity == Severity::Error)
-        .count();
-    let warns = findings.len() - errs;
-    let status = if errs > 0 {
-        ready = false;
-        "fail"
-    } else if warns > 0 {
-        "warn"
-    } else {
-        "ok"
-    };
-    checks.push(check(
-        "charter",
-        status,
-        format!("{name} ({errs} errors, {warns} warnings)"),
-    ));
-
-    match runebox_backend::for_charter(&p).await {
-        Ok(be) => checks.push(check("runtime", "ok", format!("{} reachable", be.name()))),
-        Err(e) => {
-            checks.push(check(
-                "runtime",
-                "fail",
-                friendly_runtime_error(&e.to_string()),
-            ));
-            ready = false;
-        }
-    }
-    match check_profile_prerequisites(&p).await {
-        Ok(()) => checks.push(check(
-            "secrets",
-            "ok",
-            "required environment and secret sources resolved",
-        )),
-        Err(e) => {
-            checks.push(check("secrets", "fail", e));
-            ready = false;
-        }
-    }
-    let image = &p.host.image;
-    if image.ends_with(":dev") || !image.contains('/') {
-        checks.push(check(
-            "image",
-            "warn",
-            format!("{image} (local/development image; prefer a published immutable reference)"),
-        ));
-    } else {
-        checks.push(check("image", "ok", image.clone()));
-    }
-
-    let state_dir = ManagerConfig::from_env()
-        .state_dir
-        .map(|d| d.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    match check_writable_dir(&state_dir) {
-        Ok(()) => checks.push(check("state", "ok", state_dir)),
-        Err(e) => {
-            checks.push(check("state", "fail", e));
-            ready = false;
-        }
-    }
-    (checks, ready)
-}
-
-/// Resolves every `[[env]]` source without exposing values, failing closed
-/// like the control plane does when it provisions a sandbox.
-async fn check_profile_prerequisites(p: &Charter) -> Result<(), String> {
-    let resolver = runebox_secrets::Dispatcher::from_env();
-    for e in &p.env {
-        if !e.op.is_empty() {
-            resolver.resolve(&e.op).await.map_err(|err| {
-                format!(
-                    "env {}: resolve {}: {err}",
-                    go_quote(&e.name),
-                    go_quote(&e.op)
-                )
-            })?;
-        } else if !e.file.is_empty() {
-            let path = expand_home(&e.file);
-            std::fs::read(&path).map_err(|err| {
-                format!(
-                    "env {}: read file {}: {}",
-                    go_quote(&e.name),
-                    go_quote(&e.file),
-                    go_io_error("open", &path, &err)
-                )
-            })?;
-        }
-    }
-    Ok(())
-}
-
-/// Picks the Charter to check: a well-known starter name, else the first
-/// container-hosted Charter, else the first name.
-fn preferred_doctor_profile(names: &[String], config_dir: &str) -> String {
-    for preferred in ["quickstart", "dev", "ns-auto"] {
-        if names.iter().any(|n| n == preferred) {
-            return preferred.to_owned();
-        }
-    }
-    let mut sorted = names.to_vec();
-    sorted.sort();
-    let opts = charter_options(config_dir);
-    for name in &sorted {
-        if let Ok(p) = runebox_charter::load(name, &opts)
-            && p.host.host_type == HostType::Container
-        {
-            return name.clone();
-        }
-    }
-    sorted.first().cloned().unwrap_or_default()
-}
-
-/// Creates `dir` (0700) and proves a file can be created and removed in it.
-fn check_writable_dir(dir: &str) -> Result<(), String> {
-    mkdir_all(dir, 0o700)
-        .map_err(|e| format!("create {dir}: {}", go_io_error("mkdir", dir, &e)))?;
-    let probe = tempfile::Builder::new()
-        .prefix(".doctor-")
-        .tempfile_in(dir)
-        .map_err(|e| {
-            format!(
-                "state directory {dir} is not writable: {}",
-                go_io_error("open", &go_join(&[dir, ".doctor-*"]), &e)
-            )
-        })?;
-    let name = probe.path().to_string_lossy().into_owned();
-    probe.close().map_err(|e| {
-        format!(
-            "remove state-directory probe {name}: {}",
-            go_io_error("remove", &name, &e)
-        )
-    })
-}
-
-/// Shortens an unreachable-engine error to an actionable message without
-/// the raw socket detail.
-pub fn friendly_runtime_error(msg: &str) -> String {
-    if msg.contains("engine not reachable") {
-        let short = match msg.find(" (") {
-            Some(i) if i > 0 => &msg[..i],
-            _ => msg,
-        };
-        return format!("{short}; start Docker/Podman, then run `runebox doctor` again");
-    }
-    msg.to_owned()
-}
-
 /// `runebox quickstart [project-dir]`.
 pub async fn quickstart(dir: Option<&str>, no_run: bool, force: bool) -> Result<()> {
     let dir = dir.unwrap_or(".");
@@ -388,9 +142,9 @@ pub async fn quickstart(dir: Option<&str>, no_run: bool, force: bool) -> Result<
         return Ok(());
     }
     let config_dir = go_join(&[dir, ".runebox"]);
-    let (checks, ready) = run_doctor(&config_dir, "quickstart").await;
-    if !ready {
-        print!("{}", render_checks(&checks));
+    let diagnosis = crate::doctor::run_doctor(&config_dir, "quickstart").await;
+    if !diagnosis.ready {
+        print!("{}", crate::doctor::render_checks(&diagnosis.checks));
         bail!("quickstart is not ready; start the container engine and retry (or use --no-run)");
     }
     run_quickstart_proof(&config_dir).await
@@ -507,26 +261,5 @@ mod tests {
         for bad in ["", "a/b", "a\\b", ".", ".."] {
             assert!(write_starter_charter(".", bad, false).is_err(), "{bad:?}");
         }
-    }
-
-    #[test]
-    fn friendly_runtime_error_redacts_socket_detail() {
-        let got = friendly_runtime_error(
-            "docker engine not reachable; is docker running? (dial unix /private/path.sock)",
-        );
-        assert!(
-            !got.contains("/private/path.sock"),
-            "raw socket path leaked: {got}"
-        );
-        assert!(
-            got.contains("runebox doctor"),
-            "missing recovery instruction: {got}"
-        );
-    }
-
-    #[test]
-    fn checks_render_like_go() {
-        let out = render_checks(&[check("version", "ok", "1.0"), check("image", "warn", "x")]);
-        assert_eq!(out, "[ok]  version      1.0\n[warn] image        x\n");
     }
 }

@@ -141,6 +141,12 @@ pub fn load(name: &str, opts: &Options) -> Result<Charter, LoadError> {
     })
 }
 
+/// The directories [`load`] and [`list`] search, in order. They may not
+/// exist.
+pub fn search_path(opts: &Options) -> Vec<PathBuf> {
+    search_dirs(opts, |k| std::env::var(k).ok())
+}
+
 /// Returns the names of every Charter on the search path, sorted and
 /// de-duplicated (earlier tiers shadow later ones). Missing directories are
 /// skipped.

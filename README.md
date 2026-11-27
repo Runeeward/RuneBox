@@ -39,10 +39,15 @@ unset `env://` value is not presented as launch-ready.
 
 ```bash
 runebox doctor quickstart                     # explain setup problems safely
+runebox fix quickstart --yes                  # apply the safe local repairs doctor found
 runebox --config-dir .runebox serve          # dashboard + governed REST API
 runebox evidence export quickstart -o run.json
 runebox evidence verify run.json              # independent policy/audit verification
 ```
+
+### Doctor and fix
+
+Every `doctor` check has a stable ID (`state.dir`, `config.policies`, ...), shown in the text report and in `--json`. `runebox fix` makes the repairs that are safe and local: it creates missing directories, tightens file modes and writes a missing starter policy. It only prints the plan unless you pass `--yes`, and `--check ID` limits it to one check. Checks with no safe repair print the manual step.
 
 ## What Rune Box adds
 

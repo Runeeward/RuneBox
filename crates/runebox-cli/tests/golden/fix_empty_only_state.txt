@@ -1,0 +1,6 @@
+$ runebox -c empty fix --check state.dir --dry-run
+exit: 0
+--- stdout
+plan    state.dir        create $TMP/state (mode 0700)
+dry run: nothing changed
+--- stderr
