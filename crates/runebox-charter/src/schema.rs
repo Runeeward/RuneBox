@@ -129,16 +129,23 @@ pub struct Charter {
     #[serde(skip)]
     pub source: PathBuf,
 
+    /// `[host]`: backend, image and sandbox hardening.
     pub host: Host,
     /// Optional tools present in the image (`python`, `node`, `browser`), so
     /// the dashboard does not offer actions the sandbox cannot execute.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub capabilities: Vec<String>,
+    /// `[prompt]`: optional system prompt.
     pub prompt: Prompt,
+    /// `[[env]]`: variables set in the sandbox, resolved on every run.
     pub env: Vec<EnvVar>,
+    /// `[[file]]` entries (serialized as `file`): files written into the
+    /// sandbox at creation.
     #[serde(rename = "file")]
     pub files: Vec<File>,
+    /// `[network]`: the egress policy.
     pub network: Network,
+    /// `[[policy]]`: built-in action rules, first match wins.
     pub policy: Vec<PolicyRule>,
     /// Fallback verdict when no rule matches; unset keeps the historical
     /// "allow", "deny" fails closed.
@@ -146,14 +153,20 @@ pub struct Charter {
     /// `""`/`"builtin"` (the `[[policy]]` rules), `"cel"` or `"rego"`. Selecting
     /// cel or rego makes the `[[policy]]` rules ignored.
     pub policy_engine: String,
+    /// `[[cel]]`: rules used when `policy_engine = "cel"`.
     pub cel: Vec<CelRule>,
+    /// `[rego]`: the module used when `policy_engine = "rego"`.
     pub rego: RegoPolicy,
     /// When set, supersedes the inline policy with a signed OCI bundle.
     pub policy_bundle: Option<PolicyBundle>,
+    /// `[rationing]` (serialized as `rationing`): cost and loop guardrails.
     #[serde(rename = "rationing")]
     pub limits: Limits,
+    /// `[cohort]` (serialized as `cohort`): Cohort settings; `None` when the
+    /// section is absent.
     #[serde(rename = "cohort")]
     pub fleet: Option<Fleet>,
+    /// `[chronicle]` (serialized as `chronicle`): ledger sink and redaction.
     #[serde(rename = "chronicle")]
     pub audit: Audit,
     /// Optional in-sandbox browser IDE, gated at serve time by a feature flag.
@@ -224,6 +237,7 @@ impl Charter {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Ide {
+    /// Turns the IDE on; the server must also enable the experimental IDE flag.
     pub enabled: bool,
     /// Container-local listen port; validation defaults it to 8080 when enabled.
     pub port: i64,
@@ -238,11 +252,20 @@ pub struct Ide {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Host {
+    /// `type`: `container`, `k8s` or `microvm`; loading fills `container`
+    /// when empty.
     #[serde(rename = "type")]
     pub host_type: HostType,
+    /// Free-form label; only displayed and compared when checking that one
+    /// Charter narrows another.
     pub name: String,
+    /// Sandbox image; loading fills [`crate::DEFAULT_SANDBOX_IMAGE`] when empty.
     pub image: String,
+    /// Identity as `user` or `user:group`, numeric on Kubernetes. Empty: the
+    /// image's user on Docker/Podman, a fixed non-root uid on Kubernetes.
     pub user: String,
+    /// Working directory inside the sandbox; loading fills `/workspace` when
+    /// empty.
     pub workdir: String,
     /// Overrides the keep-alive entrypoint; empty means `sleep infinity`.
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -288,7 +311,9 @@ impl Host {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Prompt {
+    /// Prompt text written in the Charter.
     pub inline: String,
+    /// Path to a file holding the prompt.
     pub file: String,
 }
 
@@ -297,6 +322,7 @@ pub struct Prompt {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct EnvVar {
+    /// Variable name set in the sandbox; required.
     pub name: String,
     /// A literal value.
     pub value: String,
@@ -321,7 +347,9 @@ impl EnvVar {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct File {
+    /// Target path in the sandbox; a relative path lands under `host.workdir`.
     pub path: String,
+    /// Octal mode of 3 or 4 digits, such as `"0600"`; empty means `0444`.
     pub mode: String,
     /// Source path on the operator's machine.
     pub file: String,
@@ -334,7 +362,9 @@ pub struct File {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Network {
+    /// `"deny"` blocks unmatched egress; `"allow"` or empty lets it through.
     pub default: String,
+    /// `[[network.rule]]` entries (serialized as `rule`); the first match wins.
     #[serde(rename = "rule")]
     pub rules: Vec<NetworkRule>,
     /// How a deny policy is enforced. `""` (the default), `"strict"` and its
@@ -366,8 +396,14 @@ impl Network {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct NetworkRule {
+    /// `allow` (any case) permits the target; any other value, empty
+    /// included, denies it.
     pub verdict: String,
+    /// Host to match; `*.example.com` matches subdomains at any depth but
+    /// not the bare domain. One host per rule.
     pub hostname: String,
+    /// IP range such as `10.0.0.0/8`, matched only when the destination is an
+    /// IP address.
     pub cidr: String,
 }
 
@@ -384,6 +420,7 @@ pub struct PolicyRule {
     /// Glob over argv[0], so `sh -c 'rm …'` or `/bin/rm` cannot sidestep a
     /// rule written against the joined command line.
     pub match_argv: String,
+    /// `allow`, `deny` or `require-approval`; required.
     pub verdict: Verdict,
     /// Shown to the approver and recorded in the ledger.
     pub reason: String,
@@ -394,8 +431,11 @@ pub struct PolicyRule {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct CelRule {
+    /// CEL boolean expression over `tool` and `arg`.
     pub expr: String,
+    /// Verdict when `expr` is true; unset means allow.
     pub verdict: Verdict,
+    /// Recorded with the decision.
     pub reason: String,
 }
 
@@ -404,8 +444,11 @@ pub struct CelRule {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct RegoPolicy {
+    /// Inline Rego module source.
     pub module: String,
+    /// Path to a Rego module file on the operator's machine (`~` expands).
     pub file: String,
+    /// Query to evaluate; empty means `data.runebox.decision`.
     pub query: String,
 }
 
@@ -433,6 +476,7 @@ pub struct PolicyBundle {
 pub struct Limits {
     /// Go duration string such as "30m"; see [`crate::parse_duration`].
     pub wall_clock: String,
+    /// Most tool invocations per session; 0 or less is unlimited.
     pub max_execs: i64,
     /// Container memory cap such as "512m" or "2g".
     pub memory: String,
@@ -443,6 +487,8 @@ pub struct Limits {
     /// A session repeating `loop_threshold` near-identical failing actions
     /// within `loop_window` is killed.
     pub loop_window: String,
+    /// Failures of one action within `loop_window` that kill the session;
+    /// 0, or an empty `loop_window`, disables loop detection.
     pub loop_threshold: i64,
     /// Cumulative model-token cap reported via the usage API.
     pub max_tokens: i64,
@@ -461,6 +507,7 @@ impl Limits {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Fleet {
+    /// Citadels the Cohort starts; values below 1 start one.
     pub replicas: i64,
     /// Optional task identifiers to distribute.
     pub task_board: Vec<String>,

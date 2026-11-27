@@ -28,10 +28,13 @@ use crate::{Answer, Holder, MAX_HOLDERS, Query, SCHEMA, Status};
 /// One row of `/proc/net/tcp{,6}`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TcpEntry {
+    /// Local address.
     pub local: SocketAddr,
+    /// Peer address (all zeros for a listening socket).
     pub remote: SocketAddr,
     /// The kernel's state code (`01` established, `0A` listen, ...).
     pub state: u8,
+    /// Socket inode, used to find the processes holding it.
     pub inode: u64,
 }
 
@@ -99,6 +102,7 @@ pub struct ProcFs {
 /// The holders of a set of sockets.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Holders {
+    /// Processes holding at least one of the sockets.
     pub pids: BTreeSet<u32>,
     /// Processes whose descriptors could not be read.
     pub uninspectable: BTreeSet<u32>,

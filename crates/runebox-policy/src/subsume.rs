@@ -200,6 +200,7 @@ pub struct CredentialReach {
     pub endpoint: String,
     /// Host and port the credential is injected for.
     pub host: String,
+    /// Port the credential is injected for.
     pub port: u16,
     /// The `[[credential]]` name.
     pub credential: String,

@@ -43,9 +43,13 @@ pub trait Resolver: Send + Sync + fmt::Debug {
 /// A backend left as `None` is "not configured" and references to it error.
 #[derive(Debug, Default)]
 pub struct Dispatcher {
+    /// `env://`: host environment variables.
     pub env: Option<Box<dyn Resolver>>,
+    /// `vault://`: HashiCorp Vault KV v2.
     pub vault: Option<Box<dyn Resolver>>,
+    /// `aws://`: AWS Secrets Manager.
     pub aws: Option<Box<dyn Resolver>>,
+    /// `gcp://`: GCP Secret Manager.
     pub gcp: Option<Box<dyn Resolver>>,
     /// 1Password (`op://`), resolved through the `op` CLI.
     pub op: Option<Box<dyn Resolver>>,

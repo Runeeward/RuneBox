@@ -108,7 +108,9 @@ impl Isolation {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Filesystem {
+    /// Absolute paths the agent may read, with everything beneath them.
     pub read_only: Vec<String>,
+    /// Absolute paths the agent may read and write; wins over `read_only`.
     pub read_write: Vec<String>,
     /// Grants read-write on `host.workdir`. Defaults to true.
     pub include_workdir: bool,
@@ -132,7 +134,10 @@ impl Default for Filesystem {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Process {
+    /// Uid or user name the agent runs as; empty falls back to `host.user`.
     pub run_as_user: String,
+    /// Gid or group name. Empty uses `host.user`'s group when `run_as_user` is
+    /// unset, otherwise the user's primary group.
     pub run_as_group: String,
 }
 
@@ -187,6 +192,7 @@ pub struct Schedule {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Credential {
+    /// Unique name an `[[endpoint]]` names in `credential`; required.
     pub name: String,
     /// A secret reference (`env://`, `vault://`, `aws://`, `gcp://`, `op://`).
     pub source: String,
@@ -203,7 +209,9 @@ pub struct Credential {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Endpoint {
+    /// Label in decisions and errors; empty uses `host`.
     pub name: String,
+    /// Upstream hostname, matched case-insensitively; required.
     pub host: String,
     /// Defaults to 443.
     pub port: u16,
@@ -223,6 +231,8 @@ pub struct Endpoint {
     pub credential: String,
     /// Calls allowed per session across all rules; 0 is unlimited.
     pub max_calls: u64,
+    /// `[[endpoint.allow]]`: when non-empty, a request matching none of them is
+    /// denied. Needs a protocol other than `tcp`.
     pub allow: Vec<RequestRule>,
     /// Deny rules always win over allow rules.
     pub deny: Vec<RequestRule>,
@@ -249,6 +259,7 @@ pub struct RequestRule {
     pub effect: String,
     /// Calls allowed per session for this rule; 0 is unlimited.
     pub max_calls: u64,
+    /// Message returned when a deny rule matches; unused on allow rules.
     pub reason: String,
 }
 

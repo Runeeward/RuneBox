@@ -191,6 +191,7 @@ pub enum Error {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Query {
+    /// Always [`SCHEMA`].
     pub schema: String,
     /// Random, single use; echoed in the answer.
     pub nonce: String,
@@ -255,6 +256,7 @@ impl Status {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Holder {
+    /// The process id, as the helper's `/proc` shows it.
     pub pid: u32,
     /// The executable path as the kernel reports it (`/proc/<pid>/exe`).
     pub exe: String,
@@ -267,11 +269,17 @@ pub struct Holder {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Answer {
+    /// Always [`SCHEMA`].
     pub schema: String,
+    /// The query's `nonce`, echoed.
     pub nonce: String,
+    /// The query's `local`, echoed.
     pub local: String,
+    /// The query's `remote`, echoed.
     pub remote: String,
+    /// The outcome class.
     pub status: Status,
+    /// Processes holding the socket; at most [`MAX_HOLDERS`].
     pub holders: Vec<Holder>,
     /// Why the status is not `attributed` (no secrets, no paths outside the
     /// sandbox).

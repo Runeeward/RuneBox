@@ -43,8 +43,11 @@ const WARN_COOLDOWN: TimeDelta = TimeDelta::minutes(1);
 /// the detector was created.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Counts {
+    /// Times a session passed the distinct network destination limit.
     pub novel_host: usize,
+    /// Times a session's shell execs within the window passed the burst limit.
     pub exec_burst: usize,
+    /// Times a session passed the deny verdict limit.
     pub denial_spike: usize,
 }
 

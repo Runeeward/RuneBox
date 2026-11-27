@@ -58,7 +58,9 @@ const BASELINE_CAPS: [&str; 13] = [
 /// `restricted`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PodSecurity {
+    /// The most permissive level any control needs; `Restricted` when none.
     pub level: PsaLevel,
+    /// One line per control that raises the level.
     pub reasons: Vec<String>,
 }
 

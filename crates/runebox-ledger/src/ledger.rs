@@ -22,23 +22,31 @@ use crate::sign::Signer;
 /// so records written by either implementation are byte-identical.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Event {
+    /// 1-based position in the chain; set by [`Ledger::append`].
     pub seq: i64,
     /// Kept in the offset it was recorded in; hashing uses UTC.
     #[serde(serialize_with = "gotime::serialize")]
     pub time: Time,
 
+    /// Session the action belongs to; [`Ledger::replay`] filters on it.
     pub session_id: String,
+    /// Citadel (sandbox) id.
     pub sandbox: String,
+    /// Name of the Charter the session runs.
     pub profile: String,
     /// The action surface, e.g. "shell", "file.read", "net", "approval".
     pub tool: String,
     /// The primary argument: the command, path, or hostname.
     pub action: String,
+    /// Further arguments; omitted when empty.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub args: Vec<String>,
+    /// Outcome, such as `allow`, `deny` or `error`.
     pub verdict: String,
 
+    /// Exit status of the action; 0 when it has none.
     pub exit_code: i64,
+    /// Run time in milliseconds.
     pub duration_ms: i64,
 
     /// Sorted by key, both on the wire and when hashing, so the record hash
@@ -46,6 +54,7 @@ pub struct Event {
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub meta: BTreeMap<String, String>,
 
+    /// Set when scrubbing removed secrets from the payload.
     pub redacted: bool,
     /// SHA-256 hex of the original payload, recorded when `redacted` is true
     /// so plaintext can later be proven to match.
@@ -54,12 +63,14 @@ pub struct Event {
 
     /// Empty for the genesis record.
     pub prev_hash: String,
+    /// SHA-256 hex over every field above, `prev_hash` included.
     pub hash: String,
 
     /// Set when the ledger has a [`Signer`]. Both are excluded from the
     /// record hash so signing does not alter the chain.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub key_id: String,
+    /// Base64 ed25519 signature over `hash`.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub sig: String,
 }

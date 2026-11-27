@@ -42,8 +42,11 @@ pub const X32_SYSCALL_BIT: i64 = 0x4000_0000;
 /// One denied syscall: its name and number on x86_64 and aarch64.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Denied {
+    /// Syscall name.
     pub name: &'static str,
+    /// Syscall number on x86_64.
     pub x86_64: i64,
+    /// Syscall number on aarch64.
     pub aarch64: i64,
 }
 

@@ -95,8 +95,11 @@ pub const REQUIRED_MIN_ABI: u32 = 3;
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct FilesystemConfig {
+    /// How Landlock is applied.
     pub landlock: LandlockMode,
+    /// Absolute paths the agent may read, with everything beneath them.
     pub read_only: Vec<String>,
+    /// Absolute paths the agent may read and write.
     pub read_write: Vec<String>,
 }
 
@@ -140,6 +143,7 @@ impl std::fmt::Debug for AttributionConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct SupervisorConfig {
+    /// Must be [`CONFIG_SCHEMA`].
     pub schema: String,
     /// The agent command line. `argv[0]` is looked up on `PATH` when it has
     /// no slash.
@@ -151,7 +155,9 @@ pub struct SupervisorConfig {
     pub inherit_env: bool,
     /// The agent's working directory; empty keeps the supervisor's.
     pub workdir: String,
+    /// Landlock rules for the agent.
     pub filesystem: FilesystemConfig,
+    /// The identity the agent runs as.
     pub process: ProcessConfig,
     /// Installs the self-protection seccomp filter.
     pub seccomp: bool,

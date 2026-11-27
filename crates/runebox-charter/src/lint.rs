@@ -86,8 +86,11 @@ impl fmt::Display for Severity {
 /// as `host.image`, `env[2].op` or `policy[1]`) locating the stanza.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct Finding {
+    /// How serious the finding is.
     pub severity: Severity,
+    /// Dotted path to the Charter key, such as `env[2].op`.
     pub field: String,
+    /// Human-readable explanation.
     pub message: String,
 }
 
