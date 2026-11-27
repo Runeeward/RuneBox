@@ -177,11 +177,15 @@ pub enum Mode {
 /// A parsed command line.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Args {
+    /// `init` (the default), `exec` or the internal attribution helper.
     pub mode: Mode,
+    /// Path given with `--config`.
     pub config: Option<PathBuf>,
     /// The command after `--`, if any.
     pub argv: Option<Vec<String>>,
+    /// `-h`/`--help` was given.
     pub help: bool,
+    /// `-V`/`--version` was given.
     pub version: bool,
 }
 
@@ -237,7 +241,9 @@ $RUNEBOX_SUPERVISOR_CONFIG_FILE, or /run/runebox/supervisor.json.
 /// Everything the Linux runner needs.
 #[derive(Debug, Clone)]
 pub struct Invocation {
+    /// How to run the agent.
     pub mode: Mode,
+    /// The validated config.
     pub config: SupervisorConfig,
     /// The config file, protected from the agent, when it came from one.
     pub config_path: Option<PathBuf>,

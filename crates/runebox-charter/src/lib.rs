@@ -3,7 +3,7 @@
 //! A Charter (called a "profile" in the Go implementation and on the wire) is
 //! resolved by name from `.runebox/` or the user config dir, decoded strictly
 //! from TOML, YAML or JSON, defaulted and validated. [`lint`] then reports
-//! softer misconfigurations, [`print`] renders a redacted human view, and
+//! softer misconfigurations, [`print()`] renders a redacted human view, and
 //! [`Signature`] implements the detached `runebox.profile.sig.v1` envelope
 //! that signed-Charter enforcement checks before decoding.
 

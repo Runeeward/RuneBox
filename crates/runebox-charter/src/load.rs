@@ -30,7 +30,10 @@ pub enum SignedCharters {
     Disabled,
     /// Require a signature verifying against this key (base64 material or a
     /// path to a file holding it). An empty key fails every load.
-    Required { verify_key: String },
+    Required {
+        /// Base64 public key, or a path to a file holding it.
+        verify_key: String,
+    },
 }
 
 impl SignedCharters {

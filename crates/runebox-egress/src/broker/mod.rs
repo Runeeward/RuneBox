@@ -98,11 +98,15 @@ pub enum StreamNotice {
     /// The stream ended or could not be opened. Decisions made from
     /// `last_seen` on are not recorded until the stream resumes.
     Detached {
+        /// Why the stream stopped.
         reason: String,
+        /// Log timestamp of the last line read; `None` when none was.
         last_seen: Option<chrono::DateTime<chrono::Utc>>,
     },
     /// The follower is reading again, from `since` on.
     Resumed {
+        /// Log timestamp reading resumed after; `None` means the start of the
+        /// log.
         since: Option<chrono::DateTime<chrono::Utc>>,
     },
 }

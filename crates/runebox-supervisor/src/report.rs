@@ -19,6 +19,7 @@ pub struct LandlockReport {
     pub abi: u32,
     /// Allowed paths that were applied.
     pub read_only: Vec<String>,
+    /// Read-write paths that were applied.
     pub read_write: Vec<String>,
     /// Allowed paths skipped because they do not exist in the sandbox.
     pub skipped: Vec<String>,
@@ -28,6 +29,7 @@ pub struct LandlockReport {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct SeccompReport {
+    /// Whether the filter was installed.
     pub enabled: bool,
     /// `x86_64` or `aarch64`.
     pub arch: String,
@@ -45,10 +47,15 @@ pub struct SeccompReport {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct CapsReport {
+    /// The effective set.
     pub effective: Vec<String>,
+    /// The permitted set.
     pub permitted: Vec<String>,
+    /// The inheritable set.
     pub inheritable: Vec<String>,
+    /// The ambient set.
     pub ambient: Vec<String>,
+    /// The bounding set.
     pub bounding: Vec<String>,
 }
 
@@ -72,6 +79,7 @@ pub struct AttributionReport {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Report {
+    /// Always [`REPORT_SCHEMA`].
     pub schema: String,
     /// False when the supervisor refused to start the agent.
     pub ok: bool,
@@ -79,16 +87,25 @@ pub struct Report {
     pub mode: String,
     /// Whether the supervisor is PID 1 in its PID namespace.
     pub pid1: bool,
+    /// The supervisor's own pid.
     pub supervisor_pid: u32,
     /// The agent's pid; in `exec` mode it equals `supervisor_pid`.
     pub agent_pid: Option<u32>,
+    /// The agent command (`argv[0]` of the config).
     pub argv0: String,
+    /// What Landlock delivered.
     pub landlock: LandlockReport,
+    /// What the seccomp filter delivered.
     pub seccomp: SeccompReport,
+    /// Whether `no_new_privs` is set after the identity drop.
     pub no_new_privs: bool,
+    /// The uid after the identity drop; `None` when it was not reached.
     pub uid: Option<u32>,
+    /// The gid after the identity drop; `None` when it was not reached.
     pub gid: Option<u32>,
+    /// Supplementary group ids after the identity drop.
     pub groups: Vec<u32>,
+    /// Capability sets after the identity drop.
     pub capabilities: CapsReport,
     /// Paths held back from the agent.
     pub protected_paths: Vec<String>,
@@ -98,6 +115,8 @@ pub struct Report {
     /// Binary attribution for the egress broker, when configured.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attribution: Option<AttributionReport>,
+    /// What went wrong, when the supervisor refused or failed to start the
+    /// agent.
     pub error: Option<String>,
 }
 

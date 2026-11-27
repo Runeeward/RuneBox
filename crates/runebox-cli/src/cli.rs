@@ -45,6 +45,8 @@ pub struct Cli {
     /// version for runebox
     #[arg(short = 'v', long = "version")]
     pub show_version: bool,
+    /// The subcommand to run; `None` prints help (or the version with
+    /// `--version`).
     #[command(subcommand)]
     pub command: Option<Command>,
 }

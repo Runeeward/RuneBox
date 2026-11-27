@@ -21,8 +21,11 @@ const ACCEPTED_FORMATS: [&str; 2] = [FORMAT, "runeward-evidence/v1"];
 /// A portable policy-lint finding captured at export time.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct Finding {
+    /// `error` or `warn`.
     pub severity: String,
+    /// Dotted path to the Charter key, such as `env[2].op`.
     pub field: String,
+    /// Human-readable explanation.
     pub message: String,
 }
 
@@ -36,13 +39,20 @@ go_struct!(Finding {
 /// accidental or malicious edits independently detectable.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct PolicySnapshot {
+    /// Charter name.
     pub name: String,
+    /// File name (no directory) the Charter was loaded from; omitted when
+    /// empty.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub source: String,
+    /// Sandbox image (`host.image`); omitted when empty.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub image: String,
+    /// The resolved Charter as rendered text.
     pub resolved: String,
+    /// SHA-256 hex of `resolved`.
     pub sha256: String,
+    /// Charter lint findings at export time; omitted when empty.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub findings: Vec<Finding>,
 }
@@ -61,11 +71,17 @@ go_struct!(PolicySnapshot {
 /// that key out of band when they need identity assurance as well.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Document {
+    /// [`FORMAT`]; [`verify`] also accepts the older `runeward-evidence/v1`.
     pub format: String,
+    /// When the document was made.
     #[serde(serialize_with = "gotime::serialize")]
     pub generated_at: Time,
+    /// Version of the exporting build; reading also accepts the older
+    /// `runeward_version` key.
     pub runebox_version: String,
+    /// The Charter that governed the run.
     pub policy: PolicySnapshot,
+    /// The signed Chronicle bundle of the run's events.
     pub chronicle: Bundle,
 }
 

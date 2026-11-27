@@ -28,12 +28,15 @@ const SCOPE: &str = "runebox.audit";
 /// logs URL, e.g. `https://collector:4318/v1/logs`.
 #[derive(Debug, Clone, Default)]
 pub struct OtlpSinkConfig {
+    /// Full OTLP/HTTP logs URL.
     pub endpoint: String,
+    /// Headers sent with every export.
     pub headers: BTreeMap<String, String>,
     /// Forces plain HTTP even for an `https://` endpoint.
     pub insecure: bool,
     /// Sets resource attribute `service.name` when non-empty.
     pub service_name: String,
+    /// Extra resource attributes on every record.
     pub resource_attributes: BTreeMap<String, String>,
     /// Overrides the default bounded queue size (1024) when > 0.
     pub queue_size: usize,

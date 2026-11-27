@@ -9,7 +9,7 @@
 //! safety) and U+2028/U+2029 (JavaScript line terminators). Indented output
 //! matches `json.Encoder` with `SetIndent("", "  ")`.
 //!
-//! Decoding (see [`GoDecode`]): object keys match field names
+//! Decoding (see `GoDecode`): object keys match field names
 //! case-insensitively, `null` leaves scalars untouched and clears slices and
 //! maps, unknown keys are ignored, and a repeated key decodes into the value
 //! the earlier one produced (so maps merge).

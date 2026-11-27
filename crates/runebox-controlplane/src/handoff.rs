@@ -37,9 +37,14 @@ pub const ANY_AGENT: &str = "*";
 /// The parent of a claimed child task.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ParentSummary {
+    /// The parent task's id.
     pub id: String,
+    /// The parent task's work description.
     pub payload: String,
+    /// The parent's state (`pending`, `claimed`, `done`, `failed`); empty
+    /// when unknown.
     pub state: String,
+    /// The parent's result; omitted when empty.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub result: String,
 }
@@ -54,6 +59,7 @@ pub struct ClaimContext {
     /// Handoff notes from the parent, then the task, oldest first.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub handoff: Vec<HandoffNote>,
+    /// The parent task, for a child task; omitted otherwise.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent: Option<ParentSummary>,
     /// The most relevant shared memory, ranked against the task.
@@ -74,7 +80,9 @@ impl ClaimContext {
 /// A claimed task (with its signed lease) and its context.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ClaimedTask {
+    /// The claimed task, with its signed lease.
     pub task: Task,
+    /// Notes, brief, parent summary and shared memory for the claimant.
     pub context: ClaimContext,
 }
 

@@ -35,8 +35,11 @@ pub struct ForkOptions {
     pub actor: String,
     /// Optional caller-chosen run id.
     pub run_id: String,
+    /// Agent name recorded for attribution (e.g. `cursor`); empty when not given.
     pub agent: String,
+    /// Model provider recorded for attribution; empty when not given.
     pub provider: String,
+    /// Model name recorded for attribution; empty when not given.
     pub model: String,
 }
 

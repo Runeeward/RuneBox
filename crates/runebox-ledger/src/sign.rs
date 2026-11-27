@@ -301,12 +301,15 @@ pub(crate) fn verify_records(
 /// itself is established out of band.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct Bundle {
+    /// Fingerprint of `public_key` (hex of the first 8 bytes of its SHA-256).
     pub key_id: String,
+    /// Base64 ed25519 public key every event signature must verify against.
     pub public_key: String,
-    /// "all" or "session:<id>". Session exports may contain sequence gaps
+    /// `"all"` or `"session:<id>"`. Session exports may contain sequence gaps
     /// where other sessions' events were intentionally omitted.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub scope: String,
+    /// The exported events, in ledger order.
     pub events: Vec<Event>,
 }
 

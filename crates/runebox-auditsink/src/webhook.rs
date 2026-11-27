@@ -21,6 +21,7 @@ const CLOSE_TIMEOUT: Duration = Duration::from_secs(5);
 /// Configures a webhook sink. Only `url` is required.
 #[derive(Debug, Clone)]
 pub struct WebhookConfig {
+    /// URL each event is POSTed to as JSON.
     pub url: String,
     /// One extra header sent with every request, e.g.
     /// `("Authorization", "Bearer <token>")`.

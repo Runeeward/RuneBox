@@ -83,7 +83,9 @@ pub enum AgentStatus {
     Failed,
     Denied,
     Canceled,
+    /// The control plane restarted while the session was queued or running.
     Interrupted,
+    /// A status read from disk that this version does not know, kept verbatim.
     Other(String),
 }
 
@@ -163,78 +165,99 @@ impl<'de> Deserialize<'de> for AgentStatus {
 /// One durable agent command. Field order and `omitempty` rules match Go.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentSession {
+    /// Session id (32 hex characters).
     #[serde(default, deserialize_with = "nullable")]
     pub id: String,
+    /// The Citadel the session runs in.
     #[serde(default, deserialize_with = "nullable")]
     pub citadel_id: String,
+    /// Tenant that owns the Citadel; omitted when unowned.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub tenant: String,
+    /// Principal that started the latest turn; omitted when unknown.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub actor: String,
+    /// Agent name recorded for attribution (e.g. `cursor`); omitted when empty.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub agent: String,
+    /// Model name recorded for attribution; a later turn may replace it.
+    /// Omitted when empty.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub model: String,
+    /// The Cohort the session is scoped to; omitted when none.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub cohort_id: String,
+    /// The task on that Cohort's board; omitted when none.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub task_id: String,
+    /// The current turn's command (argv), with secrets scrubbed.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "Vec::is_empty"
     )]
     pub command: Vec<String>,
+    /// Lifecycle state (`queued`, `running`, `completed`, ...).
     #[serde(default)]
     pub status: AgentStatus,
+    /// The agent's exit status; omitted when it never exited (canceled,
+    /// denied, failed to start, interrupted, or still running).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exit_code: Option<i64>,
+    /// Why the turn failed, was denied, canceled or interrupted; omitted on
+    /// success.
     #[serde(
         default,
         deserialize_with = "nullable",
         skip_serializing_if = "String::is_empty"
     )]
     pub error: String,
+    /// When the session was created (RFC 3339).
     #[serde(with = "crate::timefmt", default = "gotime::zero")]
     pub created_at: Time,
+    /// When the current turn started running; omitted until then.
     #[serde(
         with = "crate::timefmt::opt",
         default,
         skip_serializing_if = "Option::is_none"
     )]
     pub started_at: Option<Time>,
+    /// When the current turn ended; omitted while queued or running.
     #[serde(
         with = "crate::timefmt::opt",
         default,
         skip_serializing_if = "Option::is_none"
     )]
     pub finished_at: Option<Time>,
+    /// Sequence number of the newest event (0: none yet).
     #[serde(default, deserialize_with = "nullable")]
     pub last_seq: i64,
+    /// Set once writing the on-disk transcript failed (for example at the
+    /// 64 MiB cap); later events stay in memory only. Omitted when false.
     #[serde(
         default,
         deserialize_with = "nullable",
@@ -254,16 +277,20 @@ fn is_zero(v: &i64) -> bool {
     *v == 0
 }
 
-/// A reconnectable transcript record. `stream` is `stdout`, `stderr` or
-/// `status`; `data` has already been scrubbed.
+/// A reconnectable transcript record. `stream` is `stdout`, `stderr`,
+/// `status` or `turn`; `data` has already been scrubbed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentEvent {
+    /// Position in the transcript: starts at 1 and keeps rising across turns.
     #[serde(default, deserialize_with = "nullable")]
     pub seq: i64,
+    /// When the event was recorded (RFC 3339).
     #[serde(with = "crate::timefmt", default = "gotime::zero")]
     pub time: Time,
+    /// `stdout`, `stderr`, `status`, or `turn` (the start of a new turn).
     #[serde(default, deserialize_with = "nullable")]
     pub stream: String,
+    /// Output of at most 32 KiB, a status name, or a turn number.
     #[serde(default, deserialize_with = "nullable")]
     pub data: String,
 }
@@ -271,8 +298,11 @@ pub struct AgentEvent {
 /// What to run in a new agent session.
 #[derive(Debug, Clone, Default)]
 pub struct StartAgentSessionOptions {
+    /// The agent command (argv); required.
     pub command: Vec<String>,
+    /// Agent name recorded for attribution (e.g. `cursor`); empty when not given.
     pub agent: String,
+    /// Model name recorded for attribution; empty when not given.
     pub model: String,
     /// Scopes the session to a Cohort the Citadel belongs to.
     pub cohort_id: String,
@@ -283,6 +313,7 @@ pub struct StartAgentSessionOptions {
 /// The next turn of an existing agent session.
 #[derive(Debug, Clone, Default)]
 pub struct AgentTurnOptions {
+    /// The command (argv) for this turn; required.
     pub command: Vec<String>,
     /// Replaces the session's model for this and later turns when set.
     pub model: String,

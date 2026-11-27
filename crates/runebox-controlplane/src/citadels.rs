@@ -43,8 +43,11 @@ pub struct CreateOptions {
     pub parent_sandbox: String,
     /// Run id (default: a fresh id).
     pub run_id: String,
+    /// Agent name recorded for attribution (e.g. `cursor`); empty when not given.
     pub agent: String,
+    /// Model provider recorded for attribution; empty when not given.
     pub provider: String,
+    /// Model name recorded for attribution; empty when not given.
     pub model: String,
 }
 
@@ -52,7 +55,10 @@ pub struct CreateOptions {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SandboxInfo {
+    /// The sandbox handle; its status reads `sleeping` or `waking` for a
+    /// resting workspace. JSON name `Sandbox`.
     pub sandbox: Sandbox,
+    /// Tenant that owns the sandbox; empty when unowned. JSON name `Owner`.
     pub owner: String,
     /// The tier the backend reported for this sandbox.
     pub isolation: IsolationTier,
@@ -65,11 +71,17 @@ pub struct SandboxInfo {
 /// A lightweight Charter descriptor for listings.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ProfileInfo {
+    /// The Charter name.
     pub name: String,
+    /// `host.type` (`container` when unset or the Charter does not load).
     pub host: String,
+    /// `deny-by-default` when `[network] default = "deny"`, else `open`.
     pub egress: String,
+    /// `host.image`; omitted when unset.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub image: String,
+    /// Optional runtimes declared (`python`, `node`, `browser`); omitted when
+    /// none.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub capabilities: Vec<String>,
     /// The effective egress enforcement mode: `strict` or `l3` for a deny
@@ -128,9 +140,11 @@ fn effective_runtime(c: &Charter, cfg: &BackendConfig) -> Option<String> {
 /// One user-actionable setup diagnostic.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ReadinessCheck {
+    /// What was checked: `policy`, `ide`, `runtime`, `secrets` or `image`.
     pub name: String,
     /// `ok`, `warn` or `fail`.
     pub status: String,
+    /// What was found or what to do; never host paths or raw engine output.
     pub message: String,
 }
 
@@ -138,8 +152,13 @@ pub struct ReadinessCheck {
 /// control-plane liveness).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ReadinessReport {
+    /// Whether the sandbox can be launched: the Charter lints clean, the
+    /// runtime is reachable, secrets resolve and the IDE (when on) is ready.
     pub ready: bool,
+    /// The Charter name that was checked.
     pub profile: String,
+    /// Each check in the order run; stops early when the Charter does not
+    /// load or the runtime is unreachable.
     pub checks: Vec<ReadinessCheck>,
 }
 

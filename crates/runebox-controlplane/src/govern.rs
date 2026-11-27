@@ -16,18 +16,31 @@ use crate::sessions::Session;
 /// The governed outcome of one tool invocation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ToolResult {
+    /// `allow`, `deny`, or `require-approval` when the approval wait ran
+    /// out.
     pub verdict: Verdict,
+    /// Why the call was refused or held; omitted when it ran.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub reason: String,
+    /// The approval behind a deny by the approver or a timed-out wait;
+    /// omitted otherwise.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub approval_id: String,
+    /// The approval wait ran out with no decision, so the call did not run
+    /// and the approval was dropped. Omitted when false.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub pending: bool,
+    /// The command's exit status; 0 when the call did not run.
     pub exit_code: i64,
+    /// Command output (secrets scrubbed when the Charter redacts); omitted
+    /// when empty.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub stdout: String,
+    /// Error output (secrets scrubbed when the Charter redacts); omitted when
+    /// empty.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub stderr: String,
+    /// How long the command ran, in milliseconds; 0 when it did not run.
     pub duration_ms: i64,
 }
 

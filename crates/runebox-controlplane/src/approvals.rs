@@ -10,11 +10,19 @@ use tokio::sync::oneshot;
 /// The JSON projection of a pending approval.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ApprovalView {
+    /// Approval id (32 hex characters), used to approve or deny it.
     pub id: String,
+    /// The Citadel whose call is waiting.
     pub sandbox: String,
+    /// The held tool (`shell`, `browser`, ...; `egress` for broker requests).
     pub tool: String,
+    /// What the call would do: a command line, path or URL, or a summary of
+    /// the egress request.
     pub action: String,
+    /// Why approval is required (the policy's reason, else
+    /// `approval required`).
     pub reason: String,
+    /// When the approval was raised (RFC 3339).
     #[serde(with = "crate::timefmt")]
     pub created: Time,
 }

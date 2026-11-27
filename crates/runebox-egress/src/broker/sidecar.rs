@@ -96,9 +96,15 @@ impl Drop for SecretText {
 #[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct SidecarCredential {
+    /// The `[[credential]]` name.
     pub name: String,
+    /// Env var holding `placeholder` in the sandbox; empty when none.
     pub placeholder_env: String,
+    /// How the value is attached: `bearer` (also when empty), `basic`,
+    /// `header:<Name>` or `query:<param>`.
     pub inject: String,
+    /// Opaque `rwph_` token the sandbox holds; swapped for `value` on the
+    /// owning endpoint's requests.
     pub placeholder: String,
     /// The resolved secret; empty when no endpoint uses the credential.
     pub value: SecretText,
@@ -118,7 +124,9 @@ impl std::fmt::Debug for SidecarCredential {
 #[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct SidecarCa {
+    /// The CA certificate, PEM.
     pub cert_pem: String,
+    /// The CA private key, PEM.
     pub key_pem: SecretText,
 }
 
@@ -133,6 +141,7 @@ impl std::fmt::Debug for SidecarCa {
 #[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct SidecarAttribution {
+    /// The helper's Unix socket: `@name` (abstract) or a path.
     pub socket: String,
     /// 64 hex characters.
     pub key: SecretText,
@@ -151,10 +160,15 @@ impl std::fmt::Debug for SidecarAttribution {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct BrokerConfig {
+    /// Must be [`BROKER_CONFIG_SCHEMA`].
     pub schema: String,
+    /// The sandbox this broker serves.
     pub sandbox_id: String,
+    /// The Charter's `[[endpoint]]` entries.
     pub endpoints: Vec<Endpoint>,
+    /// Credentials with their placeholders and resolved values.
     pub credentials: Vec<SidecarCredential>,
+    /// The per-sandbox CA the sandbox trusts.
     pub ca: SidecarCa,
     /// Extra PEM roots trusted towards inspected upstreams.
     #[serde(skip_serializing_if = "String::is_empty")]
@@ -204,8 +218,12 @@ impl BrokerConfig {
 /// JSON shape as the perimeter list.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DecisionLine {
+    /// Always [`DECISION_LINE_SCHEMA`].
     pub schema: String,
+    /// The sandbox the decision is about; lines for other sandboxes are
+    /// ignored.
     pub sandbox_id: String,
+    /// The decision.
     pub decision: Decision,
 }
 
